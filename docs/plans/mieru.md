@@ -79,7 +79,7 @@ This is a product plan, not an MVP plan. Release 1 should feel finished: secure 
 | D29 | Migrations | Forward-only numbered `.sql` + runner with checksums and a `GET_LOCK` advisory lock; runs at container start before listening | Single instance, but Dokploy rolling updates can overlap two containers briefly | high |
 | D30 | i18n | UI strings go through `i18next` from day one; **Korean (`ko`) at launch**, English later | Your answer (round 2); retrofitting i18n is expensive | high |
 | D34 | Repository size | 10 GiB per model (all versions + labels); per file ONNX ≤ 2 GiB, safetensors ≤ 10 GiB; no per-user total | Your answer (round 2) | high |
-| D33 | Public downloads | Per-model choice when going public: **downloads allowed (default)** or **view only**; Explore shows which and can filter | See §7.1 "Public: downloadable or view-only" and Q1 | medium |
+| D33 | Public downloads | Per-model choice when going public: **downloads allowed (default)** or **view only**; Explore shows which and can filter | Your answer (round 3); see §7.1 | high |
 | D31 | Search | MySQL `FULLTEXT ... WITH PARSER ngram` on model name + description | No extra service; ngram handles CJK names | medium |
 | D32 | Tests | Vitest (unit + integration with real MySQL), Playwright headless | Your testing policy | high |
 
@@ -725,7 +725,7 @@ Sharing never copies anything. It grants access to the owner's model, and the ow
 
 General-access setting on a model: **Private** (owner only; existing people and links are kept but inactive) → **Specific people** → **Anyone with the link** (people + links) → **Public** (people + links + everyone as viewer).
 
-**Public: downloadable or view-only (recommended design, confirm in Q1).** Making a model public asks one more thing in the same dialog: "다운로드 허용" (default, checked) or "보기 전용". This is `models.public_allow_download`.
+**Public: downloadable or view-only (decided in round 3).** Making a model public asks one more thing in the same dialog: "다운로드 허용" (default, checked) or "보기 전용". This is `models.public_allow_download`.
 - *Downloadable*: anyone can download, fork (if logged in), run the demo, and see filter images. This is the open-weights case and the default, because sharing is mostly about passing models around.
 - *View only*: anyone can explore the graph/tree, stats, and weight histograms; download, fork, demo, and filter images are off for the public. People and links the owner added keep their own download settings. Use cases: showing an architecture for a paper or portfolio while keeping trained weights private, course assignments, competition entries.
 - Honest limit, stated in the dialog: view-only protects the **weights**, not the **architecture**. The graph shows the full structure, so anyone could rebuild an untrained copy.
@@ -1049,7 +1049,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 5.3 | Admin UI (`/admin/reports`) | Playwright: admin dismisses and takes down from the queue |
 | 5.4 | Security review pass (authz per route, upload limits, headers, redaction, cookie flags, CSP) | checklist in the report, each item linked to a test |
 
-### M-B — Brand (direction picked from the grok-image drafts)
+### M-B — Brand (direction picked from the Grok drafts in `docs/brand/drafts/`)
 | # | Task | AC |
 |---|---|---|
 | B.1 | Turn the chosen draft into a brand: logo/wordmark redrawn as SVG (generated images only set the direction), mascot or motif, display face, voice, final tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
@@ -1164,5 +1164,4 @@ npm run build                                      # moderate CPU, ~1 min
 
 Each is worded so "yes" accepts the recommendation.
 
-1. **Public downloads**: let the owner choose "downloadable" (default) or "view only" when a model goes public, as described in §7.1?
-2. **Branding**: once `XAI_API_KEY` is configured, I'll generate drafts with `grok-image` in three directions (mascot sticker, hanko/screentone emblem, 90s anime title card). Pick one (or ask for another round); the pick becomes the input for M-B.
+1. **Branding**: pick a direction from the Grok drafts in `docs/brand/drafts/` (mascot sticker `mascot-*`, hanko/screentone emblem `emblem-*`, 90s anime title card `titlecard-*`), or a combination such as emblem as the logo + mascot for empty states + title card for the landing hero. The pick becomes the input for M-B.
