@@ -157,15 +157,33 @@ describe('refresh rotation', () => {
     expect(next).not.toBe(user.cookie);
   });
 
-  it('treats a replay inside the grace window as a benign race', async () => {
+  it('hands out the current session when a just-rotated token is replayed in the grace window', async () => {
+    // A browser that navigated away mid-refresh never stored the new cookie and replays the old one.
     const user = await signUp(context.app);
     const first = await refresh(user.cookie);
-    const next = refreshCookieFrom(first.headers['set-cookie']);
+    const lost = refreshCookieFrom(first.headers['set-cookie']);
     clock.advance(ROTATION_GRACE_MS - 1000);
     const replay = await refresh(user.cookie);
+    expect(replay.statusCode).toBe(200);
+    const recovered = refreshCookieFrom(replay.headers['set-cookie']);
+    expect(recovered).not.toBeNull();
+    expect(recovered).not.toBe(lost);
+    clock.advance(ROTATION_GRACE_MS + 1000);
+    expect((await refresh(recovered ?? '')).statusCode).toBe(200);
+  });
+
+  it('rejects an in-grace replay once the session was signed out', async () => {
+    const user = await signUp(context.app);
+    const first = await refresh(user.cookie);
+    const next = refreshCookieFrom(first.headers['set-cookie']) ?? '';
+    await context.app.inject({
+      method: 'POST',
+      url: '/api/auth/logout',
+      headers: cookieRouteHeaders(next),
+      payload: {},
+    });
+    const replay = await refresh(user.cookie);
     expect(replay.statusCode).toBe(401);
-    expect(replay.json().error.code).toBe('stale_refresh');
-    expect((await refresh(next ?? '')).statusCode).toBe(200);
   });
 
   it('revokes the whole family when an old token is replayed later', async () => {

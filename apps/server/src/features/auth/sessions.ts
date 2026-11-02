@@ -134,10 +134,55 @@ type RotationResult =
   | { kind: 'rejected'; code: 'invalid_refresh' | 'stale_refresh' }
   | { kind: 'reused'; userId: string; familyId: string };
 
+const REFRESH_TOKEN_COLUMNS = `id, user_id, family_id, replaced_by_id, rotated_at, revoked_at,
+  expires_at, family_expires_at, created_at`;
+
+/** Replaces an active token with a fresh successor. Callers hold the row lock. */
+async function rotateActiveRow(
+  connection: Queryable,
+  row: RefreshTokenRow,
+  client: SessionClient,
+  now: Date,
+): Promise<RotationResult> {
+  if (row.expires_at <= now || row.family_expires_at <= now) {
+    return { kind: 'rejected', code: 'invalid_refresh' };
+  }
+  const user = await selectOne<{ password_changed_at: Date | null }>(
+    connection,
+    'SELECT password_changed_at FROM users WHERE id = ?',
+    [row.user_id],
+  );
+  if (!user || (user.password_changed_at && user.password_changed_at > row.created_at)) {
+    await revokeFamily(connection, row.family_id, 'password_changed', now);
+    return { kind: 'rejected', code: 'invalid_refresh' };
+  }
+  const refreshToken = generateOpaqueToken();
+  const successorId = await insertRefreshToken(connection, {
+    userId: row.user_id,
+    familyId: row.family_id,
+    token: refreshToken,
+    now,
+    familyExpiresAt: row.family_expires_at,
+    client,
+  });
+  await execute(
+    connection,
+    'UPDATE refresh_tokens SET replaced_by_id = ?, rotated_at = ? WHERE id = ?',
+    [successorId, now, row.id],
+  );
+  return {
+    kind: 'rotated',
+    session: { userId: row.user_id, familyId: row.family_id, refreshToken },
+  };
+}
+
 /**
  * Exchanges a refresh token for a new one in the same family.
- * Replaying an already-rotated token outside the grace window revokes the whole family,
- * because only a stolen copy can still be presented after the legitimate client rotated it.
+ *
+ * A token replayed within the grace window rotates the family's current token instead of
+ * failing: the usual cause is a browser that sent the refresh and then navigated away before
+ * the new cookie arrived, so it still holds the old one. Replaying outside the window revokes
+ * the whole family, because only a stolen copy can still be presented that late.
  * Revocations commit before the error is thrown, so a rejected request can't undo them.
  * @throws AppError 401 with code `invalid_refresh`, `stale_refresh` or `refresh_reuse`.
  */
@@ -151,52 +196,26 @@ export async function rotateRefreshToken(
   const result = await withTransaction<RotationResult>(pool, async (connection) => {
     const row = await selectOne<RefreshTokenRow>(
       connection,
-      `SELECT id, user_id, family_id, replaced_by_id, rotated_at, revoked_at, expires_at,
-              family_expires_at, created_at
-         FROM refresh_tokens WHERE token_hash = ? FOR UPDATE`,
+      `SELECT ${REFRESH_TOKEN_COLUMNS} FROM refresh_tokens WHERE token_hash = ? FOR UPDATE`,
       [hashToken(token)],
     );
     if (!row || row.revoked_at) return { kind: 'rejected', code: 'invalid_refresh' };
+    if (!row.replaced_by_id) return rotateActiveRow(connection, row, client, now);
 
-    if (row.replaced_by_id) {
-      const rotatedAgo = now.getTime() - (row.rotated_at?.getTime() ?? 0);
-      if (rotatedAgo <= ROTATION_GRACE_MS) return { kind: 'rejected', code: 'stale_refresh' };
+    const rotatedAgo = now.getTime() - (row.rotated_at?.getTime() ?? 0);
+    if (rotatedAgo > ROTATION_GRACE_MS) {
       await revokeFamily(connection, row.family_id, 'reuse_detected', now);
       return { kind: 'reused', userId: row.user_id, familyId: row.family_id };
     }
-
-    if (row.expires_at <= now || row.family_expires_at <= now) {
-      return { kind: 'rejected', code: 'invalid_refresh' };
-    }
-
-    const user = await selectOne<{ password_changed_at: Date | null }>(
+    const head = await selectOne<RefreshTokenRow>(
       connection,
-      'SELECT password_changed_at FROM users WHERE id = ?',
-      [row.user_id],
+      `SELECT ${REFRESH_TOKEN_COLUMNS} FROM refresh_tokens
+        WHERE family_id = ? AND replaced_by_id IS NULL AND revoked_at IS NULL
+        FOR UPDATE`,
+      [row.family_id],
     );
-    if (!user || (user.password_changed_at && user.password_changed_at > row.created_at)) {
-      await revokeFamily(connection, row.family_id, 'password_changed', now);
-      return { kind: 'rejected', code: 'invalid_refresh' };
-    }
-
-    const refreshToken = generateOpaqueToken();
-    const successorId = await insertRefreshToken(connection, {
-      userId: row.user_id,
-      familyId: row.family_id,
-      token: refreshToken,
-      now,
-      familyExpiresAt: row.family_expires_at,
-      client,
-    });
-    await execute(
-      connection,
-      'UPDATE refresh_tokens SET replaced_by_id = ?, rotated_at = ? WHERE id = ?',
-      [successorId, now, row.id],
-    );
-    return {
-      kind: 'rotated',
-      session: { userId: row.user_id, familyId: row.family_id, refreshToken },
-    };
+    if (!head) return { kind: 'rejected', code: 'stale_refresh' };
+    return rotateActiveRow(connection, head, client, now);
   });
 
   switch (result.kind) {
