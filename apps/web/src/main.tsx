@@ -4,20 +4,31 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
 import './design/index.css';
 import './i18n/index.js';
-import { refreshSession } from './lib/auth-store.js';
+import { getAuthState, refreshSession, subscribeToAuth } from './lib/auth-store.js';
 import { queryClient } from './lib/query-client.js';
 import { router } from './router.js';
-
-// Restore the session from the refresh cookie; the access token never survives a reload.
-void refreshSession();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Missing #root element');
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+// Cached responses carry the permissions of whoever fetched them, so a different viewer
+// (sign-in, sign-out, account switch) refetches everything.
+let viewerId = getAuthState().user?.id ?? null;
+subscribeToAuth(() => {
+  const nextViewerId = getAuthState().user?.id ?? null;
+  if (nextViewerId === viewerId) return;
+  viewerId = nextViewerId;
+  void queryClient.invalidateQueries();
+});
+
+// Restore the session from the refresh cookie before the first render; otherwise the first
+// page fetches as an anonymous visitor and shows the wrong permissions until it refetches.
+void refreshSession().finally(() => {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+});

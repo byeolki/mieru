@@ -98,11 +98,16 @@ export async function signOut(): Promise<void> {
   clearSession();
 }
 
-function subscribe(listener: () => void): () => void {
+/** Calls `listener` after every auth state change; returns the unsubscribe function. */
+export function subscribeToAuth(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
+export function getAuthState(): AuthState {
+  return state;
+}
+
 export function useAuth(): AuthState {
-  return useSyncExternalStore(subscribe, () => state);
+  return useSyncExternalStore(subscribeToAuth, getAuthState);
 }
