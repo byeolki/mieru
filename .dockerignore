@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+.tmp
+.env
+.env.*
+docs
+coverage
+playwright-report
+test-results
+apps/server/test/fixtures/generated
+apps/web/e2e
