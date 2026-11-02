@@ -27,6 +27,8 @@ const configSchema = z.object({
   VIEW_SALT_SECRET: secret,
   STORAGE_DIR: z.string().min(1),
   WEB_DIST_DIR: z.string().optional(),
+  /** Read-only mount of the backup directory; the deep health check alerts when it goes stale. */
+  BACKUP_DIR: z.string().optional(),
   MAX_ONNX_BYTES: byteSize(2 * GIB),
   MAX_SAFETENSORS_BYTES: byteSize(10 * GIB),
   MAX_REPO_BYTES: byteSize(10 * GIB),

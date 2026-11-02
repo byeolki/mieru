@@ -14,6 +14,7 @@ import { registerSharingRoutes } from './features/sharing/routes.js';
 import { registerStarRoutes } from './features/stars/routes.js';
 import { registerUploadRoutes } from './features/uploads/tus.js';
 import { registerUserRoutes } from './features/users/routes.js';
+import { JobTracker } from './jobs/tracker.js';
 import { registerHealthRoutes } from './observability/health.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandling } from './plugins/errors.js';
@@ -35,6 +36,7 @@ export interface AppDeps {
   clock?: Clock;
   /** Tests that don't exercise limits turn them off so fixtures can create many accounts. */
   rateLimitEnabled?: boolean;
+  jobs?: JobTracker;
 }
 
 const REDACTED_PATHS = [
@@ -50,6 +52,7 @@ export async function buildApp({
   db,
   clock = systemClock,
   rateLimitEnabled = true,
+  jobs = new JobTracker(clock()),
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -88,7 +91,7 @@ export async function buildApp({
   const requireModelAccess = registerModelAccess(app, { db, clock });
 
   const routeDeps = { config, db, clock, rateLimitEnabled };
-  registerHealthRoutes(app, { db, storageDir: config.STORAGE_DIR });
+  registerHealthRoutes(app, { config, db, clock, jobs });
   registerAuthRoutes(app, routeDeps);
   registerUserRoutes(app, routeDeps);
   registerUploadRoutes(app, routeDeps);

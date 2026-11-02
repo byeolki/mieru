@@ -1,5 +1,6 @@
 import type { RowDataPacket } from 'mysql2/promise';
 import type { DbPool } from '../db/pool.js';
+import type { JobTracker } from './tracker.js';
 
 export interface JobLogger {
   info: (object: object, message: string) => void;
@@ -46,6 +47,7 @@ export class Scheduler {
   constructor(
     private readonly db: DbPool,
     private readonly log: JobLogger,
+    private readonly tracker?: JobTracker,
   ) {}
 
   /** Runs a job once now under its lock; failures are logged, never thrown into the timer loop. */
@@ -53,7 +55,10 @@ export class Scheduler {
     const startedAt = Date.now();
     try {
       const ran = await runExclusively(this.db, job.name, job.run);
-      if (ran) this.log.info({ job: job.name, ms: Date.now() - startedAt }, 'job finished');
+      if (ran) {
+        this.tracker?.record(job.name, new Date());
+        this.log.info({ job: job.name, ms: Date.now() - startedAt }, 'job finished');
+      }
       return ran;
     } catch (error) {
       this.log.error({ job: job.name, err: error }, 'job failed');

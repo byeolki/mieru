@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
 import type { StripSegment } from '@mieru/shared';
+import { PACKAGE_ROOT } from '../../package-root.js';
 
-const ASSETS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../assets');
+const ASSETS = path.join(PACKAGE_ROOT, 'assets');
 const WIDTH = 1200;
 const HEIGHT = 630;
 const FAMILY_COLORS: Record<StripSegment['family'], string> = {

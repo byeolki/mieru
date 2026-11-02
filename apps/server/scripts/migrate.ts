@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { runMigrations } from '../src/db/migrations.js';
+import { PACKAGE_ROOT } from '../src/package-root.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -8,7 +8,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const migrationsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../migrations');
+const migrationsDir = path.join(PACKAGE_ROOT, 'migrations');
 const { applied } = await runMigrations(databaseUrl, migrationsDir, (message) => {
   console.log(message);
 });

@@ -5,6 +5,7 @@ import { createPool } from './db/pool.js';
 import { refreshTrending } from './features/explore/trending.js';
 import { runCleanup } from './jobs/cleanup.js';
 import { Scheduler } from './jobs/scheduler.js';
+import { JobTracker } from './jobs/tracker.js';
 import { collectGarbage } from './storage/gc.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,7 +14,9 @@ const TRENDING_INTERVAL_MS = 15 * 60 * 1000;
 const config = loadConfig();
 await mkdir(config.STORAGE_DIR, { recursive: true, mode: 0o700 });
 const db = createPool(config.DATABASE_URL);
+const jobs = new JobTracker(new Date());
 const app = await buildApp({
+  jobs,
   config,
   db,
   rateLimitEnabled: config.NODE_ENV === 'production' || config.RATE_LIMIT_ENABLED,
@@ -33,7 +36,7 @@ process.once('SIGINT', () => void shutdown('SIGINT'));
 await app.listen({ port: config.PORT, host: config.HOST });
 await app.processing.recover();
 
-const scheduler = new Scheduler(db, app.log);
+const scheduler = new Scheduler(db, app.log, jobs);
 const trendingJob = {
   name: 'trending',
   intervalMs: TRENDING_INTERVAL_MS,
