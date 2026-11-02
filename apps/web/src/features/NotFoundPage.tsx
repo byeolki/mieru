@@ -17,3 +17,19 @@ export function NotFoundPage() {
     </div>
   );
 }
+
+/** Shown when a route throws while rendering, instead of React Router's developer screen. */
+export function RouteErrorPage() {
+  return (
+    <div className="min-h-dvh">
+      <SiteHeader />
+      <main className="mx-auto max-w-6xl px-6 py-24">
+        <h1 className="text-xl font-bold">화면을 그리다가 문제가 생겼어요</h1>
+        <p className="mt-3 text-slate">새로고침해도 계속되면 잠시 뒤에 다시 시도해주세요.</p>
+        <Link to="/" className="mt-6 inline-block font-medium text-primary hover:underline">
+          처음으로 돌아가기
+        </Link>
+      </main>
+    </div>
+  );
+}

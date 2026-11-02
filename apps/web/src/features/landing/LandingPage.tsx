@@ -1,37 +1,87 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
-import { ArchitectureStrip, type StripSegment } from '../../components/ArchitectureStrip.js';
+import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { SiteHeader } from '../../components/SiteHeader.js';
+import { Sparkle } from '../../design/Sparkle.js';
+import { ButtonLink } from '../../design/ui/Button.js';
+import { GraphPreview } from './GraphPreview.js';
 import { RESNET_STRIP, TRANSFORMER_STRIP } from './sample-strips.js';
 
-interface SampleRow {
-  name: string;
-  owner: string;
-  params: string;
-  size: string;
-  strip: StripSegment[];
-}
-
-const SAMPLE_ROWS: SampleRow[] = [
-  { name: 'resnet50-v2', owner: '@kai', params: '25.6M', size: '98 MB', strip: RESNET_STRIP },
-  { name: 'tiny-llama', owner: '@mio', params: '110M', size: '440 MB', strip: TRANSFORMER_STRIP },
-];
-
-function SamplePreview() {
+function RepositoryMock() {
+  const tabs = ['개요', '그래프', '통계', '이슈 3'];
   return (
-    <div className="screentone rounded-xl border border-fog p-5" aria-hidden="true">
-      <div className="rounded-lg border border-fog bg-surface">
-        {SAMPLE_ROWS.map((row) => (
-          <div key={row.name} className="border-b border-fog px-4 py-3 last:border-b-0">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="font-medium">{row.name}</span>
-              <span className="tabular text-xs text-slate">
-                {row.owner} · {row.params} · {row.size}
-              </span>
-            </div>
-            <ArchitectureStrip segments={row.strip} label={row.name} className="mt-2.5" />
+    <div className="haze-tone relative rounded-(--radius-sheet) p-6 sm:p-8" aria-hidden="true">
+      <Sparkle className="absolute -top-3 right-10 size-7" color="#DE7EA8" />
+      <Sparkle className="absolute top-16 -right-2 size-4" color="#C8B6D4" />
+      <div className="overflow-hidden rounded-(--radius-panel) border-[3px] border-white bg-surface shadow-(--shadow-lift)">
+        <div className="border-b border-fog px-5 pt-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm">
+              <span className="text-slate">@kai /</span>{' '}
+              <span className="font-semibold">resnet50-v2</span>
+            </span>
+            <span className="tabular flex items-center gap-1 text-xs text-slate">
+              <Sparkle className="size-3" color="#DE7EA8" /> 128
+            </span>
           </div>
-        ))}
+          <ArchitectureStrip
+            segments={RESNET_STRIP}
+            label="resnet50-v2"
+            height={6}
+            className="mt-3"
+          />
+          <div className="mt-3 flex gap-4 text-xs">
+            {tabs.map((tab) => (
+              <span
+                key={tab}
+                className={
+                  tab === '그래프'
+                    ? 'border-b-2 border-primary pb-2 font-semibold text-sumi'
+                    : 'pb-2 text-slate'
+                }
+              >
+                {tab}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-[1fr_150px]">
+          <div className="screentone h-[300px] p-3">
+            <GraphPreview />
+          </div>
+          <div className="border-l border-fog p-4 text-xs">
+            <p className="font-semibold">Conv_23</p>
+            <p className="mt-0.5 text-slate">Conv · ai.onnx</p>
+            <dl className="mt-3 grid gap-2 font-mono text-[0.7rem]">
+              <div>
+                <dt className="text-slate">in</dt>
+                <dd>[1,64,56,56]</dd>
+              </div>
+              <div>
+                <dt className="text-slate">out</dt>
+                <dd>[1,64,56,56]</dd>
+              </div>
+              <div>
+                <dt className="text-slate">kernel</dt>
+                <dd>[3,3]</dd>
+              </div>
+            </dl>
+            <p className="tabular mt-3 text-slate">params 36,864</p>
+          </div>
+        </div>
+      </div>
+      <div className="absolute -bottom-6 -left-4 hidden w-64 rotate-[-4deg] rounded-2xl border-[3px] border-white bg-surface px-4 py-3 shadow-(--shadow-lift) sm:block">
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="font-semibold">tiny-llama</span>
+          <span className="tabular flex items-center gap-1 text-xs text-slate">
+            <Sparkle className="size-3" color="#DE7EA8" /> 42
+          </span>
+        </div>
+        <ArchitectureStrip
+          segments={TRANSFORMER_STRIP}
+          label="tiny-llama"
+          height={6}
+          className="mt-2"
+        />
       </div>
     </div>
   );
@@ -58,24 +108,18 @@ export function LandingPage() {
               {t('landing.lead')}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/new"
-                className="rounded-md bg-primary px-5 py-3 font-medium text-white hover:bg-primary-hover"
-              >
+              <ButtonLink to="/new" size="lg">
                 {t('landing.primaryAction')}
-              </Link>
-              <Link
-                to="/explore"
-                className="rounded-md border border-fog bg-surface px-5 py-3 font-medium hover:border-lilac"
-              >
+              </ButtonLink>
+              <ButtonLink to="/explore" size="lg" variant="secondary">
                 {t('landing.secondaryAction')}
-              </Link>
+              </ButtonLink>
             </div>
             <p className="mt-6 text-xs text-slate">{t('landing.formats')}</p>
           </div>
           <div>
-            <SamplePreview />
-            <p className="mt-3 max-w-md text-xs leading-5 text-slate">
+            <RepositoryMock />
+            <p className="mt-10 max-w-md text-xs leading-5 text-slate">
               {t('landing.stripCaption')}
             </p>
           </div>

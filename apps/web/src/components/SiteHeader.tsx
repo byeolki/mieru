@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { ButtonLink } from '../design/ui/Button.js';
 
 export function SiteHeader() {
   const { t } = useTranslation();
@@ -15,12 +16,9 @@ export function SiteHeader() {
         <Link to="/login" className="rounded-md px-3 py-2 text-slate hover:text-sumi">
           {t('common.login')}
         </Link>
-        <Link
-          to="/signup"
-          className="ml-1 rounded-md bg-primary px-4 py-2 font-medium text-white hover:bg-primary-hover"
-        >
+        <ButtonLink to="/signup" size="sm" className="ml-1 h-9 px-4">
           {t('common.signup')}
-        </Link>
+        </ButtonLink>
       </nav>
     </header>
   );
