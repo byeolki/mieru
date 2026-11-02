@@ -1,0 +1,18 @@
+{
+  "worktree": {
+    "setup": [
+      "for env_file in \"$PASEO_SOURCE_CHECKOUT_PATH\"/.env*; do [ -f \"$env_file\" ] && cp -n \"$env_file\" . ; done; true",
+      "npm ci"
+    ]
+  },
+  "scripts": {
+    "server": {
+      "type": "service",
+      "command": "PORT=$PASEO_PORT npm run dev -w @mieru/server"
+    },
+    "web": {
+      "type": "service",
+      "command": "npm run dev -w @mieru/web"
+    }
+  }
+}
