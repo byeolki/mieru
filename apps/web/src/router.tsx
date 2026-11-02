@@ -4,10 +4,8 @@ import { SignupPage } from './features/auth/SignupPage.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { LandingPage } from './features/landing/LandingPage.js';
 import { NotFoundPage, RouteErrorPage } from './features/NotFoundPage.js';
-import { GraphTab, StatsRoute } from './features/repo/GraphTab.js';
 import { OverviewTab } from './features/repo/OverviewTab.js';
 import { RepoLayout } from './features/repo/RepoLayout.js';
-import { ReadmeEditPage } from './features/repo/ReadmeEditPage.js';
 import { IssuesTab } from './features/issues/IssuesTab.js';
 import { IssueThreadPage } from './features/issues/IssueThreadPage.js';
 import { NewIssuePage } from './features/issues/NewIssuePage.js';
@@ -17,10 +15,10 @@ import { ExplorePage } from './features/explore/ExplorePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
 import { SettingsPage } from './features/settings/SettingsPage.js';
 import { LinkEntryPage } from './features/sharing/LinkEntryPage.js';
-import { NewModelPage } from './features/upload/NewModelPage.js';
 import { RedirectIfSignedIn, RequireAdmin, RequireAuth } from './features/shell/guards.js';
-import { AdminReportsPage } from './features/moderation/AdminReportsPage.js';
 
+// Graph (React Flow + ELK), stats (Recharts), the README editor, uploads (tus) and admin are
+// lazy routes so the first load of landing/explore/repository pages stays small.
 export const router = createBrowserRouter([
   {
     errorElement: <RouteErrorPage />,
@@ -52,31 +50,56 @@ export const router = createBrowserRouter([
       },
       {
         path: '/admin/reports',
-        element: (
-          <RequireAdmin>
-            <AdminReportsPage />
-          </RequireAdmin>
-        ),
+        lazy: async () => {
+          const { AdminReportsPage } = await import('./features/moderation/AdminReportsPage.js');
+          return {
+            element: (
+              <RequireAdmin>
+                <AdminReportsPage />
+              </RequireAdmin>
+            ),
+          };
+        },
       },
       {
         path: '/new',
-        element: (
-          <RequireAuth>
-            <NewModelPage />
-          </RequireAuth>
-        ),
+        lazy: async () => {
+          const { NewModelPage } = await import('./features/upload/NewModelPage.js');
+          return {
+            element: (
+              <RequireAuth>
+                <NewModelPage />
+              </RequireAuth>
+            ),
+          };
+        },
       },
       {
         path: '/m/:modelId',
         element: <RepoLayout />,
         children: [
           { index: true, element: <OverviewTab /> },
-          { path: 'graph', element: <GraphTab /> },
-          { path: 'stats', element: <StatsRoute /> },
+          {
+            path: 'graph',
+            lazy: async () => ({
+              Component: (await import('./features/repo/GraphTab.js')).GraphTab,
+            }),
+          },
+          {
+            path: 'stats',
+            lazy: async () => ({
+              Component: (await import('./features/repo/GraphTab.js')).StatsRoute,
+            }),
+          },
           { path: 'issues', element: <IssuesTab /> },
           { path: 'issues/new', element: <NewIssuePage /> },
           { path: 'issues/:number', element: <IssueThreadPage /> },
-          { path: 'readme/edit', element: <ReadmeEditPage /> },
+          {
+            path: 'readme/edit',
+            lazy: async () => ({
+              Component: (await import('./features/repo/ReadmeEditPage.js')).ReadmeEditPage,
+            }),
+          },
         ],
       },
       { path: '/s/:token', element: <LinkEntryPage /> },
