@@ -9,7 +9,7 @@ import { Button } from '../../design/ui/Button.js';
 import { PasswordField, TextField } from '../../design/ui/TextField.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { useFormAction } from '../auth/useAuthForm.js';
-import { AppShell, PageHeader } from '../shell/AppShell.js';
+import { AppShell } from '../shell/AppShell.js';
 import {
   changeEmailRequest,
   changePasswordRequest,
@@ -21,27 +21,44 @@ import {
 } from './api.js';
 
 function Panel({
+  id,
   title,
+  description,
   children,
   tone = 'default',
 }: {
+  id: string;
   title: string;
+  description: string;
   children: ReactNode;
   tone?: 'default' | 'danger';
 }) {
   return (
     <section
-      className={
-        tone === 'danger'
-          ? 'rounded-(--radius-panel) border border-danger/25 bg-surface p-6'
-          : 'rounded-(--radius-panel) border border-fog bg-surface p-6 shadow-(--shadow-soft)'
-      }
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className="grid scroll-mt-24 gap-6 border-b border-fog py-10 first:pt-0 last:border-b-0 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-10"
     >
-      <h2 className={tone === 'danger' ? 'font-semibold text-danger' : 'font-semibold'}>{title}</h2>
-      <div className="mt-5">{children}</div>
+      <div>
+        <h2
+          id={`${id}-title`}
+          className={tone === 'danger' ? 'font-semibold text-danger' : 'font-semibold'}
+        >
+          {title}
+        </h2>
+        <p className="mt-1.5 text-sm leading-6 text-slate">{description}</p>
+      </div>
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }
+
+const SECTIONS = [
+  { id: 'profile', labelKey: 'settings.profile' },
+  { id: 'security', labelKey: 'settings.security' },
+  { id: 'sessions', labelKey: 'settings.sessions' },
+  { id: 'danger', labelKey: 'settings.dangerZone' },
+] as const;
 
 function ProfileForm({ user }: { user: Me }) {
   const { t } = useTranslation();
@@ -317,25 +334,58 @@ export function SettingsPage() {
   if (!user) return null;
   return (
     <AppShell>
-      <PageHeader title={t('settings.title')} />
-      <div className="grid max-w-3xl gap-6">
-        <Panel title={t('settings.profile')}>
-          <ProfileForm user={user} />
-        </Panel>
-        <Panel title={t('settings.security')}>
-          <div className="grid gap-8">
-            <PasswordForm />
-            <div className="border-t border-fog pt-6">
-              <EmailForm user={user} />
+      <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)]">
+        <nav aria-label="설정 메뉴" className="lg:sticky lg:top-20 lg:self-start">
+          <h1 className="mb-3 text-2xl font-bold tracking-[-0.02em]">{t('settings.title')}</h1>
+          <ul className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
+            {SECTIONS.map((section) => (
+              <li key={section.id}>
+                <a
+                  href={`#${section.id}`}
+                  className="block rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-slate hover:bg-haze hover:text-sumi"
+                >
+                  {t(section.labelKey)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="max-w-4xl">
+          <Panel
+            id="profile"
+            title={t('settings.profile')}
+            description="다른 사람에게 보이는 이름과 소개예요. 사용자 이름은 프로필 주소가 돼요."
+          >
+            <ProfileForm user={user} />
+          </Panel>
+          <Panel
+            id="security"
+            title={t('settings.security')}
+            description="비밀번호를 바꾸면 다른 기기의 로그인은 모두 풀려요."
+          >
+            <div className="grid gap-8">
+              <PasswordForm />
+              <div className="border-t border-fog pt-8">
+                <EmailForm user={user} />
+              </div>
             </div>
-          </div>
-        </Panel>
-        <Panel title={t('settings.sessions')}>
-          <SessionsList />
-        </Panel>
-        <Panel title={t('settings.dangerZone')} tone="danger">
-          <DeleteAccount user={user} />
-        </Panel>
+          </Panel>
+          <Panel
+            id="sessions"
+            title={t('settings.sessions')}
+            description="지금 로그인돼 있는 기기예요. 모르는 기기가 있으면 로그아웃시키세요."
+          >
+            <SessionsList />
+          </Panel>
+          <Panel
+            id="danger"
+            title={t('settings.dangerZone')}
+            description="계정과 올린 모델이 모두 지워지고 되돌릴 수 없어요."
+            tone="danger"
+          >
+            <DeleteAccount user={user} />
+          </Panel>
+        </div>
       </div>
     </AppShell>
   );

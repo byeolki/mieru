@@ -65,7 +65,7 @@ export function ReadmeEditPage() {
   if (!hasRoleAtLeast(model.myAccess.role, 'editor'))
     return <Navigate to={`/m/${model.id}`} replace />;
   return (
-    <div className="mx-auto max-w-[860px] px-5 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <h2 className="mb-5 text-lg font-bold">README 편집</h2>
       {readme.isPending ? (
         <Spinner className="size-5 text-lilac" />

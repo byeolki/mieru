@@ -51,10 +51,10 @@ const FIELD_CLASSES =
  * Op names and みえる scattered behind the hero. A light band sweeps across and tints the
  * glyphs it passes; the band is skipped entirely when the visitor prefers reduced motion.
  */
-export function GlyphField() {
+export function GlyphField({ maskClassName = 'glyph-field-mask' }: { maskClassName?: string }) {
   return (
-    <div aria-hidden="true" className="glyph-field-mask pointer-events-none absolute inset-0">
-      <pre className={`${FIELD_CLASSES} text-[#1d2030]`}>{FIELD}</pre>
+    <div aria-hidden="true" className={`${maskClassName} pointer-events-none absolute inset-0`}>
+      <pre className={`${FIELD_CLASSES} text-fog`}>{FIELD}</pre>
       <div className="glyph-window absolute inset-y-0 left-0 hidden overflow-hidden will-change-transform motion-safe:block">
         <pre className={`${FIELD_CLASSES} glyph-window-content text-primary will-change-transform`}>
           {FIELD}

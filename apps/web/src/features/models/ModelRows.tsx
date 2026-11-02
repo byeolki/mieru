@@ -1,4 +1,4 @@
-import { CircleAlert, Lock, Link2, Users } from 'lucide-react';
+import { Boxes, CircleAlert, CircleDot, Clock3, HardDrive, Link2, Lock, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { ModelListItem, Visibility } from '@mieru/shared';
@@ -35,65 +35,80 @@ function StatusBadge({ item }: { item: ModelListItem }) {
   return null;
 }
 
+function Meta({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <span className="flex items-center gap-1" title={label}>
+      <span className="text-slate/70 [&>svg]:size-3.5" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="sr-only">{label} </span>
+      {children}
+    </span>
+  );
+}
+
+/** One repository in a list: id, a meta line of facts, and its architecture strip. */
 export function ModelRow({ item, showOwner = true }: { item: ModelListItem; showOwner?: boolean }) {
   return (
     <li>
       <Link
         to={`/m/${item.id}`}
-        className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-2 px-5 py-4 transition-colors hover:bg-haze/40"
+        className="group block rounded-xl border border-fog bg-surface px-4 pt-3.5 pb-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           {showOwner && (
-            <Avatar username={item.owner.username} displayName={item.owner.displayName} size={28} />
+            <Avatar username={item.owner.username} displayName={item.owner.displayName} size={20} />
           )}
-          <div className="min-w-0">
-            <p className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-semibold">
-                {showOwner && (
-                  <span className="font-normal text-slate">{item.owner.username} / </span>
-                )}
-                {item.name}
-              </span>
-              {item.visibility !== 'public' && (
-                <Badge icon={VISIBILITY_ICONS[item.visibility]}>
-                  {VISIBILITY_LABELS[item.visibility]}
-                </Badge>
-              )}
-              <StatusBadge item={item} />
-            </p>
-            {item.description && (
-              <p className="mt-0.5 truncate text-sm text-slate">{item.description}</p>
-            )}
-          </div>
+          <p className="min-w-0 truncate font-mono text-[0.9375rem]">
+            {showOwner && <span className="text-slate">{item.owner.username}/</span>}
+            <span className="font-medium text-sumi group-hover:text-primary">{item.name}</span>
+          </p>
+          {item.visibility !== 'public' && (
+            <Badge icon={VISIBILITY_ICONS[item.visibility]}>
+              {VISIBILITY_LABELS[item.visibility]}
+            </Badge>
+          )}
+          <StatusBadge item={item} />
         </div>
-        <div className="tabular flex items-center gap-4 self-center text-xs text-slate">
-          <span className="flex items-center gap-1" title="스타">
-            <Sparkle className="size-3.5" color="#DE7EA8" />
+        {item.description && <p className="mt-1 truncate text-sm text-slate">{item.description}</p>}
+        <div className="tabular mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-slate">
+          {item.format && (
+            <span className="rounded bg-haze px-1.5 py-0.5 font-medium text-sumi">
+              {FORMAT_LABELS[item.format]}
+            </span>
+          )}
+          {item.totalParams !== null && (
+            <Meta icon={<Boxes />} label="파라미터">
+              {formatParams(item.totalParams)}
+            </Meta>
+          )}
+          {item.sizeBytes !== null && (
+            <Meta icon={<HardDrive />} label="크기">
+              {formatBytes(item.sizeBytes)}
+            </Meta>
+          )}
+          <Meta icon={<Clock3 />} label="업데이트">
+            {formatRelative(item.updatedAt)}
+          </Meta>
+          <Meta icon={<Sparkle color="#DE7EA8" />} label="스타">
             {item.starCount}
-          </span>
-          <span className="hidden sm:inline">{formatRelative(item.updatedAt)}</span>
-        </div>
-        <div className="col-span-2 flex items-center gap-3">
-          <div className="flex shrink-0 items-center gap-1.5">
-            {item.format && <Badge tone="lilac">{FORMAT_LABELS[item.format]}</Badge>}
-            {item.totalParams !== null && <Badge>{formatParams(item.totalParams)} params</Badge>}
-            {item.sizeBytes !== null && (
-              <span className="tabular hidden text-xs text-slate sm:inline">
-                {formatBytes(item.sizeBytes)}
-              </span>
-            )}
-          </div>
-          {item.strip.length > 0 ? (
-            <ArchitectureStrip
-              segments={item.strip}
-              label={`${item.name} 아키텍처`}
-              height={6}
-              className="flex-1"
-            />
-          ) : (
-            <div className="h-1.5 flex-1 rounded-full bg-fog" aria-hidden="true" />
+          </Meta>
+          {item.openIssueCount > 0 && (
+            <Meta icon={<CircleDot />} label="열린 이슈">
+              {item.openIssueCount}
+            </Meta>
           )}
         </div>
+        {item.strip.length > 0 ? (
+          <ArchitectureStrip
+            segments={item.strip}
+            label={`${item.name} 아키텍처`}
+            height={3}
+            className="mt-3 opacity-80 transition-opacity group-hover:opacity-100"
+          />
+        ) : (
+          <div className="mt-3 h-[3px] rounded-full bg-fog" aria-hidden="true" />
+        )}
       </Link>
     </li>
   );
@@ -101,7 +116,7 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
 
 export function ModelRows({ items, showOwner }: { items: ModelListItem[]; showOwner?: boolean }) {
   return (
-    <ul className="divide-y divide-fog overflow-hidden rounded-(--radius-panel) border border-fog bg-surface shadow-(--shadow-soft)">
+    <ul className="grid gap-2.5">
       {items.map((item) => (
         <ModelRow key={item.id} item={item} showOwner={showOwner} />
       ))}

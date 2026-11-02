@@ -12,8 +12,9 @@ test('upload an ONNX model with a README and explore its graph', async ({ page }
   });
 
   await expect(page.getByRole('heading', { name: 'Tiny CNN' })).toBeVisible();
-  await expect(page.getByText('468 params').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('노드 9').first()).toBeVisible();
+  const facts = page.getByRole('list', { name: '모델 정보' });
+  await expect(facts).toContainText('파라미터468', { timeout: 30_000 });
+  await expect(facts).toContainText('노드9');
 
   await page.goto(`${url}/graph`);
   const nodes = page.locator('.react-flow__node');

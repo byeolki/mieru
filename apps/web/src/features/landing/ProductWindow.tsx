@@ -1,6 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import type { ReactNode } from 'react';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
+import { Avatar } from '../../components/Avatar.js';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS, type OpFamily } from '../../design/op-palette.js';
 import { GraphPreview } from './GraphPreview.js';
@@ -8,11 +9,11 @@ import { RESNET_STRIP } from './sample-strips.js';
 
 function GraphPanel() {
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_15rem] max-md:grid-cols-1">
-      <div className="h-[22rem] p-6">
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_13rem] max-sm:grid-cols-1">
+      <div className="h-80 p-5">
         <GraphPreview />
       </div>
-      <dl className="grid content-start gap-4 border-l border-fog p-5 font-mono text-xs max-md:hidden">
+      <dl className="grid content-start gap-4 border-l border-fog p-5 font-mono text-xs max-sm:hidden">
         <div>
           <dt className="font-sans text-sm font-semibold text-sumi">layer1.0.conv2</dt>
           <dd className="mt-0.5 font-sans text-slate">Conv</dd>
@@ -50,7 +51,7 @@ const TREE_ROWS: { depth: number; name: string; detail?: string }[] = [
 
 function TreePanel() {
   return (
-    <ul className="h-[22rem] overflow-hidden p-5 font-mono text-[13px] leading-8">
+    <ul className="h-80 overflow-hidden p-5 font-mono text-[13px] leading-8">
       {TREE_ROWS.map((row) => (
         <li
           key={`${String(row.depth)}-${row.name}`}
@@ -76,7 +77,7 @@ const STATS_MAX = Math.max(...STATS.map((stat) => stat.count));
 
 function StatsPanel() {
   return (
-    <div className="grid h-[22rem] content-center gap-4 px-8">
+    <div className="grid h-80 content-center gap-4 px-8">
       {STATS.map((stat) => (
         <div
           key={stat.family}
@@ -118,48 +119,52 @@ const TABS: { id: string; label: string; body: string; panel: ReactNode }[] = [
   },
 ];
 
-/** A miniature of the repository page; the tabs switch what the window shows. */
+/** A miniature repository page for the hero; its tabs switch what the window shows. */
 export function ProductWindow() {
   return (
     <Tabs.Root
       defaultValue={TABS[0]?.id}
-      orientation="vertical"
-      className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]"
+      className="overflow-hidden rounded-2xl border border-fog bg-surface shadow-(--shadow-lift)"
     >
-      <Tabs.List
-        aria-label="저장소 화면"
-        className="grid content-start gap-1 max-lg:grid-flow-col max-lg:justify-start max-lg:overflow-x-auto"
-      >
-        {TABS.map((tab) => (
-          <Tabs.Trigger
-            key={tab.id}
-            value={tab.id}
-            className="group border-transparent px-4 py-2.5 text-left max-lg:border-b-2 lg:border-l-2 text-slate transition-colors hover:text-sumi data-[state=active]:border-primary data-[state=active]:text-sumi"
-          >
-            <span className="block font-medium whitespace-nowrap">{tab.label}</span>
-            <span className="mt-1 hidden text-sm leading-6 text-slate lg:group-data-[state=active]:block">
-              {tab.body}
-            </span>
-          </Tabs.Trigger>
-        ))}
-      </Tabs.List>
-      <div className="overflow-hidden rounded-xl border border-fog bg-surface shadow-[0_40px_120px_-40px_rgb(222_126_168/0.25)]">
-        <div className="flex items-center gap-3 border-b border-fog px-5 py-3.5">
-          <span className="text-sm">
-            <span className="text-slate">kai / </span>
-            <span className="font-semibold">resnet50-v2</span>
-          </span>
+      <div className="px-5 pt-4">
+        <div className="flex items-center gap-2 text-sm">
+          <Avatar username="kai" displayName="Kai" size={20} />
+          <span className="text-slate">kai /</span>
+          <span className="font-semibold">resnet50-v2</span>
           <span className="ml-auto flex items-center gap-1 text-xs text-slate">
-            <Sparkle className="size-3" color="#DE7EA8" /> 128
+            <Sparkle className="size-3.5" color="#DE7EA8" /> 128
           </span>
         </div>
-        <ArchitectureStrip segments={RESNET_STRIP} label="resnet50-v2 아키텍처" height={4} />
-        {TABS.map((tab) => (
-          <Tabs.Content key={tab.id} value={tab.id} className="focus-visible:outline-offset-[-2px]">
-            {tab.panel}
-          </Tabs.Content>
-        ))}
+        <ul className="mt-3 flex flex-wrap gap-1.5 text-xs" aria-label="모델 정보">
+          <li className="rounded-md bg-haze-deep px-2 py-0.5 font-semibold">ONNX</li>
+          <li className="rounded-md border border-fog px-2 py-0.5">25.6M 파라미터</li>
+          <li className="rounded-md border border-fog px-2 py-0.5">97.8 MB</li>
+          <li className="rounded-md border border-fog px-2 py-0.5">opset 17</li>
+        </ul>
+        <Tabs.List aria-label="저장소 화면" className="mt-3 -mb-px flex gap-1">
+          {TABS.map((tab) => (
+            <Tabs.Trigger
+              key={tab.id}
+              value={tab.id}
+              title={tab.body}
+              className="border-b-2 border-transparent px-2.5 pb-2.5 text-sm text-slate hover:text-sumi data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-sumi"
+            >
+              {tab.label}
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
       </div>
+      <ArchitectureStrip
+        segments={RESNET_STRIP}
+        label="resnet50-v2 아키텍처"
+        height={3}
+        className="rounded-none"
+      />
+      {TABS.map((tab) => (
+        <Tabs.Content key={tab.id} value={tab.id} className="focus-visible:outline-offset-[-2px]">
+          {tab.panel}
+        </Tabs.Content>
+      ))}
     </Tabs.Root>
   );
 }

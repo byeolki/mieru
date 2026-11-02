@@ -185,6 +185,58 @@ function Composer({ issue, modelId }: { issue: Issue; modelId: string }) {
   );
 }
 
+function SidebarBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="border-b border-fog py-4 first:pt-0 last:border-b-0">
+      <h3 className="mb-2 text-xs font-medium text-slate">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/** Facts about the thread, GitHub-style: state, kind, linked node and who took part. */
+function IssueSidebar({ issue, modelId }: { issue: Issue; modelId: string }) {
+  const participants = new Map<string, UserRef>();
+  for (const person of [issue.author, ...issue.replies.map((reply) => reply.author)]) {
+    if (person) participants.set(person.username, person);
+  }
+  return (
+    <aside className="lg:sticky lg:top-6 lg:self-start">
+      <SidebarBlock title="상태">
+        <p className="flex items-center gap-1.5 text-sm">
+          <StateIcon state={issue.state} className="size-4" />
+          {issue.state === 'open' ? '열림' : '닫힘'}
+          {issue.locked && <span className="text-slate">· 잠김</span>}
+        </p>
+      </SidebarBlock>
+      <SidebarBlock title="종류">
+        <KindLabel kind={issue.kind} />
+      </SidebarBlock>
+      {issue.nodeRef && (
+        <SidebarBlock title="연결된 노드">
+          <Link
+            to={`/m/${modelId}/graph?node=${encodeURIComponent(issue.nodeRef)}`}
+            className="block break-all font-mono text-xs text-sumi hover:text-primary"
+          >
+            {issue.nodeRef}
+          </Link>
+        </SidebarBlock>
+      )}
+      <SidebarBlock title={`참여한 사람 ${String(participants.size)}`}>
+        <ul className="flex flex-wrap gap-1.5">
+          {[...participants.values()].map((person) => (
+            <li key={person.username}>
+              <Link to={`/u/${person.username}`} title={person.displayName}>
+                <Avatar username={person.username} displayName={person.displayName} size={26} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </SidebarBlock>
+    </aside>
+  );
+}
+
 export function IssueThreadPage() {
   const { model } = useRepo();
   const { number: numberParam = '' } = useParams();
@@ -226,7 +278,7 @@ export function IssueThreadPage() {
   const data = issue.data;
 
   return (
-    <div className="mx-auto max-w-[860px] px-5 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <Link to={`/m/${model.id}/issues`} className="text-sm text-slate hover:text-primary">
         ← 이슈 목록
       </Link>
@@ -253,131 +305,139 @@ export function IssueThreadPage() {
         <span>답글 {data.replyCount}</span>
       </div>
 
-      <div className="mt-8 grid gap-4">
-        {data.deleted ? (
-          <p className="rounded-xl border border-dashed border-fog px-4 py-3 text-sm text-slate">
-            삭제된 이슈예요.
-          </p>
-        ) : (
-          <CommentBox
-            author={data.author}
-            createdAt={data.createdAt}
-            actions={
-              <>
-                {data.canEdit && (
-                  <IconAction
-                    label="이슈 수정"
-                    onClick={() => {
-                      setDraft(data.body);
-                      setIsEditing(true);
-                    }}
-                  >
-                    <Pencil className="size-3.5" />
-                  </IconAction>
-                )}
-                {!data.canEdit && !data.canModerate && (
-                  <IconAction label="이슈 신고" onClick={() => setIsReporting(true)}>
-                    <Flag className="size-3.5" />
-                  </IconAction>
-                )}
-              </>
-            }
-          >
-            {isEditing ? (
-              <div className="grid gap-2">
-                <MarkdownEditor label="이슈 내용 수정" value={draft} onChange={setDraft} rows={6} />
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
-                    취소
-                  </Button>
-                  <Button
-                    size="sm"
-                    isLoading={update.isPending}
-                    onClick={() =>
-                      update.mutate({ body: draft }, { onSuccess: () => setIsEditing(false) })
-                    }
-                  >
-                    저장
-                  </Button>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="grid min-w-0 content-start gap-4">
+          {data.deleted ? (
+            <p className="rounded-xl border border-dashed border-fog px-4 py-3 text-sm text-slate">
+              삭제된 이슈예요.
+            </p>
+          ) : (
+            <CommentBox
+              author={data.author}
+              createdAt={data.createdAt}
+              actions={
+                <>
+                  {data.canEdit && (
+                    <IconAction
+                      label="이슈 수정"
+                      onClick={() => {
+                        setDraft(data.body);
+                        setIsEditing(true);
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                    </IconAction>
+                  )}
+                  {!data.canEdit && !data.canModerate && (
+                    <IconAction label="이슈 신고" onClick={() => setIsReporting(true)}>
+                      <Flag className="size-3.5" />
+                    </IconAction>
+                  )}
+                </>
+              }
+            >
+              {isEditing ? (
+                <div className="grid gap-2">
+                  <MarkdownEditor
+                    label="이슈 내용 수정"
+                    value={draft}
+                    onChange={setDraft}
+                    rows={6}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
+                      취소
+                    </Button>
+                    <Button
+                      size="sm"
+                      isLoading={update.isPending}
+                      onClick={() =>
+                        update.mutate({ body: draft }, { onSuccess: () => setIsEditing(false) })
+                      }
+                    >
+                      저장
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ) : data.body.trim() ? (
-              <Markdown source={data.body} className="markdown-body text-[0.95rem]" />
-            ) : (
-              <p className="text-sm text-slate">내용 없음</p>
-            )}
-          </CommentBox>
-        )}
+              ) : data.body.trim() ? (
+                <Markdown source={data.body} className="markdown-body text-[0.95rem]" />
+              ) : (
+                <p className="text-sm text-slate">내용 없음</p>
+              )}
+            </CommentBox>
+          )}
 
-        {isReporting && (
-          <ReportDialog
-            modelId={model.id}
-            issueNumber={number}
-            open={isReporting}
-            onOpenChange={setIsReporting}
-          />
-        )}
+          {isReporting && (
+            <ReportDialog
+              modelId={model.id}
+              issueNumber={number}
+              open={isReporting}
+              onOpenChange={setIsReporting}
+            />
+          )}
 
-        {data.replies.map((reply) => (
-          <ReplyItem key={reply.id} reply={reply} modelId={model.id} number={number} />
-        ))}
+          {data.replies.map((reply) => (
+            <ReplyItem key={reply.id} reply={reply} modelId={model.id} number={number} />
+          ))}
 
-        {data.state === 'closed' && data.closedAt && (
-          <p className="ml-[46px] flex items-center gap-2 text-sm text-slate">
-            <StateIcon state="closed" className="size-4" />
-            {data.closedBy?.displayName ?? '누군가'}님이 {formatRelative(data.closedAt)} 닫았어요
-          </p>
-        )}
+          {data.state === 'closed' && data.closedAt && (
+            <p className="ml-[46px] flex items-center gap-2 text-sm text-slate">
+              <StateIcon state="closed" className="size-4" />
+              {data.closedBy?.displayName ?? '누군가'}님이 {formatRelative(data.closedAt)} 닫았어요
+            </p>
+          )}
 
-        {!data.deleted && (data.canEdit || data.canModerate) && (
-          <div className="ml-[46px] flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              isLoading={update.isPending}
-              onClick={() => update.mutate({ state: data.state === 'open' ? 'closed' : 'open' })}
-            >
-              {data.state === 'open' ? '이슈 닫기' : '다시 열기'}
-            </Button>
-            {data.canModerate && (
+          {!data.deleted && (data.canEdit || data.canModerate) && (
+            <div className="ml-[46px] flex flex-wrap gap-2">
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                icon={data.locked ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
-                onClick={() => update.mutate({ locked: !data.locked })}
+                isLoading={update.isPending}
+                onClick={() => update.mutate({ state: data.state === 'open' ? 'closed' : 'open' })}
               >
-                {data.locked ? '잠금 풀기' : '대화 잠그기'}
+                {data.state === 'open' ? '이슈 닫기' : '다시 열기'}
               </Button>
-            )}
-            {(data.canModerate || (data.canEdit && data.replyCount === 0)) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Trash2 className="size-4" />}
-                onClick={() => remove.mutate()}
-              >
-                이슈 삭제
-              </Button>
-            )}
-          </div>
-        )}
+              {data.canModerate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={data.locked ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
+                  onClick={() => update.mutate({ locked: !data.locked })}
+                >
+                  {data.locked ? '잠금 풀기' : '대화 잠그기'}
+                </Button>
+              )}
+              {(data.canModerate || (data.canEdit && data.replyCount === 0)) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Trash2 className="size-4" />}
+                  onClick={() => remove.mutate()}
+                >
+                  이슈 삭제
+                </Button>
+              )}
+            </div>
+          )}
 
-        {data.canReply ? (
-          <Composer issue={data} modelId={model.id} />
-        ) : status === 'signed-out' ? (
-          <div className="ml-[46px]">
-            <ButtonLink
-              variant="secondary"
-              to={`/login?next=${encodeURIComponent(`/m/${model.id}/issues/${number}`)}`}
-            >
-              로그인하고 답글 달기
-            </ButtonLink>
-          </div>
-        ) : data.locked ? (
-          <p className="ml-[46px] text-sm text-slate">
-            대화가 잠겨 있어서 편집 권한이 있는 사람만 답글을 달 수 있어요.
-          </p>
-        ) : null}
+          {data.canReply ? (
+            <Composer issue={data} modelId={model.id} />
+          ) : status === 'signed-out' ? (
+            <div className="ml-[46px]">
+              <ButtonLink
+                variant="secondary"
+                to={`/login?next=${encodeURIComponent(`/m/${model.id}/issues/${number}`)}`}
+              >
+                로그인하고 답글 달기
+              </ButtonLink>
+            </div>
+          ) : data.locked ? (
+            <p className="ml-[46px] text-sm text-slate">
+              대화가 잠겨 있어서 편집 권한이 있는 사람만 답글을 달 수 있어요.
+            </p>
+          ) : null}
+        </div>
+        <IssueSidebar issue={data} modelId={model.id} />
       </div>
     </div>
   );

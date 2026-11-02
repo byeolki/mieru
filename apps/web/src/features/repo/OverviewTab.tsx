@@ -1,22 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, FileText, Pencil } from 'lucide-react';
+import { BookOpen, Check, Copy, FileText, Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { hasRoleAtLeast } from '@mieru/shared';
+import { hasRoleAtLeast, type StripSegment } from '@mieru/shared';
+import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
+import { OP_COLORS, OP_FAMILY_LABELS, type OpFamily } from '../../design/op-palette.js';
 import { Markdown } from '../../design/Markdown.js';
 import { ButtonLink } from '../../design/ui/Button.js';
 import { Spinner } from '../../design/ui/Spinner.js';
-import { formatBytes, formatParams, formatShape } from '../../lib/format.js';
+import { formatBytes, formatRelative, formatShape } from '../../lib/format.js';
 import { getGraph, getReadme, modelKeys } from '../models/api.js';
-import { FORMAT_LABELS } from '../models/labels.js';
 import { useRepo } from './RepoLayout.js';
 import { VersionState } from './VersionState.js';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="contents">
-      <dt className="text-xs text-slate">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-mono text-xs">{children}</dd>
+    <div className="flex items-baseline justify-between gap-4 py-1">
+      <dt className="shrink-0 text-sm text-slate">{label}</dt>
+      <dd className="tabular min-w-0 truncate text-right text-sm">{children}</dd>
     </div>
   );
 }
@@ -32,7 +33,7 @@ function CopyHash({ hash }: { hash: string }) {
           setTimeout(() => setCopied(false), 1500);
         })
       }
-      className="inline-flex items-center gap-1 hover:text-primary"
+      className="inline-flex items-center gap-1 font-mono text-xs hover:text-primary"
       title={hash}
     >
       {hash.slice(0, 12)}
@@ -43,6 +44,110 @@ function CopyHash({ hash }: { hash: string }) {
       )}
       <span className="sr-only">SHA-256 복사</span>
     </button>
+  );
+}
+
+function SideSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="border-b border-fog py-5 first:pt-0 last:border-b-0">
+      <h2 className="mb-3 text-sm font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+// Precision gets its own tints, separate from the op palette, so the two charts never read as one.
+const DTYPE_COLORS = ['#BC3D86', '#DE7EA8', '#C8B6D4', '#8E8AA8', '#E7E0F3'];
+
+/** Share of parameters per dtype as one stacked bar, so mixed-precision files stand out. */
+function PrecisionBar({
+  breakdown,
+}: {
+  breakdown: Record<string, { params: number; bytes: number }>;
+}) {
+  const entries = Object.entries(breakdown).sort((a, b) => b[1].params - a[1].params);
+  const total = entries.reduce((sum, [, entry]) => sum + entry.params, 0) || 1;
+  return (
+    <div>
+      <div
+        className="flex h-2 overflow-hidden rounded-full bg-fog"
+        role="img"
+        aria-label="타입별 파라미터 비율"
+      >
+        {entries.map(([dtype, entry], index) => (
+          <span
+            key={dtype}
+            style={{
+              width: `${String((entry.params / total) * 100)}%`,
+              backgroundColor: DTYPE_COLORS[index % DTYPE_COLORS.length],
+            }}
+          />
+        ))}
+      </div>
+      <ul className="mt-3 grid gap-1.5 text-sm">
+        {entries.map(([dtype, entry], index) => (
+          <li key={dtype} className="tabular flex items-center gap-2">
+            <span
+              className="size-2 rounded-[2px]"
+              style={{ backgroundColor: DTYPE_COLORS[index % DTYPE_COLORS.length] }}
+              aria-hidden="true"
+            />
+            <span className="font-mono text-xs">{dtype}</span>
+            <span className="ml-auto text-slate">{formatBytes(entry.bytes)}</span>
+            <span className="w-12 text-right">{Math.round((entry.params / total) * 100)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Op-family mix read from the strip; approximate because long graphs are bucketed. */
+function FamilyMix({ strip }: { strip: readonly StripSegment[] }) {
+  const totals = new Map<OpFamily, number>();
+  for (const segment of strip)
+    totals.set(segment.family, (totals.get(segment.family) ?? 0) + segment.weight);
+  const total = [...totals.values()].reduce((sum, value) => sum + value, 0) || 1;
+  const entries = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+  return (
+    <div>
+      <ArchitectureStrip segments={strip} label="아키텍처 스트립" height={8} />
+      <ul className="mt-3 grid gap-1.5 text-sm">
+        {entries.map(([family, weight]) => (
+          <li key={family} className="tabular flex items-center gap-2">
+            <span
+              className="size-2 rounded-[2px]"
+              style={{ backgroundColor: OP_COLORS[family] }}
+              aria-hidden="true"
+            />
+            {OP_FAMILY_LABELS[family]}
+            <span className="ml-auto text-slate">{Math.round((weight / total) * 100)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TensorList({
+  title,
+  tensors,
+}: {
+  title: string;
+  tensors: { name: string; shape: readonly (number | string | null)[] | null }[];
+}) {
+  return (
+    <div className="mt-3 first:mt-0">
+      <h3 className="text-xs text-slate">{title}</h3>
+      <ul className="mt-1.5 grid gap-1">
+        {tensors.map((tensor) => (
+          <li key={tensor.name} className="flex justify-between gap-3 font-mono text-xs">
+            <span className="truncate">{tensor.name}</span>
+            <span className="shrink-0 text-slate">{formatShape(tensor.shape)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -58,63 +163,57 @@ function InfoPanel() {
   });
   const payload = graph.data?.payload.kind === 'onnx-graph' ? graph.data.payload : null;
   return (
-    <aside className="h-fit rounded-(--radius-panel) border border-fog bg-surface shadow-(--shadow-soft)">
-      <h2 className="border-b border-fog px-5 py-3.5 text-sm font-semibold">정보</h2>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 px-5 py-4">
-        <Row label="형식">{model.format ? FORMAT_LABELS[model.format] : '—'}</Row>
-        {summary && (
-          <Row label="파라미터">
-            {summary.totalParams.toLocaleString('ko-KR')} ({formatParams(summary.totalParams)})
-          </Row>
-        )}
-        <Row label="크기">{formatBytes(model.sizeBytes)}</Row>
-        {summary?.nodeCount !== undefined && (
-          <Row label="노드">{summary.nodeCount.toLocaleString('ko-KR')}</Row>
-        )}
-        {summary && <Row label="텐서">{summary.tensorCount.toLocaleString('ko-KR')}</Row>}
-        {summary?.opsetVersion !== undefined && <Row label="opset">{summary.opsetVersion}</Row>}
-        {summary?.producer && <Row label="만든 도구">{summary.producer}</Row>}
-        {summary && <Row label="타입">{Object.keys(summary.dtypeBreakdown).join(', ')}</Row>}
-        <Row label="라이선스">{model.license ?? '—'}</Row>
-        {version?.sha256 && (
-          <Row label="SHA-256">
-            <CopyHash hash={version.sha256} />
-          </Row>
-        )}
-      </dl>
+    <aside className="lg:sticky lg:top-6 lg:self-start">
+      <SideSection title="정보">
+        <dl>
+          {summary && <Row label="파라미터">{summary.totalParams.toLocaleString('ko-KR')}</Row>}
+          {summary && <Row label="텐서">{summary.tensorCount.toLocaleString('ko-KR')}</Row>}
+          {summary?.producer && <Row label="만든 도구">{summary.producer}</Row>}
+          <Row label="업데이트">{formatRelative(model.updatedAt)}</Row>
+          {version?.sha256 && (
+            <Row label="SHA-256">
+              <CopyHash hash={version.sha256} />
+            </Row>
+          )}
+        </dl>
+      </SideSection>
+      {summary && Object.keys(summary.dtypeBreakdown).length > 0 && (
+        <SideSection title="정밀도">
+          <PrecisionBar breakdown={summary.dtypeBreakdown} />
+        </SideSection>
+      )}
+      {model.strip.length > 0 && (
+        <SideSection title="연산 구성">
+          <FamilyMix strip={model.strip} />
+        </SideSection>
+      )}
       {payload && (
-        <div className="border-t border-fog px-5 py-4">
-          <h3 className="text-xs font-medium text-slate">입력</h3>
-          <ul className="mt-2 grid gap-1">
-            {payload.inputs.map((tensor) => (
-              <li key={tensor.name} className="flex justify-between gap-3 font-mono text-xs">
-                <span className="truncate">{tensor.name}</span>
-                <span className="shrink-0 text-slate">{formatShape(tensor.shape)}</span>
-              </li>
-            ))}
-          </ul>
-          <h3 className="mt-4 text-xs font-medium text-slate">출력</h3>
-          <ul className="mt-2 grid gap-1">
-            {payload.outputs.map((tensor) => (
-              <li key={tensor.name} className="flex justify-between gap-3 font-mono text-xs">
-                <span className="truncate">{tensor.name}</span>
-                <span className="shrink-0 text-slate">{formatShape(tensor.shape)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <SideSection title="입력과 출력">
+          <TensorList title="입력" tensors={payload.inputs} />
+          <TensorList title="출력" tensors={payload.outputs} />
+        </SideSection>
       )}
       {version && (
-        <div className="border-t border-fog p-4">
-          <Link
-            to={`/m/${model.id}/graph`}
-            className="block rounded-(--radius-control) bg-haze px-4 py-3 text-center text-sm font-medium hover:bg-haze-deep"
-          >
-            {model.format === 'onnx' ? '그래프로 보기' : '모듈 트리 보기'}
-          </Link>
+        <div className="pt-5">
+          <ButtonLink to={`/m/${model.id}/graph`} variant="secondary" className="w-full">
+            {model.format === 'onnx' ? '그래프 열기' : '모듈 트리 열기'}
+          </ButtonLink>
         </div>
       )}
     </aside>
+  );
+}
+
+function ReadmeBox({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-fog bg-surface">
+      <div className="flex h-11 items-center gap-2 border-b border-fog px-4 text-sm">
+        <BookOpen className="size-4 text-slate" aria-hidden="true" />
+        <span className="font-medium">README</span>
+        <div className="ml-auto">{actions}</div>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -127,51 +226,50 @@ function Readme() {
   if (readme.isPending) return <Spinner className="size-5 text-lilac" />;
   if (readme.isError) return <p className="text-sm text-danger">README를 불러오지 못했어요.</p>;
   const canEdit = hasRoleAtLeast(model.myAccess.role, 'editor');
+  const editPath = `/m/${model.id}/readme/edit`;
   if (!readme.data.markdown.trim()) {
     return (
-      <div className="rounded-(--radius-panel) border border-dashed border-lilac px-8 py-12 text-center">
-        <FileText className="mx-auto size-6 text-slate" aria-hidden="true" />
-        <p className="mt-3 font-semibold">아직 README가 없어요</p>
-        <p className="mt-1 text-sm text-slate">
-          {canEdit
-            ? '어떤 모델인지, 어떻게 쓰는지 적어두면 다른 사람이 이해하기 쉬워요.'
-            : '저장소 주인이 아직 소개를 쓰지 않았어요.'}
-        </p>
-        {canEdit && (
-          <ButtonLink
-            to={`/m/${model.id}/readme/edit`}
-            className="mt-5"
-            icon={<Pencil className="size-4" />}
-          >
-            README 쓰기
-          </ButtonLink>
-        )}
-      </div>
+      <ReadmeBox>
+        <div className="px-8 py-16 text-center">
+          <FileText className="mx-auto size-6 text-slate" aria-hidden="true" />
+          <p className="mt-3 font-semibold">아직 README가 없어요</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate">
+            {canEdit
+              ? '어떤 모델인지, 어떻게 쓰는지 적어두면 다른 사람이 이해하기 쉬워요.'
+              : '저장소 주인이 아직 소개를 쓰지 않았어요.'}
+          </p>
+          {canEdit && (
+            <ButtonLink to={editPath} className="mt-5" icon={<Pencil className="size-4" />}>
+              README 쓰기
+            </ButtonLink>
+          )}
+        </div>
+      </ReadmeBox>
     );
   }
   return (
-    <div>
-      {canEdit && (
-        <div className="mb-3 flex justify-end">
-          <ButtonLink
-            to={`/m/${model.id}/readme/edit`}
-            size="sm"
-            variant="ghost"
-            icon={<Pencil className="size-3.5" />}
+    <ReadmeBox
+      actions={
+        canEdit && (
+          <Link
+            to={editPath}
+            aria-label="README 편집"
+            className="grid size-8 place-items-center rounded-md text-slate hover:bg-haze hover:text-sumi"
           >
-            README 편집
-          </ButtonLink>
-        </div>
-      )}
-      <Markdown source={readme.data.markdown} className="markdown-body" />
-    </div>
+            <Pencil className="size-4" aria-hidden="true" />
+          </Link>
+        )
+      }
+    >
+      <Markdown source={readme.data.markdown} className="markdown-body px-6 py-6 md:px-8" />
+    </ReadmeBox>
   );
 }
 
 export function OverviewTab() {
   const { model } = useRepo();
   return (
-    <div className="mx-auto grid max-w-[1120px] gap-8 px-5 py-8 md:px-10 lg:grid-cols-[minmax(0,720px)_300px] lg:justify-between">
+    <div className="mx-auto grid max-w-[1280px] gap-10 px-4 py-8 md:px-6 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0">
         <VersionState model={model} />
         <Readme />

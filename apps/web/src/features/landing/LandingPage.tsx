@@ -1,78 +1,86 @@
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { AppHeader } from '../../components/AppHeader.js';
 import { OP_COLORS, type OpFamily } from '../../design/op-palette.js';
-import { useAuth } from '../../lib/auth-store.js';
+import { ButtonLink } from '../../design/ui/Button.js';
+import { exploreKeys, getExplore } from '../explore/api.js';
+import { FeaturedCard } from '../models/FeaturedCard.js';
 import { IssueMock, ShareMock, TrendingMock, UploadMock } from './FeatureMocks.js';
 import { GlyphField } from './GlyphField.js';
 import { ProductWindow } from './ProductWindow.js';
 
-const SOLID_LINK =
-  'inline-flex h-11 items-center rounded-md bg-sumi px-5 font-medium text-paper transition-colors hover:bg-white';
-const OUTLINE_LINK =
-  'inline-flex h-11 items-center rounded-md border border-fog px-5 font-medium text-sumi transition-colors hover:border-slate';
-
-function LandingNav() {
-  const { status } = useAuth();
-  return (
-    <header className="sticky top-0 z-20 border-b border-fog/70 bg-paper/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-6">
-        <Link to="/" aria-label="mieru">
-          <img src="/brand/logo.png" alt="" width={660} height={404} className="h-10 w-auto" />
-        </Link>
-        <nav className="ml-auto flex items-center gap-1 text-sm">
-          <Link to="/explore" className="rounded-md px-3 py-2 text-slate hover:text-sumi">
-            둘러보기
-          </Link>
-          {status === 'signed-in' ? (
-            <Link to="/dashboard" className={`${SOLID_LINK} ml-2 h-9 px-4 text-sm`}>
-              대시보드
-            </Link>
-          ) : (
-            <>
-              <Link to="/login" className="rounded-md px-3 py-2 text-slate hover:text-sumi">
-                로그인
-              </Link>
-              <Link to="/signup" className={`${SOLID_LINK} ml-2 h-9 px-4 text-sm`}>
-                시작하기
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
-  );
-}
+const CONTAINER = 'mx-auto w-full max-w-[1280px] px-4 md:px-6';
 
 function Hero() {
   const { t } = useTranslation();
   return (
-    <section className="relative overflow-hidden">
-      <GlyphField />
-      <div className="relative mx-auto flex max-w-4xl flex-col items-center px-6 pt-32 pb-24 text-center max-sm:pt-20">
+    <section className="relative overflow-hidden border-b border-fog bg-surface">
+      <GlyphField maskClassName="glyph-field-mask-side" />
+      <div
+        className={`${CONTAINER} relative grid items-center gap-14 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:py-24`}
+      >
+        <div>
+          <Link
+            to="/explore"
+            className="mb-7 inline-flex items-center gap-2 rounded-full border border-fog bg-surface py-1 pr-3 pl-1.5 text-sm text-slate hover:border-lilac hover:text-sumi"
+          >
+            <span className="rounded-full bg-haze-deep px-2 py-0.5 text-xs font-semibold text-sumi">
+              화제
+            </span>
+            {t('landing.badge')}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+          <h1 className="text-[clamp(2.5rem,5.2vw,4rem)] leading-[1.1] font-bold tracking-[-0.035em] text-balance">
+            {t('landing.title')}
+          </h1>
+          <p className="mt-6 max-w-lg text-lg leading-8 text-pretty text-slate">
+            {t('landing.lead')}
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <ButtonLink to="/new" size="lg">
+              {t('landing.primaryAction')}
+            </ButtonLink>
+            <ButtonLink to="/explore" size="lg" variant="secondary">
+              {t('landing.secondaryAction')}
+            </ButtonLink>
+          </div>
+          <p className="mt-5 text-sm text-slate">{t('landing.formats')}</p>
+        </div>
+        <ProductWindow />
+      </div>
+    </section>
+  );
+}
+
+/** Real trending repositories, so the landing shows what is actually on the site. */
+function LiveTrending() {
+  const sections = useQuery({ queryKey: exploreKeys.sections, queryFn: getExplore });
+  const items = sections.data?.trending.slice(0, 3) ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section className={`${CONTAINER} pt-20`} aria-labelledby="live-trending">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2 id="live-trending" className="text-2xl font-bold tracking-[-0.02em]">
+            {sections.data?.trendingIsFallback ? '스타를 많이 받은 모델' : '이번 주 화제'}
+          </h2>
+          <p className="mt-1.5 text-sm text-slate">지금 mieru에 공개된 모델이에요.</p>
+        </div>
         <Link
           to="/explore"
-          className="mb-8 inline-flex items-center gap-2 rounded-md border border-fog bg-paper/70 px-3 py-1.5 text-sm text-slate hover:text-sumi"
+          className="flex items-center gap-1 text-sm text-slate hover:text-primary"
         >
-          <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
-          {t('landing.badge')}
+          모두 보기 <ArrowRight className="size-3.5" aria-hidden="true" />
         </Link>
-        <h1 className="text-[clamp(2.5rem,7vw,4.75rem)] leading-[1.08] font-bold tracking-[-0.035em] text-balance">
-          {t('landing.title')}
-        </h1>
-        <p className="mt-6 max-w-xl text-lg leading-8 text-slate text-pretty">
-          {t('landing.lead')}
-        </p>
-        <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Link to="/new" className={SOLID_LINK}>
-            {t('landing.primaryAction')}
-          </Link>
-          <Link to="/explore" className={OUTLINE_LINK}>
-            {t('landing.secondaryAction')}
-          </Link>
-        </div>
-        <p className="mt-5 text-sm text-slate">{t('landing.formats')}</p>
       </div>
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item, index) => (
+          <FeaturedCard key={item.id} item={item} rank={index + 1} />
+        ))}
+      </ol>
     </section>
   );
 }
@@ -131,11 +139,11 @@ function FeatureRow({ feature, isReversed }: { feature: Feature; isReversed: boo
         <h2 className="mt-3 text-3xl leading-tight font-bold tracking-[-0.025em] text-balance">
           {feature.title}
         </h2>
-        <p className="mt-5 max-w-md text-[1.0625rem] leading-8 text-slate text-pretty">
+        <p className="mt-5 max-w-md text-[1.0625rem] leading-8 text-pretty text-slate">
           {feature.body}
         </p>
       </div>
-      {feature.mock}
+      <div className="rounded-2xl bg-haze/60 p-4 md:p-6">{feature.mock}</div>
     </div>
   );
 }
@@ -143,35 +151,33 @@ function FeatureRow({ feature, isReversed }: { feature: Feature; isReversed: boo
 export function LandingPage() {
   const { t } = useTranslation();
   return (
-    <div className="theme-ink min-h-dvh">
-      <LandingNav />
+    <div className="min-h-dvh">
+      <AppHeader />
       <main>
         <Hero />
-        <section className="mx-auto max-w-6xl px-6" aria-label="저장소 화면 미리보기">
-          <ProductWindow />
-        </section>
-        <section className="mx-auto grid max-w-6xl gap-32 px-6 py-36 max-md:gap-24 max-md:py-24">
+        <LiveTrending />
+        <section className={`${CONTAINER} grid gap-28 py-28 max-md:gap-20 max-md:py-20`}>
           {FEATURES.map((feature, index) => (
             <FeatureRow key={feature.label} feature={feature} isReversed={index % 2 === 1} />
           ))}
         </section>
-        <section className="border-t border-fog">
-          <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-32 text-center">
+        <section className="border-t border-fog bg-surface">
+          <div className={`${CONTAINER} flex flex-col items-center py-28 text-center`}>
             <p
               lang="ja"
-              className="text-[clamp(4.5rem,16vw,10rem)] leading-none font-bold tracking-[-0.04em] text-primary"
+              className="text-[clamp(4.5rem,14vw,9rem)] leading-none font-bold tracking-[-0.04em] text-primary"
             >
               見える
             </p>
             <p className="mt-6 text-slate">{t('landing.nameNote')}</p>
-            <Link to="/new" className={`${SOLID_LINK} mt-10`}>
+            <ButtonLink to="/new" size="lg" className="mt-10">
               {t('landing.primaryAction')}
-            </Link>
+            </ButtonLink>
           </div>
         </section>
       </main>
       <footer className="border-t border-fog">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-8 text-sm text-slate">
+        <div className={`${CONTAINER} flex items-center gap-6 py-8 text-sm text-slate`}>
           <img
             src="/brand/logo.png"
             alt="mieru"

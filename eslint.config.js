@@ -12,6 +12,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/playwright-report/**',
       '**/test-results/**',
+      '.tmp/**',
       'apps/server/src/parsing/onnx/generated/**',
     ],
   },

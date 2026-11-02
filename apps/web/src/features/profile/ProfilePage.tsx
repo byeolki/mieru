@@ -1,12 +1,16 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { useQuery } from '@tanstack/react-query';
+import { Boxes, CalendarDays } from 'lucide-react';
 import { useParams } from 'react-router';
 import { Avatar } from '../../components/Avatar.js';
+import { Sparkle } from '../../design/Sparkle.js';
+import { ButtonLink } from '../../design/ui/Button.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { ApiError } from '../../lib/api-error.js';
+import { useAuth } from '../../lib/auth-store.js';
 import { NotFoundPage } from '../NotFoundPage.js';
 import { ModelRows } from '../models/ModelRows.js';
-import { PublicShell } from '../shell/PublicShell.js';
+import { AppShell } from '../shell/AppShell.js';
 import { exploreKeys, getProfile, getProfileModels, getProfileStars } from '../explore/api.js';
 
 const dateFormat = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long' });
@@ -33,68 +37,79 @@ function List({ username, kind }: { username: string; kind: 'models' | 'stars' }
 
 export function ProfilePage() {
   const { username = '' } = useParams();
+  const { user } = useAuth();
   const profile = useQuery({
     queryKey: exploreKeys.profile(username),
     queryFn: () => getProfile(username),
   });
   if (profile.isPending)
     return (
-      <PublicShell>
+      <AppShell>
         <Spinner className="size-6 text-lilac" />
-      </PublicShell>
+      </AppShell>
     );
   if (profile.isError) {
     if (profile.error instanceof ApiError && profile.error.status === 404) return <NotFoundPage />;
     return (
-      <PublicShell>
+      <AppShell>
         <p className="text-sm text-danger">프로필을 불러오지 못했어요.</p>
-      </PublicShell>
+      </AppShell>
     );
   }
   const data = profile.data;
+  const isMe = user?.username === data.username;
   return (
-    <PublicShell>
-      <section className="haze-tone relative mb-8 flex flex-wrap items-center gap-5 overflow-hidden rounded-(--radius-sheet) px-6 py-8 md:px-10">
-        <Avatar
-          username={data.username}
-          displayName={data.displayName}
-          size={72}
-          className="ring-4 ring-surface"
-        />
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight">{data.displayName}</h1>
-          <p className="text-sm text-slate">
-            @{data.username} · {dateFormat.format(new Date(data.createdAt))} 가입
-          </p>
-          {data.bio && <p className="mt-2 max-w-xl text-sm leading-6">{data.bio}</p>}
-        </div>
-        <dl className="tabular ml-auto flex gap-6 text-sm">
-          <div>
-            <dt className="text-xs text-slate">공개 모델</dt>
-            <dd className="text-lg font-bold">{data.publicModelCount}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-slate">받은 스타</dt>
-            <dd className="text-lg font-bold">{data.starsReceived}</dd>
-          </div>
-        </dl>
-      </section>
-      <Tabs.Root defaultValue="models">
-        <Tabs.List className="mb-6 flex gap-6 border-b border-fog" aria-label="프로필 목록">
-          <Tabs.Trigger value="models" className={TAB}>
-            공개 모델
-          </Tabs.Trigger>
-          <Tabs.Trigger value="stars" className={TAB}>
-            스타
-          </Tabs.Trigger>
-        </Tabs.List>
-        <Tabs.Content value="models">
-          <List username={data.username} kind="models" />
-        </Tabs.Content>
-        <Tabs.Content value="stars">
-          <List username={data.username} kind="stars" />
-        </Tabs.Content>
-      </Tabs.Root>
-    </PublicShell>
+    <AppShell>
+      <div className="grid gap-10 md:grid-cols-[17rem_minmax(0,1fr)]">
+        <aside className="md:pt-1">
+          <Avatar
+            username={data.username}
+            displayName={data.displayName}
+            size={176}
+            className="ring-1 ring-fog"
+          />
+          <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em]">{data.displayName}</h1>
+          <p className="text-lg text-slate">@{data.username}</p>
+          {data.bio && <p className="mt-4 leading-7">{data.bio}</p>}
+          {isMe && (
+            <ButtonLink to="/settings" variant="secondary" size="sm" className="mt-5 w-full">
+              프로필 편집
+            </ButtonLink>
+          )}
+          <ul className="tabular mt-6 grid gap-2.5 border-t border-fog pt-5 text-sm">
+            <li className="flex items-center gap-2">
+              <Boxes className="size-4 text-slate" aria-hidden="true" />
+              <span className="font-semibold">{data.publicModelCount}</span>
+              <span className="text-slate">공개 모델</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Sparkle className="size-4" color="#DE7EA8" />
+              <span className="font-semibold">{data.starsReceived}</span>
+              <span className="text-slate">받은 스타</span>
+            </li>
+            <li className="flex items-center gap-2 text-slate">
+              <CalendarDays className="size-4" aria-hidden="true" />
+              <span>{dateFormat.format(new Date(data.createdAt))} 가입</span>
+            </li>
+          </ul>
+        </aside>
+        <Tabs.Root defaultValue="models" className="min-w-0">
+          <Tabs.List className="mb-6 flex gap-6 border-b border-fog" aria-label="프로필 목록">
+            <Tabs.Trigger value="models" className={TAB}>
+              공개 모델
+            </Tabs.Trigger>
+            <Tabs.Trigger value="stars" className={TAB}>
+              스타
+            </Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="models">
+            <List username={data.username} kind="models" />
+          </Tabs.Content>
+          <Tabs.Content value="stars">
+            <List username={data.username} kind="stars" />
+          </Tabs.Content>
+        </Tabs.Root>
+      </div>
+    </AppShell>
   );
 }

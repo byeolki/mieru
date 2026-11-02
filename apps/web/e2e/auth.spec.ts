@@ -27,7 +27,7 @@ test('sign up, keep the session across reloads, log out, log back in, delete the
 
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: '설정' })).toBeVisible();
-  await page.getByRole('button', { name: /@e2e-/ }).click();
+  await page.getByRole('button', { name: '계정 메뉴' }).click();
   await page.getByRole('menuitem', { name: '로그아웃' }).click();
   await expect(page).toHaveURL(/\/$/);
 

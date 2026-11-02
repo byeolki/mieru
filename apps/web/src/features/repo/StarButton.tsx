@@ -35,13 +35,13 @@ export function StarButton({ model }: { model: ModelDetail }) {
         toggle.mutate();
       }}
       className={clsx(
-        'flex h-10 items-stretch overflow-hidden rounded-(--radius-control) border text-sm transition-colors',
+        'flex h-8 items-stretch overflow-hidden rounded-(--radius-control) border text-sm transition-colors',
         model.starredByMe
           ? 'border-mieru-pink/60 bg-sakura/30'
           : 'border-fog bg-surface hover:border-lilac',
       )}
     >
-      <span className="flex items-center gap-1.5 px-3 font-medium">
+      <span className="flex items-center gap-1.5 px-2.5 font-medium">
         <Sparkle
           className={clsx(
             'size-4 transition-transform duration-200',
@@ -51,7 +51,7 @@ export function StarButton({ model }: { model: ModelDetail }) {
         />
         {model.starredByMe ? '스타함' : '스타'}
       </span>
-      <span className="tabular flex items-center border-l border-inherit px-3 text-slate">
+      <span className="tabular flex items-center border-l border-inherit px-2.5 text-slate">
         {model.starCount}
       </span>
     </button>

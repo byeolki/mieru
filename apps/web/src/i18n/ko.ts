@@ -7,7 +7,7 @@ export const ko = {
     newModel: '모델 올리기',
   },
   landing: {
-    badge: '공개된 모델 둘러보기',
+    badge: '이번 주 많이 본 모델 보기',
     title: '모델을 올리면, 구조가 보여요',
     lead: 'ONNX나 safetensors 파일을 올리면 계산 그래프와 모듈 트리로 펼쳐 보여줘요. 원하는 사람과 원하는 만큼만 공유하세요.',
     primaryAction: '모델 올리기',

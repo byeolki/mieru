@@ -25,7 +25,7 @@ export function IssuesTab() {
   const counts = issues.data?.counts;
 
   return (
-    <div className="mx-auto max-w-[1120px] px-5 py-8 md:px-10">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div
           className="flex rounded-(--radius-control) border border-fog bg-surface p-0.5"
@@ -99,7 +99,7 @@ export function IssuesTab() {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-fog overflow-hidden rounded-(--radius-panel) border border-fog bg-surface shadow-(--shadow-soft)">
+        <ul className="divide-y divide-fog overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
           {issues.data.items.map((issue) => (
             <li key={issue.number}>
               <Link

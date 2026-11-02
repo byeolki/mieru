@@ -17,8 +17,8 @@ test('public models show up in explore, search and the owner profile', async ({
   const visitor = await anonymous.newPage();
   await visitor.goto('/explore');
   await expect(visitor.getByRole('heading', { name: '모델 둘러보기' })).toBeVisible();
-  await visitor.getByRole('searchbox', { name: '모델 검색' }).fill(keyword);
-  await visitor.getByRole('searchbox', { name: '모델 검색' }).press('Enter');
+  await visitor.getByRole('searchbox', { name: '이름, 설명, README에서 찾기' }).fill(keyword);
+  await visitor.getByRole('searchbox', { name: '이름, 설명, README에서 찾기' }).press('Enter');
   await expect(visitor).toHaveURL(new RegExp(`q=${keyword}`));
   const result = visitor.getByRole('link', { name: new RegExp(user.username) }).first();
   await expect(result).toBeVisible();

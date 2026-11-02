@@ -55,7 +55,7 @@ export function NewIssuePage() {
         : null;
 
   return (
-    <div className="mx-auto max-w-[760px] px-5 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <h2 className="text-lg font-bold">새 이슈</h2>
       <form
         className="mt-6 grid gap-5"

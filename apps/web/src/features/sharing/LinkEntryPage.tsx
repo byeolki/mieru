@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { SiteHeader } from '../../components/SiteHeader.js';
+import { AppHeader } from '../../components/AppHeader.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { rememberLinkToken } from '../../lib/link-store.js';
@@ -46,7 +46,7 @@ export function LinkEntryPage() {
   }
   return (
     <div className="min-h-dvh">
-      <SiteHeader />
+      <AppHeader />
       <main className="mx-auto max-w-6xl px-6 py-24">
         <h1 className="text-xl font-bold">이 링크로는 볼 수 없어요</h1>
         <p className="mt-3 text-slate">

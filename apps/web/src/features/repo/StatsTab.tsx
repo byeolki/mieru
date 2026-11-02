@@ -73,7 +73,7 @@ function HorizontalBars({
 }) {
   const height = Math.max(data.length * 30 + 24, 120);
   return (
-    <section className="rounded-(--radius-panel) border border-fog bg-surface p-6 shadow-(--shadow-soft)">
+    <section className="rounded-(--radius-panel) border border-fog bg-surface p-6">
       <h2 className="font-semibold">{title}</h2>
       <p className="mt-1 text-xs text-slate">{caption}</p>
       {data.length === 0 ? (
@@ -134,7 +134,7 @@ export function StatsTab({ parsed }: { parsed: ParsedModel }) {
       ? onnxParamBuckets(parsed)
       : moduleParamBuckets(parsed.payload.root);
   return (
-    <div className="mx-auto grid max-w-[1120px] gap-6 px-5 py-8 md:px-10 lg:grid-cols-2">
+    <div className="mx-auto grid max-w-[1280px] gap-6 px-4 py-8 md:px-6 lg:grid-cols-2">
       <HorizontalBars
         title="블록별 파라미터"
         caption={`파라미터가 많은 순서로 최대 ${TOP_GROUPS}개`}
