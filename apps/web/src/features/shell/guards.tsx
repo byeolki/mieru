@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { Spinner } from '../../design/ui/Spinner.js';
+import { NotFoundPage } from '../NotFoundPage.js';
 import { useAuth } from '../../lib/auth-store.js';
 
 function FullPageSpinner() {
@@ -24,6 +25,12 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to={`/login?next=${next}`} replace />;
   }
   return children;
+}
+
+/** Non-admins get the 404 page so the admin area doesn't advertise itself. */
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return <RequireAuth>{user?.role === 'admin' ? children : <NotFoundPage />}</RequireAuth>;
 }
 
 export function RedirectIfSignedIn({ children }: { children: ReactNode }) {

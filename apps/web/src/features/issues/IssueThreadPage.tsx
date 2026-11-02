@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock, LockOpen, Pencil, Trash2 } from 'lucide-react';
+import { Flag, Lock, LockOpen, Pencil, Trash2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -13,6 +13,7 @@ import { Spinner } from '../../design/ui/Spinner.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { formatRelative } from '../../lib/format.js';
+import { ReportDialog } from '../moderation/ReportDialog.js';
 import { useRepo } from '../repo/RepoLayout.js';
 import {
   createReply,
@@ -196,6 +197,7 @@ export function IssueThreadPage() {
     queryFn: () => getIssue(model.id, number),
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
   const [draft, setDraft] = useState('');
   const apply = (updated: Issue) => {
     queryClient.setQueryData(issueKeys.detail(model.id, number), updated);
@@ -273,6 +275,11 @@ export function IssueThreadPage() {
                     <Pencil className="size-3.5" />
                   </IconAction>
                 )}
+                {!data.canEdit && !data.canModerate && (
+                  <IconAction label="이슈 신고" onClick={() => setIsReporting(true)}>
+                    <Flag className="size-3.5" />
+                  </IconAction>
+                )}
               </>
             }
           >
@@ -300,6 +307,15 @@ export function IssueThreadPage() {
               <p className="text-sm text-slate">내용 없음</p>
             )}
           </CommentBox>
+        )}
+
+        {isReporting && (
+          <ReportDialog
+            modelId={model.id}
+            issueNumber={number}
+            open={isReporting}
+            onOpenChange={setIsReporting}
+          />
         )}
 
         {data.replies.map((reply) => (

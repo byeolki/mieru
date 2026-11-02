@@ -4,6 +4,7 @@ import {
   BarChart3,
   CircleDot,
   Download,
+  Flag,
   FileText,
   GitFork,
   Globe,
@@ -27,6 +28,8 @@ import { formatBytes, formatParams, formatRelative } from '../../lib/format.js';
 import { NotFoundPage } from '../NotFoundPage.js';
 import { downloadOriginal, getModel, modelKeys } from '../models/api.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from '../models/labels.js';
+import { ReportDialog } from '../moderation/ReportDialog.js';
+import { TakedownNotice } from '../moderation/TakedownNotice.js';
 import { ShareDialog } from '../sharing/ShareDialog.js';
 import { StarButton } from './StarButton.js';
 
@@ -117,6 +120,8 @@ const TAB_CLASS = ({ isActive }: { isActive: boolean }) =>
 function RepoHeader({ model }: { model: ModelDetail }) {
   const isOnnx = model.format === 'onnx';
   const [isSharing, setIsSharing] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const canReport = model.myAccess.role !== 'owner' && !model.takenDown;
   return (
     <div className="border-b border-fog bg-paper px-4 pt-6 md:px-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -134,6 +139,15 @@ function RepoHeader({ model }: { model: ModelDetail }) {
           {model.description && <p className="mt-1.5 text-sm text-slate">{model.description}</p>}
         </div>
         <div className="flex items-center gap-2">
+          {canReport && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Flag className="size-4" />}
+              aria-label="신고"
+              onClick={() => setIsReporting(true)}
+            />
+          )}
           <StarButton model={model} />
           {model.myAccess.role === 'owner' && (
             <Button icon={<Share2 className="size-4" />} onClick={() => setIsSharing(true)}>
@@ -163,6 +177,9 @@ function RepoHeader({ model }: { model: ModelDetail }) {
         )}
       </div>
       {isSharing && <ShareDialog model={model} open={isSharing} onOpenChange={setIsSharing} />}
+      {isReporting && (
+        <ReportDialog modelId={model.id} open={isReporting} onOpenChange={setIsReporting} />
+      )}
       <nav className="mt-5 flex gap-6" aria-label="저장소 탭">
         <NavLink to={`/m/${model.id}`} end className={TAB_CLASS}>
           <FileText className="size-4" aria-hidden="true" /> 개요
@@ -220,6 +237,7 @@ export function RepoLayout() {
   return (
     <div className="flex h-dvh flex-col">
       <TopBar model={model} />
+      <TakedownNotice model={model} />
       <RepoHeader model={model} />
       <div className="min-h-0 flex-1 overflow-auto">
         <Outlet context={{ model } satisfies RepoContext} />

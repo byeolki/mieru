@@ -328,13 +328,26 @@ export async function deleteIssue(
   const isAuthorWithoutReplies = row.author_id === userId && row.reply_count === 0;
   if (!isAuthorWithoutReplies && !canModerate(access))
     throw forbidden('You can no longer delete this issue');
+  await softDeleteIssue(pool, row, now);
+}
+
+/** Hides an issue and keeps the repository's open-issue counter in step. Callers check permission. */
+export async function softDeleteIssue(
+  pool: Pool,
+  issue: { id: string; model_id: string; state: IssueState },
+  now: Date,
+): Promise<void> {
   await withTransaction(pool, async (connection) => {
-    await execute(connection, 'UPDATE issues SET deleted_at = ? WHERE id = ?', [now, row.id]);
-    if (row.state === 'open') {
+    const result = await execute(
+      connection,
+      'UPDATE issues SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL',
+      [now, issue.id],
+    );
+    if (result.affectedRows === 1 && issue.state === 'open') {
       await execute(
         connection,
         'UPDATE models SET open_issue_count = GREATEST(open_issue_count, 1) - 1 WHERE id = ?',
-        [modelId],
+        [issue.model_id],
       );
     }
   });

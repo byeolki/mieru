@@ -7,6 +7,7 @@ import type { DbPool } from './db/pool.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import { ProcessingQueue } from './features/models/processing.js';
 import { registerModelRoutes } from './features/models/routes.js';
+import { registerModerationRoutes } from './features/moderation/routes.js';
 import { registerExploreRoutes } from './features/explore/routes.js';
 import { registerIssueRoutes } from './features/issues/routes.js';
 import { registerSharingRoutes } from './features/sharing/routes.js';
@@ -96,6 +97,7 @@ export async function buildApp({
   registerIssueRoutes(app, { ...routeDeps, requireModelAccess });
   registerStarRoutes(app, { ...routeDeps, requireModelAccess });
   registerExploreRoutes(app, { db, clock });
+  registerModerationRoutes(app, { ...routeDeps, requireModelAccess });
   await registerStaticSpa(app, { config, db });
 
   return app;

@@ -18,7 +18,8 @@ import { ProfilePage } from './features/profile/ProfilePage.js';
 import { SettingsPage } from './features/settings/SettingsPage.js';
 import { LinkEntryPage } from './features/sharing/LinkEntryPage.js';
 import { NewModelPage } from './features/upload/NewModelPage.js';
-import { RedirectIfSignedIn, RequireAuth } from './features/shell/guards.js';
+import { RedirectIfSignedIn, RequireAdmin, RequireAuth } from './features/shell/guards.js';
+import { AdminReportsPage } from './features/moderation/AdminReportsPage.js';
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,14 @@ export const router = createBrowserRouter([
           <RequireAuth>
             <DashboardPage />
           </RequireAuth>
+        ),
+      },
+      {
+        path: '/admin/reports',
+        element: (
+          <RequireAdmin>
+            <AdminReportsPage />
+          </RequireAdmin>
         ),
       },
       {

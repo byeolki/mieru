@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { Bell, Compass, LayoutGrid, LogOut, Plus, Settings } from 'lucide-react';
+import { Bell, Compass, LayoutGrid, LogOut, Plus, Settings, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, useNavigate } from 'react-router';
@@ -77,6 +77,7 @@ function useUnreadActivity(): number {
 function Sidebar() {
   const { t } = useTranslation();
   const unread = useUnreadActivity();
+  const { user } = useAuth();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[252px] shrink-0 flex-col border-r border-fog bg-paper px-4 py-5 md:flex">
       <Link to="/dashboard" className="px-2" aria-label="mieru">
@@ -113,6 +114,20 @@ function Sidebar() {
             )}
           </NavLink>
         ))}
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin/reports"
+            className={({ isActive }) =>
+              clsx(
+                'flex items-center gap-3 rounded-(--radius-control) px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive ? 'bg-haze text-sumi' : 'text-slate hover:bg-haze/60 hover:text-sumi',
+              )
+            }
+          >
+            <ShieldCheck className="size-[18px] text-slate" />
+            신고 관리
+          </NavLink>
+        )}
       </nav>
       <div className="mt-auto border-t border-fog pt-3">
         <UserMenu />
