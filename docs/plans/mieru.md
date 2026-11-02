@@ -1,6 +1,6 @@
 # mieru — product implementation plan
 
-Status: draft v3, revised after review rounds 1–2. Waiting on answers to [Open questions](#14-open-questions-for-the-user).
+Status: draft v4, all open questions answered; ready for approval.
 Date: 2026-11-02
 Production URL: https://mieru.byeolki.me
 
@@ -1051,10 +1051,10 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 5.3 | Admin UI (`/admin/reports`) | Playwright: admin dismisses and takes down from the queue |
 | 5.4 | Security review pass (authz per route, upload limits, headers, redaction, cookie flags, CSP) | checklist in the report, each item linked to a test |
 
-### M-B — Brand (logo direction: `docs/brand/drafts/logo3-star-*`)
+### M-B — Brand (logo confirmed: `docs/brand/logo-final.jpg`)
 | # | Task | AC |
 |---|---|---|
-| B.1 | Turn the chosen draft into a brand: logo/wordmark redrawn as SVG (generated images only set the direction), mascot or motif, display face, voice, final tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
+| B.1 | Redraw the confirmed logo (`docs/brand/logo-final.jpg`: italic pastel-pink `mieru` with white inner line, hot-pink outline, lavender offset shadow, four-point star as the dot of the i, glitter orbit swoosh, pastel sparkles, katakana `ミエル`) as SVG with real lettering; derive a compact mark (star + `m`) for favicon/app icons; pick display face and voice; finalize tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
 | B.2 | Apply to landing, empty/loading/processing states, 404/takedown, profile header, OG image frame, favicon/app icons | Playwright screenshots of each surface; `better-interface` review findings resolved |
 | B.3 | Release polish: `impeccable`, `kill-ai-slop` | findings list addressed or explicitly waived in the report |
 
@@ -1164,6 +1164,4 @@ npm run build                                      # moderate CPU, ~1 min
 
 ## 14. Open questions for the user
 
-Each is worded so "yes" accepts the recommendation.
-
-1. **Branding**: confirm the final logo draft in `docs/brand/drafts/logo3-star-*` (derived from `logo2-a2`: italic pastel-pink `mieru` with lavender offset shadow, the four-point star as the dot of the i, orbit swoosh, hiragana `みえる`; no other sparkles, no eye). Recommended pick: `logo3-star-2` (closest to the original swoosh and shadow). M-B redraws it as SVG with real lettering.
+None. Round 3 closed the last two: public models let the owner choose downloadable (default) or view-only, and the logo is confirmed as `docs/brand/logo-final.jpg` (the `logo2-a2` draft with the two black stars removed). Earlier drafts in `docs/brand/drafts/` stay as reference only.
