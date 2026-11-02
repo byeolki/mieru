@@ -6,7 +6,10 @@ const DEFAULT_WEB_PORT = 5173;
 const DEFAULT_API_PORT = 3000;
 
 const webPort = Number(process.env.PASEO_PORT ?? process.env.WEB_PORT ?? DEFAULT_WEB_PORT);
-const apiPort = Number(process.env.API_PORT ?? DEFAULT_API_PORT);
+// Paseo exposes sibling service ports; outside Paseo fall back to API_PORT or the default.
+const apiPort = Number(
+  process.env.PASEO_SERVICE_SERVER_PORT ?? process.env.API_PORT ?? DEFAULT_API_PORT,
+);
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

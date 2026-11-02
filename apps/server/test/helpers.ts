@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { RowDataPacket } from 'mysql2/promise';
 import { buildApp } from '../src/app.js';
+import type { Clock } from '../src/clock.js';
 import { loadConfig, type AppConfig } from '../src/config.js';
 import { createPool, type DbPool } from '../src/db/pool.js';
 import { testDatabaseUrl } from './env.js';
@@ -18,10 +19,14 @@ export interface TestContext {
 
 const TEST_SECRET = 'x'.repeat(48);
 
+export interface TestContextOptions {
+  env?: Partial<Record<string, string>>;
+  clock?: Clock;
+  rateLimitEnabled?: boolean;
+}
+
 /** Builds an app against the test database with an isolated temporary storage directory. */
-export async function createTestContext(
-  overrides: Partial<Record<string, string>> = {},
-): Promise<TestContext> {
+export async function createTestContext(options: TestContextOptions = {}): Promise<TestContext> {
   const databaseUrl = testDatabaseUrl();
   const storageDir = await mkdtemp(path.join(os.tmpdir(), 'mieru-test-'));
   const config = loadConfig({
@@ -34,10 +39,15 @@ export async function createTestContext(
     TICKET_SECRET: TEST_SECRET,
     VIEW_SALT_SECRET: TEST_SECRET,
     STORAGE_DIR: storageDir,
-    ...overrides,
+    ...options.env,
   });
   const db = createPool(databaseUrl);
-  const app = await buildApp({ config, db });
+  const app = await buildApp({
+    config,
+    db,
+    clock: options.clock,
+    rateLimitEnabled: options.rateLimitEnabled ?? false,
+  });
   await app.ready();
   return {
     app,
@@ -66,4 +76,71 @@ export async function truncateAllTables(db: DbPool): Promise<void> {
   } finally {
     connection.release();
   }
+}
+
+/** A controllable clock for expiry, lockout and grace-window tests. */
+export function fakeClock(start = new Date('2026-11-02T00:00:00Z')) {
+  let current = start.getTime();
+  return {
+    now: (() => new Date(current)) as Clock,
+    advance: (ms: number) => {
+      current += ms;
+    },
+  };
+}
+
+export const ORIGIN = 'http://127.0.0.1:5173';
+
+/** Extracts `name=value` for the refresh cookie from a response's Set-Cookie headers. */
+export function refreshCookieFrom(setCookie: string | string[] | undefined): string | null {
+  const headers = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+  const header = headers.find((value) => value.startsWith('mieru_rt='));
+  if (!header) return null;
+  const pair = header.split(';')[0] ?? '';
+  return pair === 'mieru_rt=' ? null : pair;
+}
+
+export interface SignedUpUser {
+  id: string;
+  username: string;
+  email: string;
+  password: string;
+  accessToken: string;
+  cookie: string;
+}
+
+let signupCounter = 0;
+
+/** Signs up a fresh account through the API and returns its tokens. */
+export async function signUp(
+  app: FastifyInstance,
+  email = `user${++signupCounter}-${Date.now()}@example.com`,
+  password = 'correct horse battery',
+): Promise<SignedUpUser> {
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/auth/signup',
+    payload: { email, password },
+  });
+  if (response.statusCode !== 201) throw new Error(`signup failed: ${response.body}`);
+  const body = response.json<{ accessToken: string; user: { id: string; username: string } }>();
+  const cookie = refreshCookieFrom(response.headers['set-cookie']);
+  if (!cookie) throw new Error('signup did not set a refresh cookie');
+  return {
+    id: body.user.id,
+    username: body.user.username,
+    email,
+    password,
+    accessToken: body.accessToken,
+    cookie,
+  };
+}
+
+export function bearer(token: string): Record<string, string> {
+  return { authorization: `Bearer ${token}` };
+}
+
+/** Headers for the cookie-authenticated refresh/logout routes. */
+export function cookieRouteHeaders(cookie: string): Record<string, string> {
+  return { cookie, origin: ORIGIN, 'content-type': 'application/json' };
 }

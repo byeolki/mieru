@@ -1,14 +1,23 @@
+import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { systemClock, type Clock } from './clock.js';
 import type { AppConfig } from './config.js';
 import type { DbPool } from './db/pool.js';
+import { registerAuthRoutes } from './features/auth/routes.js';
+import { registerUserRoutes } from './features/users/routes.js';
 import { registerHealthRoutes } from './observability/health.js';
+import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandling } from './plugins/errors.js';
+import { registerRateLimits } from './plugins/rate-limits.js';
 import { registerSecurityHeaders } from './plugins/security-headers.js';
 
 export interface AppDeps {
   config: AppConfig;
   db: DbPool;
+  clock?: Clock;
+  /** Tests that don't exercise limits turn them off so fixtures can create many accounts. */
+  rateLimitEnabled?: boolean;
 }
 
 const REDACTED_PATHS = [
@@ -19,7 +28,12 @@ const REDACTED_PATHS = [
 ];
 
 /** Builds the Fastify app without listening, so tests can drive it through `inject()`. */
-export async function buildApp({ config, db }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({
+  config,
+  db,
+  clock = systemClock,
+  rateLimitEnabled = true,
+}: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -42,7 +56,14 @@ export async function buildApp({ config, db }: AppDeps): Promise<FastifyInstance
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandling(app);
   await registerSecurityHeaders(app);
+  await app.register(cookie);
+  await registerRateLimits(app, { enabled: rateLimitEnabled });
+  registerAuth(app, { jwtSecret: config.JWT_SECRET, clock });
+
+  const routeDeps = { config, db, clock, rateLimitEnabled };
   registerHealthRoutes(app, { db, storageDir: config.STORAGE_DIR });
+  registerAuthRoutes(app, routeDeps);
+  registerUserRoutes(app, routeDeps);
 
   return app;
 }

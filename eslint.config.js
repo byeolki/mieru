@@ -33,6 +33,15 @@ export default tseslint.config(
     },
   },
   {
+    // Tests read untyped JSON responses from inject(); asserting on them is the point.
+    files: ['**/*.test.ts', '**/*.test.tsx', 'apps/server/test/**/*.ts', 'apps/web/e2e/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
+  },
+  {
     files: ['**/*.js', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
   },

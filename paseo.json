@@ -12,7 +12,7 @@
     },
     "server": {
       "type": "service",
-      "command": "PORT=$PASEO_PORT npm run dev -w @mieru/server"
+      "command": "PORT=$PASEO_PORT APP_ORIGIN=http://127.0.0.1:${PASEO_SERVICE_WEB_PORT:-5173} npm run dev -w @mieru/server"
     },
     "web": {
       "type": "service",
