@@ -1,91 +1,79 @@
-# Deploying mieru on freeride (Dokploy)
+# Deploying mieru on freeride
 
-Target: `https://mieru.byeolki.me`, one app container plus one MySQL 8.4 container on freeride,
-exposed through Cloudflare. Read `~/SERVER.md` on the host before touching anything there.
+Target: `https://mieru.byeolki.me`. The stack is `deploy/compose.yml` (app, MySQL 8.4, backup
+sidecar), run with the Docker CLI next to Dokploy. Dokploy's Traefik picks up the app through
+Docker labels. Read `~/SERVER.md` on the host before touching anything there.
 
-## 1. Database (`mieru-db`)
+Traffic path: Cloudflare → `cloudflared` (host service) → Traefik `:80` → `mieru-app-1:3000`.
 
-Dokploy → Create → Database → MySQL.
+## Layout on freeride
 
-| Setting | Value |
+| Path | Contents |
 |---|---|
-| Image | `mysql:8.4` |
-| Database / user | `mieru` / `mieru` (generate the password in Dokploy) |
-| Memory limit | 1 GiB |
-| Command args | `--innodb-buffer-pool-size=512M --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci` |
-| External port | none (internal network only) |
+| `/data/projects/mieru/src` | source snapshot (`git archive`), build context |
+| `/data/projects/mieru/mieru.env` | secrets and host paths, mode `600`, never committed |
+| `/data/projects/mieru/storage` | uploads, blobs, parsed sidecars (owned by `admin`, mode `700`) |
+| `/data/backups/mieru` | `db/` dumps (14 days) and `blobs/` mirror, written by the backup sidecar |
+| Docker volume `mieru_db-data` | MySQL data |
 
-## 2. Host directories
+The app and backup containers run as `admin` (uid/gid 1001), so the host directories need no
+`sudo` to set up.
 
-Ask the user to run these (they need `sudo`):
+## Env file
 
 ```sh
-sudo mkdir -p /data/projects/mieru/storage /data/backups/mieru/db
-sudo chown -R 10001:10001 /data/projects/mieru/storage   # the image runs as uid/gid 10001
+HOST_UID=1001
+HOST_GID=1001
+STORAGE_PATH=/data/projects/mieru/storage
+BACKUP_PATH=/data/backups/mieru
+TRUST_PROXY=2
+MYSQL_PASSWORD=<hex>
+MYSQL_ROOT_PASSWORD=<hex>
+JWT_SECRET=<32+ random bytes>
+LINK_TOKEN_KEY=<32+ random bytes>
+TICKET_SECRET=<32+ random bytes>
+VIEW_SALT_SECRET=<32+ random bytes>
 ```
 
-## 3. Application (`mieru-app`)
+Generate each secret with `openssl rand -hex 32`. Keep passwords hex so they are safe inside
+`DATABASE_URL`.
 
-Dokploy → Create → Application, source GitHub `main`, build type **Dockerfile** (repo root).
+## Deploy or update
 
-| Setting | Value |
-|---|---|
-| Replicas | 1 |
-| Memory / CPU | 2 GiB / 4 CPUs |
-| Health check | built into the image (`GET /api/health`) |
-| Mounts | bind `/data/projects/mieru/storage` → `/var/lib/mieru/storage` |
-|  | bind `/data/backups/mieru/db` → `/var/lib/mieru/backups` (read-only) |
-| Domain | `mieru.byeolki.me`, container port 3000, HTTPS handled by Cloudflare |
-
-Environment (Dokploy only, never committed):
+From the repo on m4pro:
 
 ```sh
-APP_ORIGIN=https://mieru.byeolki.me
-DATABASE_URL=mysql://mieru:<password>@<mieru-db internal host>:3306/mieru
-TRUST_PROXY=2            # Traefik + cloudflared; verify below
-BACKUP_DIR=/var/lib/mieru/backups
-LOG_LEVEL=info
-# 32+ random bytes each: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-JWT_SECRET=
-LINK_TOKEN_KEY=
-TICKET_SECRET=
-VIEW_SALT_SECRET=
+git archive HEAD | ssh ssh.byeolki.me 'rm -rf /data/projects/mieru/src && mkdir -p /data/projects/mieru/src && tar -x -C /data/projects/mieru/src'
+ssh ssh.byeolki.me 'cd /data/projects/mieru/src/deploy && docker compose --env-file /data/projects/mieru/mieru.env up -d --build'
+ssh ssh.byeolki.me 'docker image prune -f --filter label=com.docker.compose.project=mieru'
 ```
 
-`NODE_ENV`, `HOST`, `PORT`, `STORAGE_DIR` and `WEB_DIST_DIR` are set by the image. Rate limiting
-is always on in production. The container runs migrations at start, then the server.
+The app runs migrations at start, then the server. Rate limiting is always on in production.
 
-## 4. Cloudflare
+## Cloudflare (one time, needs the user)
 
-The `cloudflared` tunnel already routes to Traefik. Add a public hostname `mieru.byeolki.me` →
-Traefik. Keep Cloudflare caching off for `/api/*` (responses already send `no-store`). Uploads
-use 50 MiB tus chunks, under Cloudflare's 100 MB request limit.
+1. Cloudflare DNS: `CNAME mieru → a272d13d-b889-4e5a-afc9-1b6f1b04cb42.cfargotunnel.com`, proxied.
+2. `/etc/cloudflared/config.yml` gets an ingress entry before the 404 catch-all:
+   `- hostname: mieru.byeolki.me` / `service: http://localhost:80`.
+3. `sudo systemctl restart cloudflared`.
+
+Keep Cloudflare caching off for `/api/*` (responses send `no-store`). Uploads use 50 MiB tus
+chunks, under Cloudflare's 100 MB request limit.
 
 ### Verify the proxy hop count
 
-After the first deploy, sign in from a phone on mobile data and open **Settings → Sessions**. The
-session IP must be the phone's public IP. If it shows a 172.x/10.x address, `TRUST_PROXY` is too
-low; if anything but the real IP shows up, it is too high. Fix and redeploy.
+Sign in from a phone on mobile data and open **설정 → 세션**. The session IP must be the phone's
+public IP. A 172.x/10.x address means `TRUST_PROXY` is too low. Any other wrong IP means it is
+too high. Fix it in the env file and redeploy.
 
-## 5. Monitoring
+## Monitoring
 
 - Uptime Kuma: HTTP monitor on `https://mieru.byeolki.me/api/health/deep`, every 5 min, alert on
-  non-200. The body lists which check failed (disk, processing, trending, backups, db, storage).
-- Logs: Dozzle / Dokploy logs (pino JSON; tokens, cookies and passwords are redacted).
+  non-200. The body names the failing check.
+- Logs: `docker logs mieru-app-1` or Dozzle. Tokens, cookies and passwords are redacted.
 
-## 6. Backups
-
-Dokploy → Schedules → on the **host**, daily at 04:15 KST:
+## First admin
 
 ```sh
-DB_CONTAINER=$(docker ps -q -f name=mieru-db) /path/to/repo/scripts/backup.sh
-```
-
-See `docs/runbook.md` for restore and other operations. Backups share the NVMe with live data:
-they protect against mistakes, not drive failure (accepted risk).
-
-## 7. First admin
-
-```sh
-docker exec -it $(docker ps -q -f name=mieru-app) node dist/scripts/admin.js grant <username>
+docker exec mieru-app-1 node dist/scripts/admin.js grant <username>
 ```
