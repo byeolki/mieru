@@ -37,6 +37,8 @@ export interface AppDeps {
   /** Tests that don't exercise limits turn them off so fixtures can create many accounts. */
   rateLimitEnabled?: boolean;
   jobs?: JobTracker;
+  /** Where log lines go; defaults to stdout. Tests capture it to check redaction. */
+  logStream?: { write: (line: string) => void };
 }
 
 const REDACTED_PATHS = [
@@ -53,10 +55,12 @@ export async function buildApp({
   clock = systemClock,
   rateLimitEnabled = true,
   jobs = new JobTracker(clock()),
+  logStream,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
+      ...(logStream ? { stream: logStream } : {}),
       redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
       serializers: {
         req: (request: { method: string; url: string; headers: Record<string, unknown> }) => ({

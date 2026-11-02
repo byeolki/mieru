@@ -25,6 +25,7 @@ export interface TestContextOptions {
   env?: Partial<Record<string, string>>;
   clock?: Clock;
   rateLimitEnabled?: boolean;
+  logStream?: { write: (line: string) => void };
 }
 
 /** Builds an app against the test database with an isolated temporary storage directory. */
@@ -49,6 +50,7 @@ export async function createTestContext(options: TestContextOptions = {}): Promi
     db,
     clock: options.clock,
     rateLimitEnabled: options.rateLimitEnabled ?? false,
+    logStream: options.logStream,
   });
   await app.listen({ port: 0, host: '127.0.0.1' });
   const address = app.server.address();
