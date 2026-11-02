@@ -2,9 +2,11 @@
 
 ## Status
 
-**Release 1 is code-complete locally** (M0–M7, M-R code, dark mode, favicon). Steps that need
-freeride, the domain, or a human eye are still open; see "Needs manual check". Nothing has been
-pushed. P1/P2 milestones (M8–M13) have not been started.
+**Release 1 is deployed on freeride** (M0–M7, M-R, dark mode, favicon). It runs as the
+`mieru` compose stack (`deploy/compose.yml`) next to Dokploy, and Traefik routes
+`mieru.byeolki.me` to it. It is not reachable from the internet yet: the Cloudflare DNS record
+and a `cloudflared` restart (needs `sudo`) are still to do. The repository has no git remote, so
+nothing has been pushed. P1/P2 milestones (M8–M13) have not been started.
 
 ## Summary
 
@@ -33,7 +35,8 @@ pushed. P1/P2 milestones (M8–M13) have not been started.
   delete an issue, or take a repository down. The owner sees a takedown notice; admins can
   restore. Admin role is checked against the DB on every request.
 - **Ops:** `/api/health` (liveness) and `/api/health/deep`, which checks disk reserve, stuck
-  processing, trending freshness and backup age. Multi-stage non-root Dockerfile, backup script,
+  processing, trending freshness and backup age. Multi-stage non-root Dockerfile. Compose stack
+  with app, MySQL 8.4 and a daily backup sidecar (dump + blob mirror, 14-day retention).
   `docs/deploy.md` and `docs/runbook.md`.
 - **Web polish:** Korean UI. Dark mode follows the system setting. Heavy routes are lazy-loaded
   (main chunk 1.57 MB → 509 kB). Favicon and touch icon.
@@ -52,6 +55,18 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 | `E2E_BASE_URL=http://127.0.0.1:61283 npx playwright test -c apps/web/playwright.config.ts` | 13 passed (smoke, auth, repository, sharing, community, explore, moderation, theme) |
 | `npm run build` | pass |
 | `DATABASE_URL=$TEST_DATABASE_URL node apps/server/dist/scripts/migrate.js` | "no pending migrations" (compiled paths resolve) |
+
+### Production checks on freeride (through Traefik with `Host: mieru.byeolki.me`)
+
+| Check | Result |
+|---|---|
+| `docker compose --env-file /data/projects/mieru/mieru.env up -d --build` | image built; `001_init` applied; app and db healthy |
+| `GET /api/health/deep` | 200, every check `ok` (incl. backups after the sidecar's first run) |
+| Smoke test: signup → tus upload → create public model → poll → `/graph` | `ready`, graph 200 (argon2 and the parser worker run in the image) |
+| `/og/m/<id>.png` and `og:title` on `/m/<id>` | PNG 200 (72 KB); `og:title` = `smoke-cnn · @smoke-4327 \| mieru` |
+| Delete the smoke account | 204; users, models and blobs back to 0 |
+| Restore drill: dump → `mieru_drill` → compare → drop | 20 tables and 1 migration row in both |
+| `cloudflared tunnel ingress validate` / `ingress rule https://mieru.byeolki.me` | OK, matches the new rule |
 
 ### Security review checklist (M7.4)
 
@@ -72,14 +87,15 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 
 ## Needs manual check
 
-- **Deploy (R.1/R.2):** building the image on freeride and the first Dokploy deploy at
-  `mieru.byeolki.me`. Docker was not run locally; the compiled layout was checked without it.
-  Also needs: the host directories with `sudo` (`docs/deploy.md` §2), `TRUST_PROXY=2`
-  verification via the Settings session IP, and the Uptime Kuma monitor on
-  `/api/health/deep`. All of this needs a push and work on freeride, which I didn't do without
-  your go-ahead.
-- **Backups (R.3):** scheduling `scripts/backup.sh` in Dokploy and the restore drill into a scratch
-  DB. The script has only been syntax-checked (`bash -n`).
+- **Go live (needs the user):** add the Cloudflare DNS record
+  `CNAME mieru → a272d13d-b889-4e5a-afc9-1b6f1b04cb42.cfargotunnel.com` (proxied), then run
+  `sudo systemctl restart cloudflared` on freeride. The ingress entry is already in
+  `/etc/cloudflared/config.yml` (backup at `config.yml.bak-20261102`).
+- **After going live:** `TRUST_PROXY=2` check via the 설정 → 세션 IP, an Uptime Kuma monitor on
+  `/api/health/deep`, and the first admin
+  (`docker exec mieru-app-1 node dist/scripts/admin.js grant <username>`).
+- **First backup was empty:** the sidecar's first dump ran a second before migrations, so it has
+  no tables. The next run at 04:15 KST will have data.
 - **A 1+ GiB upload over the public domain** through Cloudflare.
 - **Brand (B.1/B.3):** the logo is still the keyed PNG from `docs/brand/logo-final.jpg`; the
   SVG redraw with real lettering isn't done. The `impeccable` / `kill-ai-slop` polish passes were
@@ -95,7 +111,5 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 
 ## Open questions
 
-- Should `docs/brand/` (the Grok logo drafts and `logo-final.jpg`) be committed? It is still
-  untracked.
-- Go-ahead to push `main` and do the first Dokploy deploy on freeride (deploy guide, host
-  directories, backup schedule)?
+- Should a GitHub remote be set up for `main`? There is none yet, so the deploy ships a
+  `git archive` snapshot over SSH.
