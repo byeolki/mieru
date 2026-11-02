@@ -1,11 +1,12 @@
 # mieru — product implementation plan
 
-Status: draft v2, revised after review round 1. Waiting on answers to [Open questions](#14-open-questions-for-the-user).
+Status: draft v3, revised after review rounds 1–2. Waiting on answers to [Open questions](#14-open-questions-for-the-user).
 Date: 2026-11-02
+Production URL: https://mieru.byeolki.me
 
 **mieru** (見える, "visible") is a web service where people upload neural-network model files, explore them visually, and share them with fine-grained access control. Auth and sharing are the core of the product; visualization is why people come.
 
-This is a product plan, not an MVP plan. Release 1 has to be something we'd put in front of strangers: secure accounts, account deletion, public pages with moderation, forks, backups, monitoring, and a real brand. The P0/P1/P2 feature priorities from the brief still decide the **order** of work. They don't lower the quality bar for any phase.
+This is a product plan, not an MVP plan. Release 1 should feel finished: secure accounts, account deletion, public pages with moderation, forks, backups, health monitoring, and a real brand. It's a personal project built to product quality, not a commercial service, so legal and compliance work (terms, privacy policy, cookie banners) is out of scope. The P0/P1/P2 feature priorities from the brief still decide the **order** of work. They don't lower the quality bar for any phase.
 
 ---
 
@@ -17,17 +18,31 @@ This is a product plan, not an MVP plan. Release 1 has to be something we'd put 
 |---|---|---|
 | 1 | Deploy to freeride with Dokploy | Ships as a Docker image (Dokploy Application) + Dokploy-managed MySQL. Storage is a bind mount at `/data/projects/mieru/storage`. Traffic arrives through Traefik, and probably Cloudflare Tunnel too (freeride runs `cloudflared-*`), so: **chunked resumable uploads** (Cloudflare caps request bodies at 100 MB) and **asynchronous processing** (Cloudflare times out requests at 100 s). See §2.3 |
 | 2 | MySQL on m4pro | Dev + integration tests use Homebrew `mysql@8.4` (LTS) on this Mac (§12.1) |
-| 3 | No email verification | **No outgoing email at all.** Email is only a password-login identifier and never confers authority. Sharing targets **usernames**, not emails (removes the email-squatting attack). Password recovery uses **recovery codes** + linked OAuth (Q2) |
+| 3 | No email verification | **No outgoing email at all.** Email is only a password-login identifier and never confers authority. Sharing targets **usernames**, not emails (removes the email-squatting attack). Password recovery: none (round 2) |
 | 4 | Name **mieru**; Japanese-subculture branding via a skill you'll provide | Renamed everywhere (`@mieru/*`). Brand work is its own milestone (M-B), blocked on that skill. §9.1 sets a product UI direction that leaves room for the brand |
 | 5 | Direct shares can download, with a setting | `shares.allow_download` per person (editor always true). Same toggle exists on links and for public models |
 | 6 | Fork, rather than resharing | Only the owner manages access. Anyone who can download a model can **fork** it into their own account (content-deduplicated, attribution kept). §7.4 |
 | 7 | Public models are in scope | General access gains **Public**: listed on Explore and the owner's profile, viewable anonymously. Brings in search, profiles, licenses, reporting, and admin takedown |
 | 8 | Links can grant up to editor; anonymous = viewer | `share_links.role` includes `editor`; anonymous visitors are capped at viewer. Logged-in visitors keep link access while the link stays valid (`link_visits`) |
-| 9 | 10 GB | Read as **10 GiB per-user storage quota**. Per-file limit becomes **2 GiB** (ONNX's protobuf ceiling). Q1 confirms this reading |
+| 9 | 10 GB | Clarified in round 2: **10 GiB per repository** |
 | 10 | "What does sharing mean here?" | Answered in §7.1 |
 | 11 | npm | npm workspaces |
 | 12 | Use design skills | Direction set with `frontend-design` (§9.1). Palette/categorical colors via `dataviz`/`better-colors`, and `better-interface`, `impeccable`, `kill-ai-slop` before each UI milestone closes |
 | 13 | Account deletion | Self-service deletion with re-authentication (§6.9) |
+
+**Round 2**
+
+| # | Your answer | Effect on the plan |
+|---|---|---|
+| 1 | 10 GiB is **per repository**, not per user | A model (repository: every version + labels) can hold up to 10 GiB. There's no per-user quota. Per-file limit: ONNX 2 GiB (format ceiling), safetensors up to the 10 GiB repo limit (parsing reads only the header). A server-wide free-space reserve protects the disk (§8.1) |
+| 2 | No password recovery | Recovery codes and `/auth/recover` removed. A password-only user who forgets their password can't get back in; OAuth users just log in with the provider. Signup suggests linking GitHub/Google |
+| 3 | Dokploy + Cloudflare, `mieru.byeolki.me` | `APP_ORIGIN=https://mieru.byeolki.me`; OAuth redirect URIs `https://mieru.byeolki.me/api/auth/oauth/{github,google}/callback` |
+| 4 | "Can an SSD even die?" | Yes (see §2.3), but for a non-commercial project, same-machine backups to `/data/backups/mieru` are an accepted risk. They still cover the more common failures: mistakes, bad migrations, deleted volumes |
+| 5 | No legal pages; not a real commercial service | `/terms`, `/privacy` removed |
+| 6 | Korean first | UI ships in **Korean** (`ko` default) with i18n in place; English later. UI font becomes Pretendard (Hangul + Latin) |
+| 7 | "What's monitoring?" | freeride's `monitoring_*` stack is Uptime Kuma, Dozzle, Adminer, and RedisInsight (no Prometheus), so the `/metrics` endpoint is dropped. Uptime Kuma checks `/api/health`; logs are read in Dozzle/Dokploy |
+| 8 | Fork follows download permission | Kept (D25) |
+| 9 | Anonymous reports OK | Kept (IP rate-limited) |
 
 ### 0.2 Decision log (self-grill)
 
@@ -45,9 +60,9 @@ This is a product plan, not an MVP plan. Release 1 has to be something we'd put 
 | D10 | OAuth | Hand-rolled Authorization Code + PKCE with `fetch` + `jose` | Two providers; auditable | medium |
 | D11 | Identity model | `username` (unique handle) is the public identity used for sharing, profiles, and attribution. `email` is nullable, unverified, unique, and only used to log in with a password | Without verification, an email proves nothing, so nothing may depend on it | high |
 | D12 | Account linking | Never by email; linking only from Settings while logged in | Account-takeover vector | high |
-| D13 | Password recovery | 10 single-use recovery codes issued at signup (shown once, can be regenerated) + "log in with a linked GitHub/Google account and set a new password" | No email (your answer 3). See Q2 | medium |
-| D14 | Uploads | **tus resumable uploads** (`@tus/server` + `@tus/file-store`, client `tus-js-client`), 50 MiB chunks, Bearer auth on every chunk, quota checked at creation from the required `Upload-Length` | Cloudflare's 100 MB body cap; 2 GiB files over home internet need resume. Replaces the brief's "multer diskStorage": still streamed to disk, still UUID names, still size-limited | medium |
-| D15 | Processing | Asynchronous: `POST /api/models` returns `202`; an in-process job runner (DB-backed status, concurrency 1, resumes `processing` rows at boot) hashes, dedupes, parses in a `worker_threads` worker with timeout + memory limits, then publishes | Cloudflare's 100 s timeout; 2 GiB hashing + parsing takes longer than a request should | high |
+| D13 | Password recovery | None. OAuth-linked users log in with the provider and can set a new password in Settings; password-only users who forget are locked out | Your answer (round 2) | high |
+| D14 | Uploads | **tus resumable uploads** (`@tus/server` + `@tus/file-store`, client `tus-js-client`), 50 MiB chunks, Bearer auth on every chunk, size limits checked at creation from the required `Upload-Length` | Cloudflare's 100 MB body cap; multi-GiB files over home internet need resume. Replaces the brief's "multer diskStorage": still streamed to disk, still UUID names, still size-limited | medium |
+| D15 | Processing | Asynchronous: `POST /api/models` returns `202`; an in-process job runner (DB-backed status, concurrency 1, resumes `processing` rows at boot) hashes, dedupes, parses in a `worker_threads` worker with timeout + memory limits, then publishes | Cloudflare's 100 s timeout; hashing + parsing multi-GiB files takes longer than a request should | high |
 | D16 | ONNX parsing | Own **streaming protobuf wire scanner** over a file handle for container messages (`ModelProto`, `GraphProto`, `TensorProto` headers); small messages (`NodeProto`, `ValueInfoProto`) decoded with `protobufjs` from the vendored `onnx.proto`. Tensor payloads (`raw_data`, `*_data`) are skipped; only their file offsets are recorded | Loading a 2 GiB file into a 2 GiB container on a shared 15 GiB host isn't acceptable; recorded offsets also feed weight viz (P1) | medium |
 | D17 | Storage dedup | Content-addressed `blobs` table (unique sha256); `model_files` reference blobs; a blob's file is deleted when the last reference goes away | Forks and re-uploads cost no disk; parse once per content | high |
 | D18 | Parsed cache | Gzipped sidecar `STORAGE_DIR/parsed/<blob_key>.v<parserVersion>.json.gz` + summary columns in MySQL | Large JSON stays out of MySQL; lazy re-parse when the parser version changes | high |
@@ -62,7 +77,9 @@ This is a product plan, not an MVP plan. Release 1 has to be something we'd put 
 | D27 | Weight viz gate | Histograms/stats: any viewer. Filter image grids: `canDownload` | Aggregates reveal little; filter images are the raw weights | medium |
 | D28 | Deletion order | DB transaction first, then file unlinks; `storage:gc` sweeps leftovers | Orphan files are harmless; dangling rows aren't | high |
 | D29 | Migrations | Forward-only numbered `.sql` + runner with checksums and a `GET_LOCK` advisory lock; runs at container start before listening | Single instance, but Dokploy rolling updates can overlap two containers briefly | high |
-| D30 | i18n | UI strings go through `i18next` from day one; English at launch | Retrofitting i18n is expensive; Japanese-flavored branding suggests ja/ko later (Q6) | medium |
+| D30 | i18n | UI strings go through `i18next` from day one; **Korean (`ko`) at launch**, English later | Your answer (round 2); retrofitting i18n is expensive | high |
+| D34 | Repository size | 10 GiB per model (all versions + labels); per file ONNX ≤ 2 GiB, safetensors ≤ 10 GiB; no per-user total | Your answer (round 2) | high |
+| D33 | Public downloads | Per-model choice when going public: **downloads allowed (default)** or **view only**; Explore shows which and can filter | See §7.1 "Public: downloadable or view-only" and Q1 | medium |
 | D31 | Search | MySQL `FULLTEXT ... WITH PARSER ngram` on model name + description | No extra service; ngram handles CJK names | medium |
 | D32 | Tests | Vitest (unit + integration with real MySQL), Playwright headless | Your testing policy | high |
 
@@ -71,19 +88,20 @@ This is a product plan, not an MVP plan. Release 1 has to be something we'd put 
 ## 1. Goals and non-goals
 
 ### Goals
-1. Accounts: email+password, GitHub, Google; safe sessions; recovery without email; self-service deletion.
-2. Upload `.onnx` and `.safetensors` up to 2 GiB, resumable, with clear feedback while processing.
+1. Accounts: email+password, GitHub, Google; safe sessions; self-service deletion.
+2. Upload `.onnx` (≤ 2 GiB) and `.safetensors` (≤ 10 GiB), resumable, with clear feedback while processing; up to 10 GiB per repository.
 3. Visualize: ONNX computation graph (op colors, inspector, collapsible blocks, search), safetensors module tree, summary header, Stats tab.
 4. Share: private / specific people / anyone with the link / public; viewer / commenter / editor; expiring links; download settings; forks.
 5. Discover: Explore page and user profiles for public models, with reporting and admin takedown.
-6. Run on freeride via Dokploy with backups, health checks, logs, and metrics.
+6. Run on freeride via Dokploy at `mieru.byeolki.me` with backups, health checks, and logs.
 7. Then P1 (comments, versions + diff, workspaces, in-browser demo, weight viz) and P2 (feature maps, design mode).
 
 ### Non-goals
 - `.pt` / `.pth` / `.bin` / pickle / `.h5` / TFLite / GGUF (`.pt` gets a conversion guide).
 - ONNX external data (`.onnx` + `.data`, > 2 GiB models).
 - Server-side inference or shape inference.
-- Outgoing email of any kind (notifications, verification, reset).
+- Outgoing email of any kind (notifications, verification, reset) and password recovery.
+- Legal/compliance pages (terms, privacy policy).
 - Object storage, multi-server, horizontal scaling.
 - Paid plans and billing.
 - Native apps.
@@ -127,7 +145,7 @@ flowchart LR
 ```
 
 ### 2.2 Upload → processing → render
-1. The SPA creates a tus upload: `POST /api/uploads` with `Upload-Length` and metadata `{ filename }`. The server checks auth, extension, `Upload-Length ≤ MAX_FILE_BYTES`, and `used + pending + Upload-Length ≤ quota`, then creates `uploads/<uuid>`.
+1. The SPA creates a tus upload: `POST /api/uploads` with `Upload-Length` and metadata `{ filename }`. The server checks auth, extension, the per-format file limit, the repository limit (P1 new versions: `repo bytes + pending + Upload-Length ≤ 10 GiB`), and the server free-space reserve, then creates `uploads/<uuid>`.
 2. The SPA sends 50 MiB `PATCH` chunks; retries resume from `HEAD`'s `Upload-Offset`.
 3. When complete, the SPA calls `POST /api/models { uploadId, name, description?, visibility? }` (or `POST /api/models/:id/versions` in P1). The server checks that the upload belongs to the caller, is complete, and has the right magic bytes, creates `models` + `model_versions(status='processing')`, and returns `202 { model }`.
 4. The job runner picks it up: stream-hash (SHA-256) → if a blob with that hash exists, drop the upload and reuse the blob and its parse; otherwise run the parser worker (timeout scales with size: 30 s + 30 s/GiB) → write the sidecar → `rename` into `blobs/<uuid>` → insert `blobs` + `model_files`, set version `ready`, point `current_version_id` at it. On failure: version `failed` with a reason code; files are cleaned.
@@ -139,8 +157,13 @@ flowchart LR
 - **Dokploy MySQL** `mieru-db`: MySQL 8.4, 1 GiB memory limit, `innodb_buffer_pool_size=512M`, internal network only. Data on Dokploy's volume (on `/mnt/docker-data`, per `~/SERVER.md`).
 - **Entrypoint**: `node dist/scripts/migrate.js && node dist/server.js` (migrations hold a MySQL `GET_LOCK('mieru_migrate')`).
 - **Network path**: Cloudflare → `cloudflared` → Traefik → app. `TRUST_PROXY` hop count + `CF-Connecting-IP` handling are verified in M-R.2 (rate limits depend on the real client IP). `/api` responses send `Cache-Control: private, no-store` unless stated otherwise, so Cloudflare never caches them.
-- **Backups** (destination is Q4): daily `mysqldump --single-transaction` and an `rsync` of `storage/blobs` (+ `parsed` is rebuildable, so it's skipped), run as Dokploy scheduled tasks. A restore drill is part of M-R.
-- **Observability**: pino JSON logs to stdout (Dokploy log viewer), `/api/health` (DB + storage writable), Prometheus `/metrics` on an internal-only port (`prom-client`: request latency, job queue depth, parse durations, disk free), scraped by the existing `monitoring_*` stack if you want it (Q7).
+- **Domain**: `mieru.byeolki.me` added as a Dokploy domain on the app, exposed through Cloudflare like your other freeride services. `APP_ORIGIN=https://mieru.byeolki.me`.
+- **Backups**: daily `mysqldump --single-transaction` (keep 14) and an `rsync` of `storage/blobs` (`parsed/` is rebuildable, so it's skipped) into `/data/backups/mieru`, run as Dokploy scheduled tasks. Accepted risk: `/data` is the same NVMe that holds the live data, so this protects against mistakes (bad migration, deleted rows, removed volume), not against the drive itself failing. SSDs do fail, often suddenly (controller/firmware) rather than gradually. A restore drill is part of M-R.
+- **Observability** (fits what freeride already runs: Uptime Kuma, Dozzle, Adminer; there's no Prometheus):
+  - pino JSON logs to stdout, read in Dozzle or Dokploy's log view.
+  - `GET /api/health`: liveness (DB reachable, storage writable). Used by the Docker health check, so it never fails for soft problems.
+  - `GET /api/health/deep`: returns `503` when free disk < reserve, the job queue is stuck (oldest `processing` > 15 min), or backups are older than 36 h. An Uptime Kuma HTTP monitor on it gives you alerts.
+  - Adminer (already running) for ad-hoc SQL; it's reachable only from your network, never exposed through mieru.
 
 ---
 
@@ -157,9 +180,9 @@ mieru/
 │  │  │  ├─ db/                     # pool.ts, query.ts
 │  │  │  ├─ plugins/                # auth.ts, model-access.ts, rate-limits.ts, errors.ts, static-spa.ts
 │  │  │  ├─ features/
-│  │  │  │  ├─ auth/                # password, sessions, recovery codes, oauth/{github,google}.ts
+│  │  │  │  ├─ auth/                # password, sessions, oauth/{github,google}.ts
 │  │  │  │  ├─ users/               # profile, settings, account deletion
-│  │  │  │  ├─ uploads/             # tus server wiring, quota
+│  │  │  │  ├─ uploads/             # tus server wiring, size limits
 │  │  │  │  ├─ models/              # routes, service, repo, download, fork
 │  │  │  │  ├─ sharing/             # access-service.ts (THE resolver), shares, links
 │  │  │  │  ├─ explore/             # public listing, search
@@ -168,7 +191,7 @@ mieru/
 │  │  │  ├─ jobs/                   # runner.ts, process-version.ts
 │  │  │  ├─ parsing/                # worker.ts, run-parser.ts, onnx/, safetensors/, limits.ts
 │  │  │  ├─ storage/                # paths.ts (UUID-only), blobs.ts, disk.ts
-│  │  │  └─ observability/          # metrics.ts, health.ts
+│  │  │  └─ observability/          # health.ts (liveness + deep)
 │  │  └─ test/
 │  └─ web/                          # @mieru/web
 │     ├─ src/
@@ -193,7 +216,7 @@ mieru/
 **Root scripts**: `lint`, `format:check`, `typecheck`, `test:unit`, `test:integration`, `test:e2e`, `build`, plus workspace scripts `db:migrate`, `storage:gc`, `fixtures`, `admin`.
 
 **Key dependencies**
-- server: `fastify`, `@fastify/cookie`, `@fastify/rate-limit`, `@fastify/helmet`, `@fastify/static`, `fastify-type-provider-zod`, `@tus/server`, `@tus/file-store`, `mysql2`, `argon2`, `jose`, `protobufjs` (+ `protobufjs-cli` dev), `pino`, `prom-client`, `uuid`.
+- server: `fastify`, `@fastify/cookie`, `@fastify/rate-limit`, `@fastify/helmet`, `@fastify/static`, `fastify-type-provider-zod`, `@tus/server`, `@tus/file-store`, `mysql2`, `argon2`, `jose`, `protobufjs` (+ `protobufjs-cli` dev), `pino`, `uuid`.
 - web: `react`, `react-router`, `@tanstack/react-query`, `@tanstack/react-virtual`, `@xyflow/react`, `elkjs`, `recharts`, `tus-js-client`, `i18next` + `react-i18next`, Radix primitives, `tailwindcss`, `zod`. P1: `onnxruntime-web`.
 
 ---
@@ -270,18 +293,6 @@ CREATE TABLE refresh_tokens (
   KEY ix_refresh_user (user_id),
   KEY ix_refresh_expires (expires_at),
   CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE TABLE recovery_codes (
-  id          CHAR(36) CHARACTER SET ascii NOT NULL,
-  user_id     CHAR(36) CHARACTER SET ascii NOT NULL,
-  code_hash   BINARY(32) NOT NULL,                             -- SHA-256 of a 50-bit random code
-  used_at     DATETIME(3) NULL,
-  created_at  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_recovery_code_hash (code_hash),
-  KEY ix_recovery_user (user_id),
-  CONSTRAINT fk_recovery_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Content-addressed files on disk. Shared by forks and identical uploads.
@@ -363,10 +374,11 @@ CREATE TABLE model_files (
   CONSTRAINT fk_model_files_blob FOREIGN KEY (blob_id) REFERENCES blobs (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- In-flight tus uploads; quota counts declared lengths of pending uploads.
+-- In-flight tus uploads; repository-size checks count declared lengths of pending uploads.
 CREATE TABLE uploads (
   id             CHAR(36) CHARACTER SET ascii NOT NULL,       -- also the file name under uploads/
   user_id        CHAR(36) CHARACTER SET ascii NOT NULL,
+  target_model_id CHAR(36) CHARACTER SET ascii NULL,          -- P1: upload meant as a new version of this model
   original_name  VARCHAR(255) NOT NULL,
   declared_size  BIGINT UNSIGNED NOT NULL,
   completed_at   DATETIME(3) NULL,
@@ -460,7 +472,7 @@ CREATE TABLE audit_events (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 ```
 
-Quota = `SUM(blobs.size_bytes)` over the user's models' `model_files` (every version, each file counted per model, so forks count toward the forker) + `SUM(declared_size)` of their unconsumed, unexpired uploads. Computed with one indexed query; no counter column to drift.
+Repository size = `SUM(blobs.size_bytes)` over the model's `model_files` (every version, model + labels) + `SUM(declared_size)` of unconsumed, unexpired uploads targeting it. Limit `MAX_REPO_BYTES` = 10 GiB. Computed with one indexed query; no counter column to drift. There is no per-user total (round 2); disk safety comes from the server-wide free-space reserve.
 
 ### `002_comments.sql` (P1)
 
@@ -537,12 +549,11 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 ### Auth
 | Method | Path | Auth | Request → Response |
 |---|---|---|---|
-| POST | `/api/auth/signup` | none (rate-limited) | `{ username, email, password, displayName }` → `201 { accessToken, user, recoveryCodes: string[10] }` + cookie |
+| POST | `/api/auth/signup` | none (rate-limited) | `{ username, email, password, displayName }` → `201 { accessToken, user }` + cookie |
 | POST | `/api/auth/login` | none (rate-limited, backoff) | `{ identifier (email or username), password }` → `{ accessToken, user }` + cookie · `401` · `429 { retryAfterSec }` |
 | POST | `/api/auth/refresh` | cookie | → `{ accessToken, user }` + rotated cookie · `401` |
 | POST | `/api/auth/logout` | cookie | → `204` |
 | POST | `/api/auth/logout-all` | user | → `204` |
-| POST | `/api/auth/recover` | none (strict rate limit) | `{ identifier, recoveryCode, newPassword }` → `{ accessToken, user }` + cookie; revokes all sessions, consumes the code |
 | POST | `/api/auth/oauth/:provider/authorize` | none / user for `link`,`reauth` | `{ intent: 'login'\|'link'\|'reauth', returnTo? }` → `{ authorizeUrl }` + `mieru_oauth` tx cookie |
 | GET | `/api/auth/oauth/:provider/callback` | tx cookie | → `302 /auth/callback?status=…` (+ cookie on login) |
 | POST | `/api/auth/reauth` | user | `{ password }` → `{ accessToken }` with fresh `auth_time` (OAuth-only users use `intent=reauth`) |
@@ -550,11 +561,10 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 ### Me and users
 | Method | Path | Auth | Request → Response |
 |---|---|---|---|
-| GET | `/api/me` | user | `{ id, username, displayName, bio, avatarUrl, email, hasPassword, oauthProviders, role, onboarded, storage: { usedBytes, quotaBytes }, recoveryCodesRemaining }` |
+| GET | `/api/me` | user | `{ id, username, displayName, bio, avatarUrl, email, hasPassword, oauthProviders, role, onboarded }` |
 | PATCH | `/api/me` | user | `{ username? (needs onboarding or 30-day cooldown), displayName?, bio? }` |
 | POST | `/api/me/onboarding` | user | `{ username }` (OAuth signups) |
 | PUT | `/api/me/password` | user + recent auth | `{ email (if none yet), newPassword }` → `204`, revokes other sessions |
-| POST | `/api/me/recovery-codes` | user + recent auth | → `{ recoveryCodes }` (invalidates old ones) |
 | DELETE | `/api/me/oauth/:provider` | user | `204` · `409 last_login_method` |
 | GET / DELETE | `/api/me/sessions[/:familyId]` | user | list / revoke |
 | DELETE | `/api/me` | user + recent auth (≤ 10 min) | `{ confirmUsername }` → `204` (§6.9) · `409 sole_workspace_owner` (P1) |
@@ -565,7 +575,7 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 ### Uploads (tus 1.0, Bearer on every request)
 | Method | Path | Notes |
 |---|---|---|
-| OPTIONS / POST | `/api/uploads` | create; `Upload-Length` required (no deferred length); metadata `filename`. `413 file_too_large`, `415 unsupported_format` (+ conversion hint for `.pt`), `507 quota_exceeded`, `507 server_storage_low` |
+| OPTIONS / POST | `/api/uploads` | create; `Upload-Length` required (no deferred length); metadata `filename` (+ `modelId` for P1 versions). `413 file_too_large` (ONNX > 2 GiB, safetensors > 10 GiB), `413 repository_full`, `415 unsupported_format` (+ conversion hint for `.pt`), `507 server_storage_low` |
 | HEAD / PATCH | `/api/uploads/:uploadId` | resume / append (owner only, otherwise 404) |
 | DELETE | `/api/uploads/:uploadId` | tus termination |
 
@@ -580,7 +590,7 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 | GET | `/api/models/:id/graph?version=` | principal | viewer | `ParsedModel` (gzip, `ETag`) · `409 not_ready` |
 | POST | `/api/models/:id/file-ticket` | principal | viewer + canDownload | `{ kind?, version? }` → `{ url, expiresAt }` |
 | GET | `/api/models/:id/file?ticket=` | ticket | re-checked | stream; `Accept-Ranges: bytes`; `206` for a single range |
-| POST | `/api/models/:id/fork` | user | viewer + canDownload | `{ name?, version? }` → `201 ModelDetail` (instant: no copy, no re-parse) · `507 quota_exceeded` |
+| POST | `/api/models/:id/fork` | user | viewer + canDownload | `{ name?, version? }` → `201 ModelDetail` (instant: no copy, no re-parse) |
 | GET | `/api/models/:id/forks` | principal | viewer | forks the caller can see |
 | POST | `/api/models/:id/reports` | none (rate-limited) | viewer | `{ reason, details? }` → `204` |
 
@@ -629,13 +639,13 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 ### 6.1 Tokens
 - Access: JWT HS256 via `jose`, 10 min, `{ sub, sid (family), auth_time, iat, exp, iss, aud }`, in memory only.
 - Refresh: 32 random bytes base64url, cookie `mieru_rt` (`HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=30d`), DB stores SHA-256. 30 d per token, 90 d per family.
-- "Recent auth" = `auth_time` within 10 min. Required for password change, recovery-code regeneration, and account deletion.
+- "Recent auth" = `auth_time` within 10 min. Required for password change and account deletion.
 
 ### 6.2 Signup (password)
 1. zod: `username` `^[a-z0-9][a-z0-9_-]{2,29}$` and not reserved (`admin`, `api`, `explore`, `settings`, `s`, `m`, `u`, `help`, …), `email` RFC-ish, `password` 10–128 chars, `displayName` 1–100.
 2. `409 username_taken` / `409 email_taken` (enumeration accepted for usernames, which are public anyway; emails are rate-limited, R8).
-3. argon2id → insert user (`onboarded_at = now`) + 10 recovery codes (format `xxxxx-xxxxx`, Crockford base32, 50 bits each; store SHA-256).
-4. Issue session. The response carries `recoveryCodes` once; the SPA shows a "Save your recovery codes" screen (download `.txt` / copy) before continuing. Skipping is allowed, but a Settings banner stays until codes are confirmed or an OAuth account is linked.
+3. argon2id → insert user (`onboarded_at = now`).
+4. Issue session. The signup form states that mieru can't reset forgotten passwords and suggests linking GitHub or Google in Settings; a dismissible Settings hint repeats it until an OAuth account is linked.
 
 ### 6.3 Login + brute force
 1. IP limit 10/min. `identifier` containing `@` → email lookup, else username.
@@ -676,15 +686,13 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 - Cookie routes: `SameSite=Strict` cookie scoped to `/api/auth`; `Origin` must equal `APP_ORIGIN` (missing → reject); `Content-Type: application/json` required (cross-origin requests would need a preflight, and no CORS policy is served).
 - Download tickets are 60 s bearer URLs scoped to one file and principal; an attacker page can't mint one.
 
-### 6.8 Recovery without email
-- `POST /api/auth/recover { identifier, recoveryCode, newPassword }`: rate limits of 5/hour per IP and 5/hour per account, and the per-account lockout counter is shared with login. Valid unused code → set the password, mark the code used, `password_changed_at = now`, revoke all families, issue a new session. The response tells the user how many codes remain.
-- OAuth-linked users can log in with the provider and set a new password in Settings.
-- Neither path works for a password-only user without codes. The signup flow and the Settings banner say this plainly (Q2).
+### 6.8 Forgotten passwords
+Not supported (round 2). Users with a linked GitHub/Google account log in through it and can set a new password in Settings (recent auth). Password-only users who forget their password lose the account; the signup form and Settings say so plainly.
 
 ### 6.9 Account deletion
 1. Settings → Delete account. The UI lists what will be deleted: owned models (N), versions, links; forks other people made of your models stay with them (their copy has `forked_from` cleared); your comments show as "Deleted user".
 2. Requires recent auth (password re-entry or OAuth `reauth`) and typing the username.
-3. Server (`users/delete-account.ts`): (P1) `409 sole_workspace_owner` if the user is the only owner of a workspace with other members. Then, in one transaction: collect blob ids referenced by the user's models → delete the models (cascades versions, files, shares, links, visits, comments on them, reports on them) → delete the user (cascades OAuth, tokens, recovery codes, uploads; `SET NULL` on authored comments, `created_by` columns, reports) → write an `audit_events` row (actor NULL, target = user id, no PII). After commit: unlink upload files and any blobs that now have zero references; `storage:gc` catches failures.
+3. Server (`users/delete-account.ts`): (P1) `409 sole_workspace_owner` if the user is the only owner of a workspace with other members. Then, in one transaction: collect blob ids referenced by the user's models → delete the models (cascades versions, files, shares, links, visits, comments on them, reports on them) → delete the user (cascades OAuth, tokens, uploads; `SET NULL` on authored comments, `created_by` columns, reports) → write an `audit_events` row (actor NULL, target = user id, no PII). After commit: unlink upload files and any blobs that now have zero references; `storage:gc` catches failures.
 4. Response `204` + cleared cookie. The username becomes available again after 30 days (reserved through `audit_events` lookup) to prevent impersonation of the deleted account.
 
 ### 6.10 Rate limits (`@fastify/rate-limit`, in-memory, keyed on the real client IP)
@@ -694,7 +702,6 @@ Conventions: JSON; errors `{ "error": { "code", "message", "details"? } }`. Auth
 | `POST /auth/login` | IP | 10/min (+ account backoff) |
 | `POST /auth/signup` | IP | 5/hour |
 | `POST /auth/refresh` | IP | 30/min |
-| `POST /auth/recover` | IP; account | 5/hour; 5/hour |
 | `POST /auth/reauth` | user | 10/hour |
 | `POST /share-links/resolve`, requests with `X-Share-Link` | IP | 30/min; failed lookups count double |
 | `POST /api/uploads` (create) | user | 30/hour |
@@ -717,6 +724,13 @@ Every model belongs to exactly one **owner**. Sharing is how the owner lets othe
 Sharing never copies anything. It grants access to the owner's model, and the owner can take that access back at any time. Only the owner changes who has access; editors change the model, not the guest list. When someone wants their own copy, to change or reshare it, they **fork** it (§7.4). Forking needs download permission, since a fork contains the file.
 
 General-access setting on a model: **Private** (owner only; existing people and links are kept but inactive) → **Specific people** → **Anyone with the link** (people + links) → **Public** (people + links + everyone as viewer).
+
+**Public: downloadable or view-only (recommended design, confirm in Q1).** Making a model public asks one more thing in the same dialog: "다운로드 허용" (default, checked) or "보기 전용". This is `models.public_allow_download`.
+- *Downloadable*: anyone can download, fork (if logged in), run the demo, and see filter images. This is the open-weights case and the default, because sharing is mostly about passing models around.
+- *View only*: anyone can explore the graph/tree, stats, and weight histograms; download, fork, demo, and filter images are off for the public. People and links the owner added keep their own download settings. Use cases: showing an architecture for a paper or portfolio while keeping trained weights private, course assignments, competition entries.
+- Honest limit, stated in the dialog: view-only protects the **weights**, not the **architecture**. The graph shows the full structure, so anyone could rebuild an untrained copy.
+- Explore shows a "보기 전용" marker on such models and has a "다운로드 가능만" filter.
+- Cost: none beyond what's already designed; the resolver row and column exist. Choosing "always downloadable" instead would delete one column and one checkbox.
 
 ### 7.2 Roles and capabilities
 | Capability | viewer | commenter | editor | owner |
@@ -745,7 +759,7 @@ General-access setting on a model: **Private** (owner only; existing people and 
 Effective role = max over sources; `canDownload` = OR over sources that grant a role; `canFork` = logged in ∧ `canDownload` ∧ not taken down. Admins get viewer on any model for moderation, plus admin routes. Model status `processing`/`failed` limits the graph endpoint (`409 not_ready`), not access.
 
 ### 7.4 Forks
-- `POST /models/:id/fork` creates a new model owned by the caller: `forked_from_model_id/version_id` set, `visibility = private`, name `<name> (fork)` unless provided, and **one** version pointing at the same blob(s) as the source version (model + labels). No file copy, no re-parse, so it completes instantly. The quota check counts the blob size for the forker.
+- `POST /models/:id/fork` creates a new model owned by the caller: `forked_from_model_id/version_id` set, `visibility = private`, name `<name> (fork)` unless provided, and **one** version pointing at the same blob(s) as the source version (model + labels). No file copy, no re-parse, so it completes instantly. A fork's single version is never larger than the source version, so it always fits the repository limit.
 - Comments, shares, links, and stars are not copied.
 - Attribution: "Forked from @owner/name" links back when the viewer can see the source; otherwise it reads "Forked from a private model". If the source is deleted, the link disappears (`SET NULL`).
 - Forks of public models inherit the source's `license` as the default.
@@ -762,7 +776,7 @@ Effective role = max over sources; `canDownload` = OR over sources that grant a 
 ## 8. Parsing pipeline
 
 ### 8.1 Validation before parsing
-1. At tus creation: extension allow-list (`.onnx`, `.safetensors`; `.pt|.pth|.bin|.pkl|.ckpt` → `415` + `hint: 'convert'`), `Upload-Length ≤ MAX_FILE_BYTES` (2 GiB), quota, and `statfs` free space ≥ `Upload-Length + 5 GiB` reserve.
+1. At tus creation: extension allow-list (`.onnx`, `.safetensors`; `.pt|.pth|.bin|.pkl|.ckpt` → `415` + `hint: 'convert'`), per-format file limit (`MAX_ONNX_BYTES` 2 GiB, `MAX_SAFETENSORS_BYTES` 10 GiB), repository limit (§4), and `statfs` free space ≥ `Upload-Length + DISK_RESERVE_BYTES` (default 50 GiB, because `/data` is shared with other projects).
 2. Original filename: strip control characters and path separators, NFC, ≤ 255. Display and `Content-Disposition` only.
 3. At `POST /models`: the upload is complete and owned by the caller, and the first bytes match:
    - safetensors: `N = u64le(0)`, `2 ≤ N ≤ 100 MiB`, `8 + N ≤ size`, byte 8 = `{`.
@@ -891,7 +905,7 @@ The zod mirror validates payloads at the SPA boundary. Tensor payload offsets ar
 - The op-category palette (10 hues) is a separate data palette built with the `dataviz` skill and validated for color-vision deficiency and for contrast on both `paper` and `canvas-dark`. It never reuses `signal`.
 - The canvas background is a fine screentone dot grid (`fog` on `paper`), a quiet nod to manga print that doubles as a spatial reference while panning.
 
-**Type (provisional)**: brand/display = the face chosen with the brand skill (it must cover Japanese; candidates like M PLUS 1 or Zen Kaku Gothic New get decided there). UI/body = IBM Plex Sans with tabular figures for parameter counts and sizes. Tensor shapes and dtypes = IBM Plex Mono, because they're literal code tokens (`[1, 3, 224, 224]`, `float16`). Monospace stays out of ordinary labels. Scale: 13 / 14 / 16 / 20 / 28 / 40 px; UI runs at 14.
+**Type (provisional)**: brand/display = the face chosen with the brand skill (it must cover Japanese; candidates like M PLUS 1 or Zen Kaku Gothic New get decided there). UI/body = **Pretendard** (Korean-first UI; covers Hangul and Latin; already used in your other React project), with tabular figures for parameter counts and sizes. The brand display face must cover Hangul too wherever it sets Korean headings. Tensor shapes and dtypes = IBM Plex Mono, because they're literal code tokens (`[1, 3, 224, 224]`, `float16`). Monospace stays out of ordinary labels. Scale: 13 / 14 / 16 / 20 / 28 / 40 px; UI runs at 14.
 
 **Layout**
 
@@ -931,22 +945,22 @@ Dashboard / Explore: a dense list, not a card grid
 | `/` | Landing (logged out, brand-led) / redirect to `/dashboard` |
 | `/explore` | Public models: search, format filter, sort |
 | `/u/:username` | Profile: public models |
-| `/login`, `/signup`, `/recover` | Auth (signup ends on the recovery-codes screen) |
+| `/login`, `/signup` | Auth |
 | `/auth/callback`, `/welcome` | OAuth landing; username pick for new OAuth users |
-| `/dashboard` | My models · Shared with me (+ Workspaces in P1), storage meter |
+| `/dashboard` | My models · Shared with me (+ Workspaces in P1) |
 | `/upload` | Resumable upload with progress, pause/resume, processing state |
 | `/m/:modelId` | Model view (rail: Graph/Tree, Stats, Info; P1: Versions, Demo, Weights, comments panel) |
 | `/s/:token` | Link entry: resolves, then renders the model view (token kept in memory as `X-Share-Link`, URL replaced with `/m/:id?via=link`) |
-| `/settings/*` | Profile, login methods (password, OAuth, recovery codes), sessions, delete account |
+| `/settings/*` | Profile, login methods (password, OAuth), sessions, delete account |
 | `/admin/reports` | Moderation queue (admins) |
-| `/help/convert`, `/terms`, `/privacy` | Static pages (legal text is Q5) |
+| `/help/convert` | `.pt` → ONNX / safetensors guide |
 | `*` | 404 (also for no-access models) |
 
 ### 9.3 Main components
 - `AuthProvider` / `auth-store`, `api-client` (Bearer + `X-Share-Link`, refresh-retry, zod parsing), `upload.ts` (tus client with token refresh).
 - `ModelHeader` + `ArchitectureStrip`, `OnnxGraphView` (`OpNode`, `GroupNode`, `IoNode`, legend, search, layout worker), `NodeInspector`, `SafetensorsTreeView` (virtualized), `StatsTab` (`ParamsPerLayerChart`, `OpTypeDistribution` / dtype breakdown).
 - `ShareDialog` (general access, `PeoplePicker` with username search, per-person role + download, `ShareLinkManager`, public download toggle), `ForkButton`, `ReportDialog`.
-- `ModelTable` (dashboard, Explore, profile), `StorageMeter`, `UploadPanel`, `ProcessingState`, `RecoveryCodesScreen`, `DeleteAccountFlow`, `ReportQueue`.
+- `ModelTable` (dashboard, Explore, profile), `RepoSizeMeter` (model Info tab and versions upload), `UploadPanel`, `ProcessingState`, `DeleteAccountFlow`, `ReportQueue`.
 
 ### 9.4 Share previews
 Public models and links get Open Graph tags so chat apps show a preview. Fastify answers `GET /m/:id` and `/u/:username` for crawler user agents (and for everyone, cheaply) with the SPA `index.html` with `<meta>` tags injected (title, description, an OG image of the architecture strip + brand frame rendered as SVG → PNG with `@resvg/resvg-js`). Private and link-only models get a generic "mieru" preview and never leak names.
@@ -973,19 +987,18 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 ### M1 — Accounts and sessions
 | # | Task | AC |
 |---|---|---|
-| 1.1 | Signup (username rules, reserved names, argon2id, recovery codes) | integration: 201 with 10 codes + cookie flags; taken username → 409 |
+| 1.1 | Signup (username rules, reserved names, argon2id) | integration: 201 + cookie flags; taken username → 409 |
 | 1.2 | Token service + `auth` plugin | expired/tampered JWT rejected; `/api/me` 401/200 |
 | 1.3 | Login by email or username + backoff | 5 failures → 429 with `retryAfterSec`; success resets |
 | 1.4 | Refresh rotation, grace window, reuse detection, `audit_events` | fake clock: replay after 10 s kills the family; within 10 s → `stale_refresh`, family intact |
 | 1.5 | CSRF guard on cookie routes | bad/missing Origin → 403; `text/plain` → 415 |
 | 1.6 | Logout, logout-all, sessions list/revoke | revoked family can't refresh |
-| 1.7 | Recovery-code login + regeneration (recent auth) | used code fails second time; regeneration invalidates old codes; all sessions revoked on recovery |
 | 1.8 | Rate-limit plugin per §6.10, real-IP extraction behind configured proxies | 11th login/min → 429; spoofed `X-Forwarded-For` ignored when hops = 0 |
 | 1.9 | OAuth core + GitHub | MockAgent: bad state → `state_mismatch`; happy path creates user with `onboarded_at NULL`; token request carries `code_verifier` |
 | 1.10 | Google (JWKS mock, nonce), link/unlink/reauth intents, onboarding endpoint | tests per rule incl. `already_linked`, `last_login_method`, reauth for another account rejected |
 | 1.11 | Password set/change (recent auth), profile edit, username change cooldown | change revokes other sessions; second rename within 30 days → 409 |
 | 1.12 | Account deletion service + endpoint | integration: user with models, a fork made by someone else, a comment-less share: after delete, models/rows gone, the other user's fork still downloads (same sha256), orphaned blobs unlinked, audit row has no PII |
-| 1.13 | Web: AuthProvider, login/signup/recovery-codes/recover/callback/welcome, Settings (profile, login methods, sessions, delete account) | Playwright: signup → codes screen → reload keeps session → logout → recover with a code → delete account → login fails |
+| 1.13 | Web (Korean copy via i18next): AuthProvider, login/signup/callback/welcome, Settings (profile, login methods, sessions, delete account) | Playwright: signup → reload keeps session → logout → login → delete account → login fails |
 
 ### M2 — Upload, storage, processing
 | # | Task | AC |
@@ -995,7 +1008,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 2.3 | safetensors parser + tree + strip | valid fixture → expected totals; each malformed variant → its reason code |
 | 2.4 | ONNX streaming wire scanner + protobufjs small-message decode, folding, edges, groups, strip, payload offsets | CNN fixture → expected counts and params; peak RSS while scanning the large fixture < 200 MB (measured in test); truncated → `truncated`; external data → `external_data_unsupported` |
 | 2.5 | Worker runner (timeout, memory limit) + job runner (DB status, boot recovery, concurrency 1) | infinite-loop stub → `timeout`; killing the runner mid-job and restarting completes the job |
-| 2.6 | tus endpoint (auth on every request, ownership, quota + free-space checks, 24 h expiry) | integration: chunked upload over 3 PATCHes completes; another user's HEAD → 404; quota exceeded at create → 507 |
+| 2.6 | tus endpoint (auth on every request, ownership, per-format + repository + free-space checks, 24 h expiry) | integration: chunked upload over 3 PATCHes completes; another user's HEAD → 404; ONNX declared at 2 GiB + 1 → 413 `file_too_large`; free space below reserve (stubbed `statfs`) → 507 |
 | 2.7 | `POST /api/models` → 202, processing pipeline with dedup | integration: upload → poll until `ready` → blob + sidecar exist; uploading the same bytes again creates no new blob file; garbage `.onnx` → version `failed` with `bad_protobuf`, no files left |
 | 2.8 | `GET /models/:id`, `GET /graph` (gzip passthrough, ETag, `not_ready`, lazy re-parse) | 304 on revalidation; deleted sidecar → 409 then ready after the job |
 | 2.9 | File tickets + streaming download with single `Range` | sha256 of downloaded bytes = original; `Range: bytes=100-199` → 206 with 100 bytes; expired ticket → 401 |
@@ -1012,7 +1025,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 3.5 | Grouping/LOD, expand/collapse animation, no-name chunking, search | unit: 2,000-node graph → ≤ 300 visible; Playwright: expand increases visible count; search focuses a match |
 | 3.6 | Stats tab | unit aggregations; Playwright bar counts |
 | 3.7 | Perf spike on the 10k-node fixture | report: first render, expand latency, memory; renderer go/no-go |
-| 3.8 | Upload UI (tus progress, pause/resume, processing poll), dashboard My models, storage meter | Playwright: upload → progress → lands on the model when ready; dashboard lists it with its strip |
+| 3.8 | Upload UI (tus progress, pause/resume, processing poll), dashboard My models | Playwright: upload → progress → lands on the model when ready; dashboard lists it with its strip |
 | 3.9 | Dark mode | Playwright screenshot comparisons for light/dark model page (headless, stored baselines) |
 
 ### M4 — Sharing, forks, discovery
@@ -1023,7 +1036,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 4.3 | People shares by username (+ allow_download), general access PATCH | viewer: graph 200, PATCH 403; `allow_download=0` → ticket 403; set Private → 404; back to Specific people → restored |
 | 4.4 | Share links (hash + ciphertext, editor role, expiry, revoke) + resolve + `link_visits` | anonymous editor link → viewer; logged-in editor link → PATCH works; after visit, access without header; revoke → 404 for visitors |
 | 4.5 | Public visibility + `public_allow_download`, profiles, Explore + FULLTEXT search | anonymous GET of public model 200; Explore `q=resnet` finds it; private model never appears |
-| 4.6 | Forks | fork completes without new blob; forker quota grows; source deleted → fork intact with `forkedFrom: null`; no download right → 403 |
+| 4.6 | Forks | fork completes without new blob; source deleted → fork intact with `forkedFrom: null`; no download right → 403 |
 | 4.7 | "Shared with me" + list/resolver matrix test | matrix test passes |
 | 4.8 | Web: `ShareDialog`, `/s/:token`, Explore, profile, fork button, Shared with me | Playwright: owner shares to @bob as commenter without download → Bob sees it, no download button; editor link opened logged-out shows viewer UI; fork lands in My models with attribution |
 | 4.9 | OG previews (§9.4) | integration: public model page HTML has `og:title` = model name; private model returns the generic tags |
@@ -1036,10 +1049,10 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 5.3 | Admin UI (`/admin/reports`) | Playwright: admin dismisses and takes down from the queue |
 | 5.4 | Security review pass (authz per route, upload limits, headers, redaction, cookie flags, CSP) | checklist in the report, each item linked to a test |
 
-### M-B — Brand (blocked on your branding skill)
+### M-B — Brand (direction picked from the grok-image drafts)
 | # | Task | AC |
 |---|---|---|
-| B.1 | Run the branding skill: logo/wordmark, mascot or motif, display face, voice, final tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
+| B.1 | Turn the chosen draft into a brand: logo/wordmark redrawn as SVG (generated images only set the direction), mascot or motif, display face, voice, final tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
 | B.2 | Apply to landing, empty/loading/processing states, 404/takedown, profile header, OG image frame, favicon/app icons | Playwright screenshots of each surface; `better-interface` review findings resolved |
 | B.3 | Release polish: `impeccable`, `kill-ai-slop` | findings list addressed or explicitly waived in the report |
 
@@ -1049,14 +1062,14 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | R.1 | Dockerfile (multi-stage, non-root, healthcheck), `.dockerignore` | image build is run on freeride by Dokploy (not on this Mac); the build log is attached to the report |
 | R.2 | `docs/deploy.md`: Dokploy app + MySQL setup, env list, bind mount and ownership, resource limits, proxy chain and `TRUST_PROXY`, domain + OAuth redirect URIs | following the doc on freeride gives a healthy `/api/health` over the public domain (with your approval to deploy) |
 | R.3 | Backups (Dokploy scheduled `mysqldump` + blob rsync) and `docs/runbook.md` (restore, gc, takedown, rotating secrets) | a restore drill into a scratch DB succeeds and is recorded |
-| R.4 | Metrics endpoint + alert suggestions (disk free < 15%, job queue > 10, 5xx rate) | `/metrics` exposes the listed series on the internal port |
+| R.4 | `/api/health/deep` (disk reserve, stuck jobs, backup age) + Uptime Kuma monitor setup in `docs/deploy.md` | integration: stubbed low disk → 503 with `{ disk: 'low' }`; liveness stays 200 |
 | R.5 | Full e2e suite green; production build | `npm run test:e2e` and `npm run build` pass |
 
 ### R2 (P1)
 | # | Task | AC |
 |---|---|---|
 | M6 Comments | 002 migration, API, inspector thread, node badges, "Deleted user" rendering | viewer POST 403, commenter 201; badge survives reload |
-| M7.1 Versions | tus → `POST /versions` (same format), switcher, delete version, quota per version | v2 increments; `?version=1` still serves v1 graph |
+| M7.1 Versions | tus → `POST /versions` (same format), switcher, delete version, repository size meter | v2 increments; `?version=1` still serves v1 graph; a version that would push the repo past 10 GiB → 413 `repository_full` at upload creation |
 | M7.2 Diff | per-tensor hashing (parser v2), `GraphDiff`, diff coloring | changed-kernel fixture → exactly one `changed` node |
 | M8 Workspaces | 003 migration, CRUD, members, move, resolver rows, sole-owner deletion guard | resolver table + list matrix still pass |
 | M8.1 Stars | 004 migration, star button, Explore `sort=stars` | star count updates; sort order correct |
@@ -1077,7 +1090,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 
 | Layer | Tool | Scope |
 |---|---|---|
-| Unit | Vitest `unit` | parsers (valid, malformed, seeded byte-flip fuzz, limits, memory), grouping/LOD, palette mapping, stats, `combineGrants`, tokens, recovery codes, path builder, config, username rules |
+| Unit | Vitest `unit` | parsers (valid, malformed, seeded byte-flip fuzz, limits, memory), grouping/LOD, palette mapping, stats, `combineGrants`, tokens, path builder, config, username rules |
 | Integration | Vitest `integration` + `app.inject()` + MySQL 8.4 (`mieru_test`) + temp `STORAGE_DIR` | every route; tus flows; job runner recovery; rate limits with an injected clock; OAuth via undici `MockAgent`; account deletion; list/resolver matrix |
 | E2E | Playwright (chromium, headless) against Paseo `server` + `web` scripts | the journeys in §10 ACs; anonymous visitors use `browser.newContext()`; visual baselines for light/dark |
 
@@ -1120,7 +1133,7 @@ npm run build                                      # moderate CPU, ~1 min
 
 ### 12.3 Needs manual check
 - Real GitHub/Google OAuth round trips with registered apps (mocked in tests).
-- Deployment on freeride via Dokploy, the Cloudflare → Traefik → app proxy chain, and a 1+ GiB upload over the public domain.
+- Deployment on freeride via Dokploy at `mieru.byeolki.me`, the Cloudflare → Traefik → app proxy chain, a 1+ GiB upload over the public domain, and the Uptime Kuma monitor.
 - WebGPU demo backend (headless runs WASM).
 - Graph layout quality on real models (ResNet-50, BERT-base, a small LLM export).
 - Brand surfaces against the branding skill's intent.
@@ -1134,12 +1147,12 @@ npm run build                                      # moderate CPU, ~1 min
 | R1 | Hand-written ONNX wire scanner has bugs | Small surface (varint, length-delimited skip, a handful of field numbers); cross-checked in tests against a full `protobufjs` decode of every small fixture; fuzzed |
 | R2 | React Flow too slow on huge graphs | LOD caps visible nodes; M3.7 spike decides on the Model Explorer fallback |
 | R3 | GitHub PKCE support must be confirmed at implementation time | `code_challenge` sent anyway; client secret + state keep it secure if ignored |
-| R4 | freeride shares 15 GiB RAM with many services; a 2 GiB hash + parse plus Node heap | Concurrency 1, streaming everything, container memory limit 2 GiB, metrics on job duration and RSS |
+| R4 | freeride shares 15 GiB RAM with many services; multi-GiB hash + parse plus Node heap | Concurrency 1, streaming everything (memory use doesn't grow with file size), container memory limit 2 GiB, job duration + peak RSS logged per job |
 | R5 | Cloudflare limits (100 MB bodies, 100 s timeouts) and caching | tus 50 MiB chunks, async processing, `no-store` on `/api`, downloads streamed (verify CF doesn't buffer large downloads in R.2) |
-| R6 | Disk fills (`/data` holds other projects' data too) | 10 GiB/user quota, free-space reserve check at upload creation, disk metric + alert, gc |
-| R7 | Public content brings abuse (malware-laden files, copyright) | Files are never executed server-side; downloads are `attachment` + `nosniff`; reports + takedown; terms page (Q5) |
+| R6 | Disk fills (`/data` holds other projects' data too, and there's no per-user total) | Free-space reserve check at upload creation, `/api/health/deep` → Uptime Kuma alert, upload-creation rate limit, dedup, gc. Admins can take down abusive accounts' models |
+| R7 | Public content brings abuse (malware-laden files, copyright) | Files are never executed server-side; downloads are `attachment` + `nosniff`; reports + takedown |
 | R8 | Signup reveals taken emails | Rate limit; emails aren't public or authoritative here |
-| R9 | No email means lost passwords are unrecoverable for users without codes or OAuth | Recovery codes at signup, persistent banner, OAuth nudge (Q2) |
+| R9 | Forgotten passwords are unrecoverable for password-only users | Accepted (round 2); signup copy + Settings hint push linking GitHub/Google |
 | R10 | ORT-web threading needs COOP/COEP, which interferes with cross-origin avatars | `credentialless` COEP on the demo route only, or proxy avatars |
 | R11 | Username squatting/impersonation | Reserved list, 30-day hold after rename/deletion, takedown applies to profiles too if needed |
 | R12 | In-memory rate limits and job queue reset on deploy | Single instance; jobs persist in DB and resume; rate-limit reset on deploy is acceptable |
@@ -1151,12 +1164,5 @@ npm run build                                      # moderate CPU, ~1 min
 
 Each is worded so "yes" accepts the recommendation.
 
-1. **Limits**: by "10 GB", did you mean a **10 GiB storage quota per user**, with a **2 GiB per-file** limit (ONNX can't exceed that in one file)?
-2. **Password recovery without email**: recovery codes at signup + "log in with linked GitHub/Google and set a new password", and nothing else?
-3. **Domain**: what's the production domain for mieru? (Needed for OAuth app redirect URIs, cookies, and `APP_ORIGIN`.) Should it go through the same Cloudflare tunnel as your other freeride services?
-4. **Backups**: back up MySQL dumps and model blobs to `/data/backups/mieru` on freeride (same machine, different disk from root but the same disk as the live data)? An off-machine copy would need a destination from you.
-5. **Legal pages**: will you supply Terms and Privacy text, or should the implementation ship short placeholder drafts for you to edit before launch?
-6. **Languages**: English UI at launch with i18n infrastructure ready, and Japanese/Korean translations later?
-7. **Monitoring**: hook `/metrics` into the existing `monitoring_*` stack on freeride?
-8. **Fork permission**: fork follows download permission (no separate "allow forks" switch)?
-9. **Anonymous reports**: allow reporting public models without logging in (rate-limited by IP)?
+1. **Public downloads**: let the owner choose "downloadable" (default) or "view only" when a model goes public, as described in §7.1?
+2. **Branding**: once `XAI_API_KEY` is configured, I'll generate drafts with `grok-image` in three directions (mascot sticker, hanko/screentone emblem, 90s anime title card). Pick one (or ask for another round); the pick becomes the input for M-B.
