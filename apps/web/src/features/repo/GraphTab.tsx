@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router';
+import { issueKeys, nodeIssueCounts } from '../issues/api.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { getGraph, modelKeys } from '../models/api.js';
 import { OnnxGraphView } from './graph/OnnxGraphView.js';
@@ -34,6 +36,14 @@ function Loading() {
 
 export function GraphTab() {
   const { model, query } = useParsedModel();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focusNode = searchParams.get('node');
+  const counts = useQuery({
+    queryKey: issueKeys.nodeCounts(model.id),
+    queryFn: () => nodeIssueCounts(model.id),
+    enabled: model.currentVersion !== null,
+  });
   if (!model.currentVersion) return <VersionState model={model} />;
   if (query.isPending) return <Loading />;
   if (query.isError)
@@ -44,7 +54,18 @@ export function GraphTab() {
     );
   const { payload, summary } = query.data;
   if (payload.kind === 'safetensors-tree') return <SafetensorsTreeView root={payload.root} />;
-  return <OnnxGraphView payload={payload} summary={summary} />;
+  return (
+    <OnnxGraphView
+      key={focusNode ?? 'graph'}
+      payload={payload}
+      summary={summary}
+      initialFocusName={focusNode}
+      issueCounts={counts.data ? new Map(Object.entries(counts.data)) : undefined}
+      onOpenIssue={(nodeRef) =>
+        void navigate(`/m/${model.id}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)
+      }
+    />
+  );
 }
 
 export function StatsRoute() {

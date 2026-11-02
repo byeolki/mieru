@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
   BarChart3,
+  CircleDot,
   Download,
   FileText,
   GitFork,
@@ -18,7 +19,6 @@ import type { ModelDetail, Visibility } from '@mieru/shared';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { Avatar } from '../../components/Avatar.js';
 import { Badge } from '../../components/Badge.js';
-import { Sparkle } from '../../design/Sparkle.js';
 import { Button, ButtonLink } from '../../design/ui/Button.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { ApiError } from '../../lib/api-error.js';
@@ -28,6 +28,7 @@ import { NotFoundPage } from '../NotFoundPage.js';
 import { downloadOriginal, getModel, modelKeys } from '../models/api.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from '../models/labels.js';
 import { ShareDialog } from '../sharing/ShareDialog.js';
+import { StarButton } from './StarButton.js';
 
 export interface RepoContext {
   model: ModelDetail;
@@ -131,13 +132,7 @@ function RepoHeader({ model }: { model: ModelDetail }) {
           {model.description && <p className="mt-1.5 text-sm text-slate">{model.description}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className="tabular flex h-9 items-center gap-1.5 rounded-(--radius-control) border border-fog bg-surface px-3 text-sm"
-            title="스타"
-          >
-            <Sparkle className="size-4" color="#DE7EA8" />
-            {model.starCount}
-          </span>
+          <StarButton model={model} />
           {model.myAccess.role === 'owner' && (
             <Button icon={<Share2 className="size-4" />} onClick={() => setIsSharing(true)}>
               공유
@@ -180,6 +175,14 @@ function RepoHeader({ model }: { model: ModelDetail }) {
         </NavLink>
         <NavLink to={`/m/${model.id}/stats`} className={TAB_CLASS}>
           <BarChart3 className="size-4" aria-hidden="true" /> 통계
+        </NavLink>
+        <NavLink to={`/m/${model.id}/issues`} className={TAB_CLASS}>
+          <CircleDot className="size-4" aria-hidden="true" /> 이슈
+          {model.openIssueCount > 0 && (
+            <span className="tabular rounded-full bg-fog px-1.5 text-xs text-slate">
+              {model.openIssueCount}
+            </span>
+          )}
         </NavLink>
       </nav>
     </div>

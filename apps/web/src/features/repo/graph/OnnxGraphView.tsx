@@ -45,6 +45,8 @@ interface OnnxGraphViewProps {
   summary: ModelSummary;
   issueCounts?: ReadonlyMap<string, number>;
   onOpenIssue?: (nodeRef: string) => void;
+  /** Node to select and center on first render (deep links from issues). */
+  initialFocusName?: string | null;
 }
 
 function ToolbarButton({
@@ -75,18 +77,35 @@ function ToolbarButton({
   );
 }
 
-function GraphCanvas({ payload, summary, issueCounts, onOpenIssue }: OnnxGraphViewProps) {
+function GraphCanvas({
+  payload,
+  summary,
+  issueCounts,
+  onOpenIssue,
+  initialFocusName,
+}: OnnxGraphViewProps) {
   const flow = useReactFlow();
   const tree = useMemo(() => buildGroupTree(payload.nodes), [payload]);
   const initial = useMemo(() => initialExpanded(tree), [tree]);
-  const [expanded, setExpanded] = useState<Set<string>>(initial);
-  const [selection, setSelection] = useState<Selection>(null);
+  const initialFocus = useMemo(
+    () =>
+      initialFocusName
+        ? (payload.nodes.find((node) => node.name === initialFocusName) ?? null)
+        : null,
+    [initialFocusName, payload],
+  );
+  const [expanded, setExpanded] = useState<Set<string>>(() =>
+    initialFocus ? expandAncestors(initialFocus.id, tree, initial) : initial,
+  );
+  const [selection, setSelection] = useState<Selection>(
+    initialFocus ? { kind: 'node', node: initialFocus } : null,
+  );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [layout, setLayout] = useState<{ for: unknown; positions: Positions } | null>(null);
   const [showMinimap, setShowMinimap] = useState(payload.nodes.length <= 1000);
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [query, setQuery] = useState('');
-  const pendingFocus = useRef<string | null>(null);
+  const pendingFocus = useRef<string | null>(initialFocus?.id ?? null);
 
   const visible = useMemo(
     () => buildVisibleGraph(payload, tree, expanded),

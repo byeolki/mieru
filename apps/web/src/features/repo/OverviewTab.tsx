@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, FileText } from 'lucide-react';
+import { Check, Copy, FileText, Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { hasRoleAtLeast } from '@mieru/shared';
 import { Markdown } from '../../design/Markdown.js';
+import { ButtonLink } from '../../design/ui/Button.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { formatBytes, formatParams, formatShape } from '../../lib/format.js';
 import { getGraph, getReadme, modelKeys } from '../models/api.js';
@@ -125,8 +126,8 @@ function Readme() {
   });
   if (readme.isPending) return <Spinner className="size-5 text-lilac" />;
   if (readme.isError) return <p className="text-sm text-danger">README를 불러오지 못했어요.</p>;
+  const canEdit = hasRoleAtLeast(model.myAccess.role, 'editor');
   if (!readme.data.markdown.trim()) {
-    const canEdit = hasRoleAtLeast(model.myAccess.role, 'editor');
     return (
       <div className="rounded-(--radius-panel) border border-dashed border-lilac px-8 py-12 text-center">
         <FileText className="mx-auto size-6 text-slate" aria-hidden="true" />
@@ -136,10 +137,35 @@ function Readme() {
             ? '어떤 모델인지, 어떻게 쓰는지 적어두면 다른 사람이 이해하기 쉬워요.'
             : '저장소 주인이 아직 소개를 쓰지 않았어요.'}
         </p>
+        {canEdit && (
+          <ButtonLink
+            to={`/m/${model.id}/readme/edit`}
+            className="mt-5"
+            icon={<Pencil className="size-4" />}
+          >
+            README 쓰기
+          </ButtonLink>
+        )}
       </div>
     );
   }
-  return <Markdown source={readme.data.markdown} className="markdown-body" />;
+  return (
+    <div>
+      {canEdit && (
+        <div className="mb-3 flex justify-end">
+          <ButtonLink
+            to={`/m/${model.id}/readme/edit`}
+            size="sm"
+            variant="ghost"
+            icon={<Pencil className="size-3.5" />}
+          >
+            README 편집
+          </ButtonLink>
+        </div>
+      )}
+      <Markdown source={readme.data.markdown} className="markdown-body" />
+    </div>
+  );
 }
 
 export function OverviewTab() {

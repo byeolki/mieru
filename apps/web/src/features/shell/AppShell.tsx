@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Bell, Compass, LayoutGrid, LogOut, Plus, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -8,6 +9,7 @@ import { Avatar } from '../../components/Avatar.js';
 import { Sparkle } from '../../design/Sparkle.js';
 import { ButtonLink } from '../../design/ui/Button.js';
 import { signOut, useAuth } from '../../lib/auth-store.js';
+import { getActivity, issueKeys } from '../issues/api.js';
 
 function SparkleIcon({ className }: { className?: string }) {
   return <Sparkle className={className} />;
@@ -61,8 +63,20 @@ function UserMenu() {
   );
 }
 
+function useUnreadActivity(): number {
+  const { status } = useAuth();
+  const activity = useQuery({
+    queryKey: issueKeys.activity,
+    queryFn: getActivity,
+    enabled: status === 'signed-in',
+    refetchInterval: 60_000,
+  });
+  return activity.data?.unreadCount ?? 0;
+}
+
 function Sidebar() {
   const { t } = useTranslation();
+  const unread = useUnreadActivity();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[252px] shrink-0 flex-col border-r border-fog bg-paper px-4 py-5 md:flex">
       <Link to="/dashboard" className="px-2" aria-label="mieru">
@@ -87,6 +101,14 @@ function Sidebar() {
               <>
                 <Icon className={clsx('size-[18px]', isActive ? 'text-primary' : 'text-slate')} />
                 {t(labelKey)}
+                {to === '/activity' && unread > 0 && (
+                  <span
+                    className="tabular ml-auto rounded-full bg-primary px-1.5 text-xs font-semibold text-white"
+                    aria-label={`안 읽은 소식 ${unread}개`}
+                  >
+                    {unread}
+                  </span>
+                )}
               </>
             )}
           </NavLink>
