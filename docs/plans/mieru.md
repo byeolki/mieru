@@ -892,19 +892,20 @@ The zod mirror validates payloads at the SPA boundary. Tensor payload offsets ar
 
 **Signature element: the architecture strip.** Every model gets a thin horizontal band of op-category colors in topological order (from `summary.strip`). It appears in lists, on Explore, on profiles, in the model header, and in share previews. A ResNet and a transformer look different at a glance. It's the one bold device; everything around it stays quiet.
 
-**Tokens (provisional; palette direction fixed in round 3: pastel pink + lavender, Y2K/heisei kirakira logo)**
+**Tokens (brand colors sampled from `docs/brand/logo-final.jpg`; neutrals provisional until M-B)**
 | Token | Value | Use |
 |---|---|---|
 | `paper` | `#F6F7FA` | app background, canvas |
 | `sumi` | `#1B1E2B` | text, strokes (blue-black ink) |
 | `fog` | `#E3E6EE` | dividers, canvas dot grid |
 | `slate` | `#5A6072` | secondary text |
-| `sakura` | `#F9D7EA` | brand pastel pink: logo fill, brand surfaces, soft highlights |
-| `lilac` | `#CDB9F7` | brand pastel lavender: logo shadow, selected rows, canvas selection halo |
-| `signal` | `#C2408A` | deeper rose for primary actions, focus rings, links. The pastels fail text contrast on `paper`, so interactive color uses this shade (≥ 4.5:1) |
+| `mieru-pink` | `#DE7EA8` | **brand primary**, sampled from the logo outline. Logo, brand surfaces, illustrations; the primary action color in dark mode (6.7:1 on `canvas-dark`). Not for text or buttons on light backgrounds (2.6:1 on `paper`) |
+| `primary` | `#BC3D86` | light-mode primary for buttons (white text 5.1:1), links and focus rings (4.7:1 on `paper`). Same hue family as `mieru-pink`, darkened until it passes WCAG AA |
+| `sakura` | `#F2C2D4` | logo fill pink: soft highlights, selected chips, hover tints (`sumi` text on it: 10.6:1) |
+| `lilac` | `#C8B6D4` | logo shadow lavender: selected rows, canvas selection halo, secondary accents (`sumi` text on it: 8.8:1) |
 | `canvas-dark` | `#12141D` | dark-mode canvas (dark mode ships at launch; graph tools get used at night) |
 
-- The op-category palette (10 hues) is a separate data palette built with the `dataviz` skill and validated for color-vision deficiency and for contrast on both `paper` and `canvas-dark`. It never reuses `signal`.
+- The op-category palette (10 hues) is a separate data palette built with the `dataviz` skill and validated for color-vision deficiency and for contrast on both `paper` and `canvas-dark`. It never reuses `mieru-pink` or `primary`, so selection and data color never collide.
 - The canvas background is a fine screentone dot grid (`fog` on `paper`), a quiet nod to manga print that doubles as a spatial reference while panning.
 
 **Type (provisional)**: brand/display = the face chosen with the brand skill (it must cover Japanese; candidates like M PLUS 1 or Zen Kaku Gothic New get decided there). UI/body = **Pretendard** (Korean-first UI; covers Hangul and Latin; already used in your other React project), with tabular figures for parameter counts and sizes. The brand display face must cover Hangul too wherever it sets Korean headings. Tensor shapes and dtypes = IBM Plex Mono, because they're literal code tokens (`[1, 3, 224, 224]`, `float16`). Monospace stays out of ordinary labels. Scale: 13 / 14 / 16 / 20 / 28 / 40 px; UI runs at 14.
