@@ -892,14 +892,16 @@ The zod mirror validates payloads at the SPA boundary. Tensor payload offsets ar
 
 **Signature element: the architecture strip.** Every model gets a thin horizontal band of op-category colors in topological order (from `summary.strip`). It appears in lists, on Explore, on profiles, in the model header, and in share previews. A ResNet and a transformer look different at a glance. It's the one bold device; everything around it stays quiet.
 
-**Tokens (provisional, final values set together with the brand skill)**
+**Tokens (provisional; palette direction fixed in round 3: pastel pink + lavender, Y2K/heisei kirakira logo)**
 | Token | Value | Use |
 |---|---|---|
 | `paper` | `#F6F7FA` | app background, canvas |
 | `sumi` | `#1B1E2B` | text, strokes (blue-black ink) |
 | `fog` | `#E3E6EE` | dividers, canvas dot grid |
 | `slate` | `#5A6072` | secondary text |
-| `signal` | `#E2336B` | selection, focus ring, primary action: one saturated pop, sized small |
+| `sakura` | `#F9D7EA` | brand pastel pink: logo fill, brand surfaces, soft highlights |
+| `lilac` | `#CDB9F7` | brand pastel lavender: logo shadow, selected rows, canvas selection halo |
+| `signal` | `#C2408A` | deeper rose for primary actions, focus rings, links. The pastels fail text contrast on `paper`, so interactive color uses this shade (≥ 4.5:1) |
 | `canvas-dark` | `#12141D` | dark-mode canvas (dark mode ships at launch; graph tools get used at night) |
 
 - The op-category palette (10 hues) is a separate data palette built with the `dataviz` skill and validated for color-vision deficiency and for contrast on both `paper` and `canvas-dark`. It never reuses `signal`.
@@ -1164,4 +1166,4 @@ npm run build                                      # moderate CPU, ~1 min
 
 Each is worded so "yes" accepts the recommendation.
 
-1. **Branding**: pick a logo direction from the Grok drafts in `docs/brand/drafts/`: `logo-a*` (みえる bubbly anime title + mieru), `logo-b*` (mieru VTuber/idol wordmark + ミエル), `logo-c*` (見える / MIERU 90s anime title). Supporting art from round 1 (`mascot-*`, `emblem-*`, `titlecard-*`) can fill empty states and the landing hero. M-B redraws the pick as SVG with real lettering, so AI spelling glitches don't carry over.
+1. **Branding**: pick a logo from the pastel pink/lavender round in `docs/brand/drafts/`: `logo2-a*` (Y2K kirakira swoosh + ミエル), `logo2-b*` (angel-core cloud, wings, halo + ミエル), `logo2-c*` (bubbly wordmark with eye dot and node-constellation tail). Earlier rounds (`logo-*`, `mascot-*`, `emblem-*`, `titlecard-*`) stay as reference. M-B redraws the pick as SVG with real lettering, so AI spelling glitches don't carry over.
