@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-paper: #f6f7fa;
+  --color-surface: #ffffff;
+  --color-sumi: #1b1e2b;
+  --color-slate: #5a6072;
+  --color-fog: #e3e6ee;
+  --color-mieru-pink: #de7ea8;
+  --color-primary: #bc3d86;
+  --color-primary-hover: #a3326f;
+  --color-sakura: #f2c2d4;
+  --color-lilac: #c8b6d4;
+  --color-canvas-dark: #12141d;
+  --color-danger: #b42318;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    color: var(--color-sumi);
+    background: var(--color-paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'tnum' 0;
+    /* Korean wraps between words, not mid-word. */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility screentone {
+  background-color: var(--color-paper);
+  background-image: radial-gradient(var(--color-fog) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
