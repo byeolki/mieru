@@ -2,11 +2,11 @@
 
 ## Status
 
-**Release 1 is deployed on freeride** (M0–M7, M-R, dark mode, favicon). It runs as the
-`mieru` compose stack (`deploy/compose.yml`) next to Dokploy, and Traefik routes
-`mieru.byeolki.me` to it. It is not reachable from the internet yet: the Cloudflare DNS record
-and a `cloudflared` restart (needs `sudo`) are still to do. The repository has no git remote, so
-nothing has been pushed. P1/P2 milestones (M8–M13) have not been started.
+**Release 1 is live at https://mieru.dokploy.byeolki.me** (M0–M7, M-R, dark mode, favicon).
+It runs on freeride as the `mieru` compose stack (`deploy/compose.yml`) next to Dokploy. Traefik
+routes the host through Docker labels and the existing `*.dokploy.byeolki.me` tunnel route, so
+Cloudflare and `cloudflared` needed no change. The repository has no git remote, so nothing has
+been pushed. P1/P2 milestones (M8–M13) have not been started.
 
 ## Summary
 
@@ -56,17 +56,18 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 | `npm run build` | pass |
 | `DATABASE_URL=$TEST_DATABASE_URL node apps/server/dist/scripts/migrate.js` | "no pending migrations" (compiled paths resolve) |
 
-### Production checks on freeride (through Traefik with `Host: mieru.byeolki.me`)
+### Production checks
 
 | Check | Result |
 |---|---|
 | `docker compose --env-file /data/projects/mieru/mieru.env up -d --build` | image built; `001_init` applied; app and db healthy |
 | `GET /api/health/deep` | 200, every check `ok` (incl. backups after the sidecar's first run) |
-| Smoke test: signup → tus upload → create public model → poll → `/graph` | `ready`, graph 200 (argon2 and the parser worker run in the image) |
+| Smoke test (via Traefik on the host): signup → tus upload → create public model → poll → `/graph` | `ready`, graph 200 (argon2 and the parser worker run in the image) |
 | `/og/m/<id>.png` and `og:title` on `/m/<id>` | PNG 200 (72 KB); `og:title` = `smoke-cnn · @smoke-4327 \| mieru` |
 | Delete the smoke account | 204; users, models and blobs back to 0 |
 | Restore drill: dump → `mieru_drill` → compare → drop | 20 tables and 1 migration row in both |
-| `cloudflared tunnel ingress validate` / `ingress rule https://mieru.byeolki.me` | OK, matches the new rule |
+| `GET https://mieru.dokploy.byeolki.me/api/health/deep` from m4pro | 200, all `ok`; CSP and HSTS headers present |
+| `TRUST_PROXY=2`: session IP of a throwaway signup vs `/cdn-cgi/trace` | both `211.177.97.183` (account deleted afterwards) |
 
 ### Security review checklist (M7.4)
 
@@ -87,13 +88,9 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 
 ## Needs manual check
 
-- **Go live (needs the user):** add the Cloudflare DNS record
-  `CNAME mieru → a272d13d-b889-4e5a-afc9-1b6f1b04cb42.cfargotunnel.com` (proxied), then run
-  `sudo systemctl restart cloudflared` on freeride. The ingress entry is already in
-  `/etc/cloudflared/config.yml` (backup at `config.yml.bak-20261102`).
-- **After going live:** `TRUST_PROXY=2` check via the 설정 → 세션 IP, an Uptime Kuma monitor on
-  `/api/health/deep`, and the first admin
-  (`docker exec mieru-app-1 node dist/scripts/admin.js grant <username>`).
+- **Uptime Kuma** monitor on `https://mieru.dokploy.byeolki.me/api/health/deep` (needs its UI).
+- **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
+  you sign up.
 - **First backup was empty:** the sidecar's first dump ran a second before migrations, so it has
   no tables. The next run at 04:15 KST will have data.
 - **A 1+ GiB upload over the public domain** through Cloudflare.
