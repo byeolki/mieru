@@ -6,6 +6,10 @@
     ]
   },
   "scripts": {
+    "mysql": {
+      "type": "service",
+      "command": "scripts/dev-mysql.sh"
+    },
     "server": {
       "type": "service",
       "command": "PORT=$PASEO_PORT npm run dev -w @mieru/server"

@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --conditions=development src/server.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env --conditions=development src/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "storage:gc": "tsx scripts/storage-gc.ts",
+    "db:migrate": "tsx --env-file-if-exists=../../.env scripts/migrate.ts",
+    "storage:gc": "tsx --env-file-if-exists=../../.env scripts/storage-gc.ts",
     "fixtures": "tsx scripts/make-fixtures.ts",
-    "admin": "tsx scripts/admin.ts"
+    "admin": "tsx --env-file-if-exists=../../.env scripts/admin.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
