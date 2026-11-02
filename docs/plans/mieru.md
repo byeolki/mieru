@@ -1164,4 +1164,4 @@ npm run build                                      # moderate CPU, ~1 min
 
 Each is worded so "yes" accepts the recommendation.
 
-1. **Branding**: pick a direction from the Grok drafts in `docs/brand/drafts/` (mascot sticker `mascot-*`, hanko/screentone emblem `emblem-*`, 90s anime title card `titlecard-*`), or a combination such as emblem as the logo + mascot for empty states + title card for the landing hero. The pick becomes the input for M-B.
+1. **Branding**: pick a logo direction from the Grok drafts in `docs/brand/drafts/`: `logo-a*` (みえる bubbly anime title + mieru), `logo-b*` (mieru VTuber/idol wordmark + ミエル), `logo-c*` (見える / MIERU 90s anime title). Supporting art from round 1 (`mascot-*`, `emblem-*`, `titlecard-*`) can fill empty states and the landing hero. M-B redraws the pick as SVG with real lettering, so AI spelling glitches don't carry over.
