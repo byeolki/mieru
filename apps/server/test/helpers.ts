@@ -11,6 +11,8 @@ import { testDatabaseUrl } from './env.js';
 
 export interface TestContext {
   app: FastifyInstance;
+  /** Real HTTP base URL; tus hijacks the raw socket, which inject() can't drive. */
+  baseUrl: string;
   db: DbPool;
   config: AppConfig;
   storageDir: string;
@@ -48,9 +50,12 @@ export async function createTestContext(options: TestContextOptions = {}): Promi
     clock: options.clock,
     rateLimitEnabled: options.rateLimitEnabled ?? false,
   });
-  await app.ready();
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const address = app.server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
   return {
     app,
+    baseUrl: `http://127.0.0.1:${port}`,
     db,
     config,
     storageDir,
@@ -143,4 +148,72 @@ export function bearer(token: string): Record<string, string> {
 /** Headers for the cookie-authenticated refresh/logout routes. */
 export function cookieRouteHeaders(cookie: string): Record<string, string> {
   return { cookie, origin: ORIGIN, 'content-type': 'application/json' };
+}
+
+const TUS_HEADERS = { 'tus-resumable': '1.0.0' };
+
+/** Uploads bytes through the tus endpoint in chunks (over real HTTP) and returns the upload id. */
+export async function tusUpload(
+  context: Pick<TestContext, 'baseUrl'>,
+  token: string,
+  filename: string,
+  bytes: Buffer,
+  chunkSize = 1024,
+): Promise<string> {
+  const create = await fetch(`${context.baseUrl}/api/uploads`, {
+    method: 'POST',
+    headers: {
+      ...TUS_HEADERS,
+      authorization: `Bearer ${token}`,
+      'upload-length': String(bytes.length),
+      'upload-metadata': `filename ${Buffer.from(filename).toString('base64')}`,
+    },
+  });
+  if (create.status !== 201)
+    throw new Error(`tus create failed (${create.status}): ${await create.text()}`);
+  const uploadId = (create.headers.get('location') ?? '').split('/').pop() ?? '';
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const patch = await fetch(`${context.baseUrl}/api/uploads/${uploadId}`, {
+      method: 'PATCH',
+      headers: {
+        ...TUS_HEADERS,
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/offset+octet-stream',
+        'upload-offset': String(offset),
+      },
+      body: bytes.subarray(offset, offset + chunkSize),
+    });
+    if (patch.status !== 204)
+      throw new Error(`tus patch failed (${patch.status}): ${await patch.text()}`);
+  }
+  return uploadId;
+}
+
+/** Uploads a file, creates a repository from it and waits until processing finished. */
+export async function createRepository(
+  context: TestContext,
+  token: string,
+  filename: string,
+  bytes: Buffer,
+  extra: Record<string, unknown> = {},
+): Promise<{ id: string; status: string | null }> {
+  const uploadId = await tusUpload(context, token, filename, bytes);
+  const response = await context.app.inject({
+    method: 'POST',
+    url: '/api/models',
+    headers: { authorization: `Bearer ${token}` },
+    payload: { uploadId, name: filename.replace(/\.[^.]+$/, ''), ...extra },
+  });
+  if (response.statusCode !== 202)
+    throw new Error(`create failed (${response.statusCode}): ${response.body}`);
+  await context.app.processing.idle();
+  const detail = await context.app.inject({
+    method: 'GET',
+    url: `/api/models/${response.json<{ id: string }>().id}`,
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return {
+    id: detail.json<{ id: string }>().id,
+    status: detail.json<{ status: string | null }>().status,
+  };
 }

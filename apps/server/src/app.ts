@@ -5,12 +5,23 @@ import { systemClock, type Clock } from './clock.js';
 import type { AppConfig } from './config.js';
 import type { DbPool } from './db/pool.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
+import { ProcessingQueue } from './features/models/processing.js';
+import { registerModelRoutes } from './features/models/routes.js';
+import { registerUploadRoutes } from './features/uploads/tus.js';
 import { registerUserRoutes } from './features/users/routes.js';
 import { registerHealthRoutes } from './observability/health.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandling } from './plugins/errors.js';
+import { registerModelAccess } from './plugins/model-access.js';
 import { registerRateLimits } from './plugins/rate-limits.js';
 import { registerSecurityHeaders } from './plugins/security-headers.js';
+import { ensureStorageDirs } from './storage/paths.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    processing: ProcessingQueue;
+  }
+}
 
 export interface AppDeps {
   config: AppConfig;
@@ -60,10 +71,22 @@ export async function buildApp({
   await registerRateLimits(app, { enabled: rateLimitEnabled });
   registerAuth(app, { jwtSecret: config.JWT_SECRET, clock });
 
+  await ensureStorageDirs(config.STORAGE_DIR);
+  const queue = new ProcessingQueue({
+    pool: db,
+    storageDir: config.STORAGE_DIR,
+    clock,
+    log: app.log,
+  });
+  app.decorate('processing', queue);
+  const requireModelAccess = registerModelAccess(app, { db, clock });
+
   const routeDeps = { config, db, clock, rateLimitEnabled };
   registerHealthRoutes(app, { db, storageDir: config.STORAGE_DIR });
   registerAuthRoutes(app, routeDeps);
   registerUserRoutes(app, routeDeps);
+  registerUploadRoutes(app, routeDeps);
+  registerModelRoutes(app, { config, db, clock, queue, requireModelAccess });
 
   return app;
 }

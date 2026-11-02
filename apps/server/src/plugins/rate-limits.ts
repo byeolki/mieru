@@ -15,6 +15,13 @@ export const LIMITS = {
   signup: { max: 5, timeWindow: '1 hour' },
   refresh: { max: 30, timeWindow: '1 minute' },
   sensitiveAccountChange: { max: 10, timeWindow: '1 hour' },
+  uploadCreate: { max: 30, timeWindow: '1 hour' },
+  shareLinkResolve: { max: 30, timeWindow: '1 minute' },
+  issueCreate: { max: 20, timeWindow: '1 hour' },
+  replyCreate: { max: 60, timeWindow: '1 hour' },
+  star: { max: 120, timeWindow: '1 hour' },
+  userSearch: { max: 60, timeWindow: '1 minute' },
+  report: { max: 10, timeWindow: '1 hour' },
 } satisfies Record<string, RouteLimit>;
 
 export async function registerRateLimits(

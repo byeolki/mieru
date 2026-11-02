@@ -10,3 +10,4 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 .tmp/
+apps/server/test/fixtures/generated/
