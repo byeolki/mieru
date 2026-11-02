@@ -7,6 +7,7 @@ import type { DbPool } from './db/pool.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import { ProcessingQueue } from './features/models/processing.js';
 import { registerModelRoutes } from './features/models/routes.js';
+import { registerExploreRoutes } from './features/explore/routes.js';
 import { registerIssueRoutes } from './features/issues/routes.js';
 import { registerSharingRoutes } from './features/sharing/routes.js';
 import { registerStarRoutes } from './features/stars/routes.js';
@@ -18,6 +19,7 @@ import { registerErrorHandling } from './plugins/errors.js';
 import { registerModelAccess } from './plugins/model-access.js';
 import { registerRateLimits } from './plugins/rate-limits.js';
 import { registerSecurityHeaders } from './plugins/security-headers.js';
+import { registerStaticSpa } from './plugins/static-spa.js';
 import { ensureStorageDirs } from './storage/paths.js';
 
 declare module 'fastify' {
@@ -93,6 +95,8 @@ export async function buildApp({
   registerSharingRoutes(app, { ...routeDeps, requireModelAccess });
   registerIssueRoutes(app, { ...routeDeps, requireModelAccess });
   registerStarRoutes(app, { ...routeDeps, requireModelAccess });
+  registerExploreRoutes(app, { db, clock });
+  await registerStaticSpa(app, { config, db });
 
   return app;
 }

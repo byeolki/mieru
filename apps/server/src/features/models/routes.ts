@@ -39,6 +39,7 @@ import {
   updateModel,
 } from './service.js';
 import { createTicket, verifyTicket } from './tickets.js';
+import { recordView, viewerHash } from '../explore/views.js';
 
 export interface ModelRouteDeps {
   config: AppConfig;
@@ -131,12 +132,30 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
     },
     async (request, reply) => {
       reply.header('cache-control', 'private, no-store');
-      return getModelDetail(
+      const access = currentModelAccess(request);
+      const detail = await getModelDetail(
         db,
         request.params.id,
-        currentModelAccess(request),
+        access,
         request.auth?.userId ?? null,
       );
+      // Owners and editors don't count as views, so they can't inflate trending.
+      if (access.role === 'viewer') {
+        const now = clock();
+        const hash = viewerHash(
+          {
+            userId: request.auth?.userId ?? null,
+            ip: request.ip,
+            userAgent: request.headers['user-agent'] ?? null,
+          },
+          config.VIEW_SALT_SECRET,
+          now,
+        );
+        recordView(db, request.params.id, hash, now).catch((error: unknown) => {
+          request.log.warn({ err: error }, 'view not recorded');
+        });
+      }
+      return detail;
     },
   );
 

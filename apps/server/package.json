@@ -24,6 +24,7 @@
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/static": "^10.1.8",
     "@mieru/shared": "*",
+    "@resvg/resvg-js": "^2.6.2",
     "@tus/file-store": "^2.1.1",
     "@tus/server": "^2.4.6",
     "argon2": "^0.45.1",
