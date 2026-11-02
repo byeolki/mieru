@@ -5,7 +5,8 @@ import { useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import type { ExploreSort, ModelFormat } from '@mieru/shared';
 import { Button } from '../../design/ui/Button.js';
-import { Spinner } from '../../design/ui/Spinner.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
 import { FORMAT_LABELS } from '../models/labels.js';
 import { FeaturedCard } from '../models/FeaturedCard.js';
 import { ModelRows } from '../models/ModelRows.js';
@@ -43,8 +44,12 @@ function SearchResults({ filters }: { filters: SearchFilters }) {
     initialPageParam: 1,
     getNextPageParam: (last, _pages, page) => (last.hasMore ? page + 1 : undefined),
   });
-  if (results.isPending) return <Spinner className="size-6 text-lilac" />;
-  if (results.isError) return <p className="text-sm text-danger">검색하지 못했어요.</p>;
+  if (results.isPending) return <Loading />;
+  if (results.isError) {
+    return (
+      <ErrorState message="모델을 불러오지 못했어요." onRetry={() => void results.refetch()} />
+    );
+  }
   const items = results.data.pages.flatMap((page) => page.items);
   if (items.length === 0) {
     return (
@@ -103,6 +108,40 @@ export function ExplorePage() {
 
   return (
     <AppShell>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-[-0.02em]">모델 둘러보기</h1>
+          <p className="mt-1.5 text-sm text-slate">
+            {filters.q
+              ? `‘${filters.q}’ 검색 결과예요.`
+              : '다른 사람들이 공개한 모델을 그래프로 살펴보세요.'}
+          </p>
+        </div>
+        <form
+          role="search"
+          className="relative w-full max-w-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            update({ q: draft.trim() });
+          }}
+        >
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate"
+            aria-hidden="true"
+          />
+          <label htmlFor="explore-search" className="sr-only">
+            이름, 설명, README에서 찾기
+          </label>
+          <input
+            id="explore-search"
+            type="search"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="이름, 설명, README에서 찾기"
+            className="h-10 w-full rounded-lg border border-fog bg-surface pr-3 pl-9 text-sm placeholder:text-slate focus:border-primary focus:outline-none"
+          />
+        </form>
+      </div>
       <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="grid content-start gap-5 lg:sticky lg:top-20 lg:self-start">
           <FilterGroup title="형식">
@@ -142,7 +181,7 @@ export function ExplorePage() {
                 <label
                   key={sort}
                   className={clsx(
-                    'flex cursor-pointer items-center rounded-md px-2.5 py-1.5 text-sm',
+                    'flex cursor-pointer items-center rounded-md px-2.5 py-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary',
                     filters.sort === sort ? 'bg-haze font-medium' : 'text-slate hover:text-sumi',
                   )}
                 >
@@ -162,40 +201,6 @@ export function ExplorePage() {
         </aside>
 
         <div className="min-w-0">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-[-0.02em]">모델 둘러보기</h1>
-              <p className="mt-1.5 text-sm text-slate">
-                {filters.q
-                  ? `‘${filters.q}’ 검색 결과예요.`
-                  : '다른 사람들이 공개한 모델을 그래프로 살펴보세요.'}
-              </p>
-            </div>
-            <form
-              role="search"
-              className="relative w-full max-w-sm"
-              onSubmit={(event) => {
-                event.preventDefault();
-                update({ q: draft.trim() });
-              }}
-            >
-              <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate"
-                aria-hidden="true"
-              />
-              <label htmlFor="explore-search" className="sr-only">
-                이름, 설명, README에서 찾기
-              </label>
-              <input
-                id="explore-search"
-                type="search"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="이름, 설명, README에서 찾기"
-                className="h-10 w-full rounded-lg border border-fog bg-surface pr-3 pl-9 text-sm placeholder:text-slate/80 focus:border-primary focus:outline-none"
-              />
-            </form>
-          </div>
           {!isFiltered && filters.sort === 'trending' && <Featured />}
           <h2 className="mb-3 text-sm font-semibold">
             {isFiltered ? '결과' : `모든 모델 · ${SORT_LABELS[filters.sort]}`}

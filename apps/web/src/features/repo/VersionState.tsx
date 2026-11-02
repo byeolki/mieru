@@ -14,7 +14,7 @@ export function VersionState({ model }: { model: ModelDetail }) {
         className="haze-tone relative mx-auto my-10 max-w-xl overflow-hidden rounded-(--radius-sheet) px-8 py-14 text-center"
         role="status"
       >
-        <Sparkle className="absolute top-6 left-10 size-5" color="#DE7EA8" />
+        <Sparkle className="absolute top-6 left-10 size-5" color="var(--color-mieru-pink)" />
         <Spinner className="mx-auto size-7 text-primary" />
         <h2 className="mt-5 font-semibold">모델을 분석하고 있어요</h2>
         <p className="mt-2 text-sm leading-6 text-slate">

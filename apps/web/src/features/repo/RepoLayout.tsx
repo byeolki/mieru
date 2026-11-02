@@ -17,14 +17,16 @@ import {
   Users,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router';
+import { Link, NavLink, Outlet, useMatch, useOutletContext, useParams } from 'react-router';
 import type { ModelDetail, Visibility } from '@mieru/shared';
 import { AppHeader } from '../../components/AppHeader.js';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { Avatar } from '../../components/Avatar.js';
 import { Badge } from '../../components/Badge.js';
 import { Button } from '../../design/ui/Button.js';
-import { Spinner } from '../../design/ui/Spinner.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
+import { CopyStatus, useCopy } from '../../lib/use-copy.js';
 import { ApiError } from '../../lib/api-error.js';
 import { formatBytes, formatParams } from '../../lib/format.js';
 import { NotFoundPage } from '../NotFoundPage.js';
@@ -51,22 +53,20 @@ const VISIBILITY_ICON: Record<Visibility, ReactNode> = {
 };
 
 function CopyNameButton({ name }: { name: string }) {
-  const [isCopied, setIsCopied] = useState(false);
+  const { state, copy } = useCopy();
   return (
-    <button
-      type="button"
-      aria-label={isCopied ? '복사함' : '이름 복사'}
-      title="이름 복사"
-      onClick={() =>
-        void navigator.clipboard.writeText(name).then(() => {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 1500);
-        })
-      }
-      className="grid size-7 place-items-center rounded-md text-slate hover:bg-haze hover:text-sumi"
-    >
-      {isCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label="이름 복사"
+        title="이름 복사"
+        onClick={() => copy(name)}
+        className="grid size-7 place-items-center rounded-md text-slate hover:bg-haze hover:text-sumi"
+      >
+        {state === 'copied' ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      </button>
+      <CopyStatus state={state} />
+    </>
   );
 }
 
@@ -230,6 +230,9 @@ function RepoHeader({ model }: { model: ModelDetail }) {
 
 export function RepoLayout() {
   const { modelId = '' } = useParams();
+  // Only the graph needs a fixed-height canvas; other tabs scroll with the page so the
+  // content never gets squeezed out at high zoom or in landscape on phones.
+  const isGraph = useMatch('/m/:modelId/graph') !== null;
   const query = useQuery({
     queryKey: modelKeys.detail(modelId),
     queryFn: () => getModel(modelId),
@@ -237,29 +240,26 @@ export function RepoLayout() {
       current.state.data?.latestVersion?.status === 'processing' ? 2000 : false,
   });
   if (query.isPending) {
-    return (
-      <div
-        className="grid min-h-dvh place-items-center text-lilac"
-        role="status"
-        aria-label="불러오는 중"
-      >
-        <Spinner className="size-6" />
-      </div>
-    );
+    return <Loading className="grid min-h-dvh place-items-center text-lilac" />;
   }
   if (query.isError) {
     if (query.error instanceof ApiError && query.error.status === 404) return <NotFoundPage />;
     return (
-      <p className="p-10 text-sm text-danger">저장소를 불러오지 못했어요. 새로고침해주세요.</p>
+      <div className="min-h-dvh">
+        <AppHeader />
+        <div className="mx-auto max-w-[1280px] px-4 md:px-6">
+          <ErrorState message="저장소를 불러오지 못했어요." onRetry={() => void query.refetch()} />
+        </div>
+      </div>
     );
   }
   const model = query.data;
   return (
-    <div className="flex h-dvh flex-col">
+    <div className={isGraph ? 'flex h-dvh min-h-[40rem] flex-col' : 'flex min-h-dvh flex-col'}>
       <AppHeader />
       <TakedownNotice model={model} />
       <RepoHeader model={model} />
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={isGraph ? 'min-h-0 flex-1' : 'flex-1'}>
         <Outlet context={{ model } satisfies RepoContext} />
       </div>
     </div>

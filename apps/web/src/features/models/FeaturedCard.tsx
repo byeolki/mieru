@@ -35,7 +35,7 @@ export function FeaturedCard({ item, rank }: { item: ModelListItem; rank: number
         <StripCover item={item} />
         <div className="flex flex-1 flex-col px-1 pt-3.5 pb-1">
           <div className="flex items-center gap-2">
-            <span className="tabular text-sm font-semibold text-lilac">{rank}</span>
+            <span className="tabular text-sm font-semibold text-slate">{rank}</span>
             <Avatar username={item.owner.username} displayName={item.owner.displayName} size={18} />
             <span className="min-w-0 truncate font-mono text-sm">
               <span className="text-slate">{item.owner.username}/</span>
@@ -53,7 +53,8 @@ export function FeaturedCard({ item, rank }: { item: ModelListItem; rank: number
             )}
             {item.totalParams !== null && <span>{formatParams(item.totalParams)}</span>}
             <span className="ml-auto flex items-center gap-1">
-              <Sparkle className="size-3.5" color="#DE7EA8" />
+              <Sparkle className="size-3.5" color="var(--color-mieru-pink)" />
+              <span className="sr-only">스타</span>
               {item.starCount}
             </span>
           </div>

@@ -5,7 +5,10 @@ import { useParams } from 'react-router';
 import { Avatar } from '../../components/Avatar.js';
 import { Sparkle } from '../../design/Sparkle.js';
 import { ButtonLink } from '../../design/ui/Button.js';
-import { Spinner } from '../../design/ui/Spinner.js';
+import { EmptyState } from '../../design/ui/EmptyState.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
+import { UNDERLINE_TAB } from '../../design/ui/tabs.js';
 import { ApiError } from '../../lib/api-error.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { NotFoundPage } from '../NotFoundPage.js';
@@ -14,8 +17,6 @@ import { AppShell } from '../shell/AppShell.js';
 import { exploreKeys, getProfile, getProfileModels, getProfileStars } from '../explore/api.js';
 
 const dateFormat = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long' });
-const TAB =
-  'relative px-1 pb-3 text-sm font-medium text-slate data-[state=active]:text-sumi data-[state=active]:after:absolute data-[state=active]:after:inset-x-0 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary';
 
 function List({ username, kind }: { username: string; kind: 'models' | 'stars' }) {
   const query = useQuery({
@@ -23,13 +24,15 @@ function List({ username, kind }: { username: string; kind: 'models' | 'stars' }
       kind === 'models' ? exploreKeys.profileModels(username) : exploreKeys.profileStars(username),
     queryFn: () => (kind === 'models' ? getProfileModels(username) : getProfileStars(username)),
   });
-  if (query.isPending) return <Spinner className="size-5 text-lilac" />;
-  if (query.isError) return <p className="text-sm text-danger">목록을 불러오지 못했어요.</p>;
+  if (query.isPending) return <Loading />;
+  if (query.isError) {
+    return <ErrorState message="목록을 불러오지 못했어요." onRetry={() => void query.refetch()} />;
+  }
   if (query.data.items.length === 0) {
     return (
-      <p className="rounded-(--radius-panel) border border-dashed border-lilac px-6 py-10 text-center text-sm text-slate">
-        {kind === 'models' ? '공개한 모델이 없어요.' : '스타한 공개 모델이 없어요.'}
-      </p>
+      <EmptyState
+        title={kind === 'models' ? '공개한 모델이 없어요' : '스타한 공개 모델이 없어요'}
+      />
     );
   }
   return <ModelRows items={query.data.items} showOwner={kind === 'stars'} />;
@@ -42,17 +45,18 @@ export function ProfilePage() {
     queryKey: exploreKeys.profile(username),
     queryFn: () => getProfile(username),
   });
-  if (profile.isPending)
+  if (profile.isPending) {
     return (
       <AppShell>
-        <Spinner className="size-6 text-lilac" />
+        <Loading />
       </AppShell>
     );
+  }
   if (profile.isError) {
     if (profile.error instanceof ApiError && profile.error.status === 404) return <NotFoundPage />;
     return (
       <AppShell>
-        <p className="text-sm text-danger">프로필을 불러오지 못했어요.</p>
+        <ErrorState message="프로필을 불러오지 못했어요." onRetry={() => void profile.refetch()} />
       </AppShell>
     );
   }
@@ -68,7 +72,7 @@ export function ProfilePage() {
             size={176}
             className="ring-1 ring-fog"
           />
-          <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em]">{data.displayName}</h1>
+          <h1 className="mt-5 text-xl font-bold tracking-[-0.02em]">{data.displayName}</h1>
           <p className="text-lg text-slate">@{data.username}</p>
           {data.bio && <p className="mt-4 leading-7">{data.bio}</p>}
           {isMe && (
@@ -83,7 +87,7 @@ export function ProfilePage() {
               <span className="text-slate">공개 모델</span>
             </li>
             <li className="flex items-center gap-2">
-              <Sparkle className="size-4" color="#DE7EA8" />
+              <Sparkle className="size-4" color="var(--color-mieru-pink)" />
               <span className="font-semibold">{data.starsReceived}</span>
               <span className="text-slate">받은 스타</span>
             </li>
@@ -94,11 +98,11 @@ export function ProfilePage() {
           </ul>
         </aside>
         <Tabs.Root defaultValue="models" className="min-w-0">
-          <Tabs.List className="mb-6 flex gap-6 border-b border-fog" aria-label="프로필 목록">
-            <Tabs.Trigger value="models" className={TAB}>
+          <Tabs.List className="mb-6 flex gap-1 border-b border-fog" aria-label="프로필 목록">
+            <Tabs.Trigger value="models" className={UNDERLINE_TAB}>
               공개 모델
             </Tabs.Trigger>
-            <Tabs.Trigger value="stars" className={TAB}>
+            <Tabs.Trigger value="stars" className={UNDERLINE_TAB}>
               스타
             </Tabs.Trigger>
           </Tabs.List>

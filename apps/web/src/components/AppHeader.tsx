@@ -1,9 +1,19 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { Bell, LogOut, Plus, Search, Settings, ShieldCheck, UserRound } from 'lucide-react';
+import {
+  Bell,
+  LayoutGrid,
+  LogOut,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router';
+import { Sparkle } from '../design/Sparkle.js';
 import { ButtonLink } from '../design/ui/Button.js';
 import { signOut, useAuth } from '../lib/auth-store.js';
 import { getActivity, issueKeys } from '../features/issues/api.js';
@@ -29,7 +39,14 @@ function useUnreadActivity(isSignedIn: boolean): number {
 function HeaderSearch() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [query, setQuery] = useState(params.get('q') ?? '');
+  const urlQuery = params.get('q') ?? '';
+  const [query, setQuery] = useState(urlQuery);
+  const [syncedQuery, setSyncedQuery] = useState(urlQuery);
+  // Follow the URL when another control (the explore page search, back/forward) changes it.
+  if (urlQuery !== syncedQuery) {
+    setSyncedQuery(urlQuery);
+    setQuery(urlQuery);
+  }
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -67,7 +84,7 @@ function HeaderSearch() {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="모델 검색"
-        className="h-9 w-full rounded-lg border border-fog bg-paper pr-9 pl-9 text-sm placeholder:text-slate/80 focus:border-primary focus:bg-surface focus:outline-none"
+        className="h-9 w-full rounded-lg border border-fog bg-paper pr-9 pl-9 text-sm placeholder:text-slate focus:border-primary focus:bg-surface focus:outline-none"
       />
       <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-fog px-1.5 font-mono text-[11px] text-slate group-focus-within:hidden">
         /
@@ -121,6 +138,15 @@ function UserMenu() {
           <DropdownMenu.Separator className="my-1 h-px bg-fog" />
           <MenuItem icon={<UserRound />} onSelect={() => void navigate(`/u/${user.username}`)}>
             내 프로필
+          </MenuItem>
+          <MenuItem icon={<LayoutGrid />} onSelect={() => void navigate('/dashboard')}>
+            내 모델
+          </MenuItem>
+          <MenuItem icon={<Sparkle />} onSelect={() => void navigate('/stars')}>
+            내 스타
+          </MenuItem>
+          <MenuItem icon={<Plus />} onSelect={() => void navigate('/new')}>
+            새 모델 올리기
           </MenuItem>
           <MenuItem icon={<Settings />} onSelect={() => void navigate('/settings')}>
             설정

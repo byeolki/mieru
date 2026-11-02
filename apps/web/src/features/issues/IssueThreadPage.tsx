@@ -9,7 +9,9 @@ import { Badge } from '../../components/Badge.js';
 import { Markdown } from '../../design/Markdown.js';
 import { MarkdownEditor } from '../../design/MarkdownEditor.js';
 import { Button, ButtonLink } from '../../design/ui/Button.js';
-import { Spinner } from '../../design/ui/Spinner.js';
+import { ConfirmDialog } from '../../design/ui/ConfirmDialog.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { formatRelative } from '../../lib/format.js';
@@ -53,7 +55,7 @@ function CommentBox({
       ) : (
         <span className="mt-1 size-[34px] shrink-0 rounded-full bg-fog" aria-hidden="true" />
       )}
-      <div className="min-w-0 flex-1 overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
+      <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-fog bg-surface">
         <header className="flex items-center gap-2 border-b border-fog bg-paper px-4 py-2 text-sm">
           <AuthorName author={author} />
           <span className="text-xs text-slate">{formatRelative(createdAt)}</span>
@@ -88,8 +90,10 @@ function IconAction({
 }
 
 function ReplyItem({ reply, modelId, number }: { reply: Reply; modelId: string; number: number }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [draft, setDraft] = useState(reply.body);
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: issueKeys.detail(modelId, number) });
@@ -102,7 +106,10 @@ function ReplyItem({ reply, modelId, number }: { reply: Reply; modelId: string; 
   });
   const remove = useMutation({
     mutationFn: () => deleteReply(modelId, number, reply.id),
-    onSuccess: refresh,
+    onSuccess: () => {
+      setIsConfirmingDelete(false);
+      void refresh();
+    },
   });
   if (reply.deleted) {
     return (
@@ -112,45 +119,57 @@ function ReplyItem({ reply, modelId, number }: { reply: Reply; modelId: string; 
     );
   }
   return (
-    <CommentBox
-      author={reply.author}
-      createdAt={reply.createdAt}
-      actions={
-        <>
-          {reply.canEdit && (
-            <IconAction label="답글 수정" onClick={() => setIsEditing(true)}>
-              <Pencil className="size-3.5" />
-            </IconAction>
-          )}
-          {reply.canDelete && (
-            <IconAction label="답글 삭제" onClick={() => remove.mutate()}>
-              <Trash2 className="size-3.5" />
-            </IconAction>
-          )}
-        </>
-      }
-    >
-      {isEditing ? (
-        <div className="grid gap-2">
-          <MarkdownEditor label="답글 수정" value={draft} onChange={setDraft} rows={4} />
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
-              취소
-            </Button>
-            <Button
-              size="sm"
-              isLoading={save.isPending}
-              disabled={!draft.trim()}
-              onClick={() => save.mutate()}
-            >
-              저장
-            </Button>
+    <>
+      <ConfirmDialog
+        open={isConfirmingDelete}
+        onOpenChange={setIsConfirmingDelete}
+        title="답글을 삭제할까요?"
+        description="삭제한 답글은 되돌릴 수 없어요. 자리에는 ‘삭제된 답글’ 표시가 남아요."
+        confirmLabel="답글 삭제"
+        isPending={remove.isPending}
+        error={remove.isError ? errorMessage(remove.error, t) : null}
+        onConfirm={() => remove.mutate()}
+      />
+      <CommentBox
+        author={reply.author}
+        createdAt={reply.createdAt}
+        actions={
+          <>
+            {reply.canEdit && (
+              <IconAction label="답글 수정" onClick={() => setIsEditing(true)}>
+                <Pencil className="size-3.5" />
+              </IconAction>
+            )}
+            {reply.canDelete && (
+              <IconAction label="답글 삭제" onClick={() => setIsConfirmingDelete(true)}>
+                <Trash2 className="size-3.5" />
+              </IconAction>
+            )}
+          </>
+        }
+      >
+        {isEditing ? (
+          <div className="grid gap-2">
+            <MarkdownEditor label="답글 수정" value={draft} onChange={setDraft} rows={4} />
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
+                취소
+              </Button>
+              <Button
+                size="sm"
+                isLoading={save.isPending}
+                disabled={!draft.trim()}
+                onClick={() => save.mutate()}
+              >
+                저장
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <Markdown source={reply.body} className="markdown-body text-[0.95rem]" />
-      )}
-    </CommentBox>
+        ) : (
+          <Markdown source={reply.body} className="markdown-body text-[0.95rem]" />
+        )}
+      </CommentBox>
+    </>
   );
 }
 
@@ -167,7 +186,7 @@ function Composer({ issue, modelId }: { issue: Issue; modelId: string }) {
     },
   });
   return (
-    <div className="ml-[46px] rounded-(--radius-panel) border border-fog bg-surface p-4">
+    <div className="ml-[46px] rounded-xl border border-fog bg-surface p-4">
       <MarkdownEditor
         label="답글 쓰기"
         value={body}
@@ -238,6 +257,7 @@ function IssueSidebar({ issue, modelId }: { issue: Issue; modelId: string }) {
 }
 
 export function IssueThreadPage() {
+  const { t } = useTranslation();
   const { model } = useRepo();
   const { number: numberParam = '' } = useParams();
   const number = Number(numberParam);
@@ -260,6 +280,7 @@ export function IssueThreadPage() {
     mutationFn: (body: Parameters<typeof updateIssue>[2]) => updateIssue(model.id, number, body),
     onSuccess: apply,
   });
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const remove = useMutation({
     mutationFn: () => deleteIssue(model.id, number),
     onSuccess: () => {
@@ -268,13 +289,14 @@ export function IssueThreadPage() {
     },
   });
 
-  if (issue.isPending)
+  if (issue.isPending) return <Loading className="grid place-items-center py-20 text-lilac" />;
+  if (issue.isError) {
     return (
-      <div className="grid place-items-center py-20 text-lilac">
-        <Spinner className="size-6" />
+      <div className="mx-auto max-w-[1280px] px-4 md:px-6">
+        <ErrorState message="이슈를 불러오지 못했어요." onRetry={() => void issue.refetch()} />
       </div>
     );
-  if (issue.isError) return <p className="p-10 text-sm text-danger">이슈를 불러오지 못했어요.</p>;
+  }
   const data = issue.data;
 
   return (
@@ -383,7 +405,8 @@ export function IssueThreadPage() {
           {data.state === 'closed' && data.closedAt && (
             <p className="ml-[46px] flex items-center gap-2 text-sm text-slate">
               <StateIcon state="closed" className="size-4" />
-              {data.closedBy?.displayName ?? '누군가'}님이 {formatRelative(data.closedAt)} 닫았어요
+              {data.closedBy ? `${data.closedBy.displayName}님이` : '탈퇴한 사용자가'}{' '}
+              {formatRelative(data.closedAt)} 닫았어요
             </p>
           )}
 
@@ -411,8 +434,9 @@ export function IssueThreadPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="text-danger"
                   icon={<Trash2 className="size-4" />}
-                  onClick={() => remove.mutate()}
+                  onClick={() => setIsConfirmingDelete(true)}
                 >
                   이슈 삭제
                 </Button>
@@ -438,6 +462,16 @@ export function IssueThreadPage() {
           ) : null}
         </div>
         <IssueSidebar issue={data} modelId={model.id} />
+        <ConfirmDialog
+          open={isConfirmingDelete}
+          onOpenChange={setIsConfirmingDelete}
+          title="이슈를 삭제할까요?"
+          description="삭제한 이슈는 목록에서 사라지고 되돌릴 수 없어요."
+          confirmLabel="이슈 삭제"
+          isPending={remove.isPending}
+          error={remove.isError ? errorMessage(remove.error, t) : null}
+          onConfirm={() => remove.mutate()}
+        />
       </div>
     </div>
   );

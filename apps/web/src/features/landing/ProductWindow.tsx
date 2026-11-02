@@ -132,7 +132,8 @@ export function ProductWindow() {
           <span className="text-slate">kai /</span>
           <span className="font-semibold">resnet50-v2</span>
           <span className="ml-auto flex items-center gap-1 text-xs text-slate">
-            <Sparkle className="size-3.5" color="#DE7EA8" /> 128
+            <Sparkle className="size-3.5" color="var(--color-mieru-pink)" />
+            <span className="sr-only">스타</span> 128
           </span>
         </div>
         <ul className="mt-3 flex flex-wrap gap-1.5 text-xs" aria-label="모델 정보">
@@ -146,7 +147,6 @@ export function ProductWindow() {
             <Tabs.Trigger
               key={tab.id}
               value={tab.id}
-              title={tab.body}
               className="border-b-2 border-transparent px-2.5 pb-2.5 text-sm text-slate hover:text-sumi data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-sumi"
             >
               {tab.label}
@@ -162,6 +162,7 @@ export function ProductWindow() {
       />
       {TABS.map((tab) => (
         <Tabs.Content key={tab.id} value={tab.id} className="focus-visible:outline-offset-[-2px]">
+          <p className="border-b border-fog px-5 py-2.5 text-xs text-slate">{tab.body}</p>
           {tab.panel}
         </Tabs.Content>
       ))}

@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Check, Copy, FileText, Pencil } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { hasRoleAtLeast, type StripSegment } from '@mieru/shared';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { OP_COLORS, OP_FAMILY_LABELS, type OpFamily } from '../../design/op-palette.js';
 import { Markdown } from '../../design/Markdown.js';
 import { ButtonLink } from '../../design/ui/Button.js';
-import { Spinner } from '../../design/ui/Spinner.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
+import { CopyStatus, useCopy } from '../../lib/use-copy.js';
 import { formatBytes, formatRelative, formatShape } from '../../lib/format.js';
 import { getGraph, getReadme, modelKeys } from '../models/api.js';
 import { useRepo } from './RepoLayout.js';
@@ -17,33 +19,36 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1">
       <dt className="shrink-0 text-sm text-slate">{label}</dt>
-      <dd className="tabular min-w-0 truncate text-right text-sm">{children}</dd>
+      <dd
+        className="tabular min-w-0 truncate text-right text-sm"
+        title={typeof children === 'string' ? children : undefined}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
 
 function CopyHash({ hash }: { hash: string }) {
-  const [copied, setCopied] = useState(false);
+  const { state, copy } = useCopy();
   return (
-    <button
-      type="button"
-      onClick={() =>
-        void navigator.clipboard.writeText(hash).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-      }
-      className="inline-flex items-center gap-1 font-mono text-xs hover:text-primary"
-      title={hash}
-    >
-      {hash.slice(0, 12)}
-      {copied ? (
-        <Check className="size-3" aria-hidden="true" />
-      ) : (
-        <Copy className="size-3" aria-hidden="true" />
-      )}
-      <span className="sr-only">SHA-256 복사</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => copy(hash)}
+        className="inline-flex items-center gap-1 font-mono text-xs hover:text-primary"
+        title={hash}
+      >
+        {hash.slice(0, 12)}
+        {state === 'copied' ? (
+          <Check className="size-3" aria-hidden="true" />
+        ) : (
+          <Copy className="size-3" aria-hidden="true" />
+        )}
+        <span className="sr-only">SHA-256 복사</span>
+      </button>
+      <CopyStatus state={state} />
+    </>
   );
 }
 
@@ -142,7 +147,7 @@ function TensorList({
       <ul className="mt-1.5 grid gap-1">
         {tensors.map((tensor) => (
           <li key={tensor.name} className="flex justify-between gap-3 font-mono text-xs">
-            <span className="truncate">{tensor.name}</span>
+            <span className="min-w-0 break-all">{tensor.name}</span>
             <span className="shrink-0 text-slate">{formatShape(tensor.shape)}</span>
           </li>
         ))}
@@ -223,8 +228,12 @@ function Readme() {
     queryKey: modelKeys.readme(model.id),
     queryFn: () => getReadme(model.id),
   });
-  if (readme.isPending) return <Spinner className="size-5 text-lilac" />;
-  if (readme.isError) return <p className="text-sm text-danger">README를 불러오지 못했어요.</p>;
+  if (readme.isPending) return <Loading />;
+  if (readme.isError) {
+    return (
+      <ErrorState message="README를 불러오지 못했어요." onRetry={() => void readme.refetch()} />
+    );
+  }
   const canEdit = hasRoleAtLeast(model.myAccess.role, 'editor');
   const editPath = `/m/${model.id}/readme/edit`;
   if (!readme.data.markdown.trim()) {

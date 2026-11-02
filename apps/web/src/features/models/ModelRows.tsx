@@ -90,7 +90,7 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
           <Meta icon={<Clock3 />} label="업데이트">
             {formatRelative(item.updatedAt)}
           </Meta>
-          <Meta icon={<Sparkle color="#DE7EA8" />} label="스타">
+          <Meta icon={<Sparkle color="var(--color-mieru-pink)" />} label="스타">
             {item.starCount}
           </Meta>
           {item.openIssueCount > 0 && (

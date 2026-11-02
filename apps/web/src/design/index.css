@@ -105,6 +105,7 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
   }
@@ -197,7 +198,8 @@
   overflow-x: auto;
   padding: 1em 1.2em;
   border-radius: 12px;
-  background: #f1f2f6;
+  border: 1px solid var(--color-fog);
+  background: var(--color-paper);
   font-size: 0.86rem;
   line-height: 1.6;
 }
@@ -238,28 +240,6 @@
   40% {
     transform: scale(1.35) rotate(12deg);
   }
-}
-
-/* The landing page is always dark, whatever the system theme: the glyph field and product
-   window are drawn for a dark canvas. Overriding the tokens keeps shared components working. */
-.theme-ink {
-  --color-paper: #0d0e13;
-  --color-surface: #15171f;
-  --color-sumi: #eceef5;
-  --color-slate: #8b91a3;
-  --color-fog: #252836;
-  --color-primary: #de7ea8;
-  --color-primary-hover: #e996bb;
-  --color-lilac: #8f7aa3;
-  --color-haze: #1c1a28;
-  --color-haze-deep: #2a2540;
-  --color-on-accent: #0d0e13;
-  --color-edge: #4c4863;
-  --color-dots: #1f2230;
-  --color-mask: rgb(13 14 19 / 0.6);
-  color-scheme: dark;
-  color: var(--color-sumi);
-  background: var(--color-paper);
 }
 
 /* Clears the middle for the headline and fades out toward the product window below. */

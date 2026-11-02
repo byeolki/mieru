@@ -28,7 +28,7 @@ test('share with a person by username, without download', async ({ page, browser
   await expect(bobPage.getByRole('button', { name: '공유' })).toHaveCount(0);
   await bobPage.goto('/dashboard');
   await bobPage.getByRole('tab', { name: '공유받은 모델' }).click();
-  await expect(bobPage.getByRole('link', { name: /tiny-cnn/ })).toBeVisible();
+  await expect(bobPage.getByRole('tabpanel').getByRole('link', { name: /tiny-cnn/ })).toBeVisible();
   await bobContext.close();
 });
 

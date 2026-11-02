@@ -17,7 +17,7 @@ interface StickerCard {
 const STICKERS: StickerCard[] = [
   {
     name: 'resnet50-v2',
-    owner: '@kai',
+    owner: 'kai',
     stars: 128,
     strip: RESNET_STRIP,
     rotate: '-rotate-3',
@@ -25,7 +25,7 @@ const STICKERS: StickerCard[] = [
   },
   {
     name: 'tiny-llama',
-    owner: '@mio',
+    owner: 'mio',
     stars: 42,
     strip: TRANSFORMER_STRIP,
     rotate: 'rotate-2',
@@ -33,7 +33,7 @@ const STICKERS: StickerCard[] = [
   },
   {
     name: 'unet-seg',
-    owner: '@hana',
+    owner: 'hana',
     stars: 17,
     strip: UNET_STRIP,
     rotate: '-rotate-1',
@@ -54,28 +54,30 @@ function BrandPanel() {
       </Link>
 
       <div className="relative my-10 flex flex-col gap-4" aria-hidden="true">
-        <Sparkle className="absolute -top-6 right-16 size-6" color="#DE7EA8" />
+        <Sparkle className="absolute -top-6 right-16 size-6" color="var(--color-mieru-pink)" />
         <Sparkle className="absolute top-28 right-6 size-4" color="#C8B6D4" />
         <Sparkle className="absolute -bottom-4 left-1 size-5" color="#F2C2D4" />
         {STICKERS.map((card) => (
           <div
             key={card.name}
-            className={`${card.rotate} ${card.offset} w-[78%] rounded-2xl border-[3px] border-white dark:border-haze-deep bg-surface/95 px-4 py-3 shadow-(--shadow-lift)`}
+            className={`${card.rotate} ${card.offset} w-[76%] rounded-2xl border border-fog bg-surface p-2.5 shadow-(--shadow-lift)`}
           >
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="font-semibold">{card.name}</span>
-              <span className="tabular flex items-center gap-1 text-xs text-slate">
-                {card.owner}
-                <Sparkle className="ml-1 size-3" color="#DE7EA8" />
-                {card.stars}
-              </span>
-            </div>
             <ArchitectureStrip
               segments={card.strip}
               label={card.name}
-              height={7}
-              className="mt-2.5"
+              height={34}
+              className="rounded-lg"
             />
+            <div className="flex items-baseline justify-between gap-3 px-1.5 pt-2.5 pb-0.5">
+              <span className="font-mono text-sm">
+                <span className="text-slate">{card.owner}/</span>
+                <span className="font-medium">{card.name}</span>
+              </span>
+              <span className="tabular flex items-center gap-1 text-xs text-slate">
+                <Sparkle className="size-3" color="var(--color-mieru-pink)" />
+                {card.stars}
+              </span>
+            </div>
           </div>
         ))}
       </div>

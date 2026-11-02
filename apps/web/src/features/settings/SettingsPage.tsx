@@ -5,10 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { PASSWORD_MIN_LENGTH, type Me } from '@mieru/shared';
 import { Alert } from '../../design/ui/Alert.js';
+import { errorMessage } from '../../lib/error-message.js';
 import { Button } from '../../design/ui/Button.js';
 import { PasswordField, TextField } from '../../design/ui/TextField.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { useFormAction } from '../auth/useAuthForm.js';
+import { ConfirmDialog } from '../../design/ui/ConfirmDialog.js';
+import { ErrorState } from '../../design/ui/ErrorState.js';
+import { Loading } from '../../design/ui/Loading.js';
 import { AppShell } from '../shell/AppShell.js';
 import {
   changeEmailRequest,
@@ -174,7 +178,7 @@ function EmailForm({ user }: { user: Me }) {
         <TextField
           label={t('settings.newEmail')}
           type="email"
-          placeholder={user.email}
+          hint={`지금 이메일: ${user.email}`}
           value={newEmail}
           onChange={(event) => setNewEmail(event.target.value)}
         />
@@ -230,6 +234,7 @@ function SessionsList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [isConfirmingLogoutAll, setIsConfirmingLogoutAll] = useState(false);
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: listSessionsRequest });
   const revoke = useMutation({
     mutationFn: revokeSessionRequest,
@@ -239,10 +244,24 @@ function SessionsList() {
     mutationFn: logoutAllRequest,
     onSuccess: () => navigate('/login', { replace: true }),
   });
+  if (sessions.isPending) return <Loading className="py-4 text-lilac" />;
+  if (sessions.isError) {
+    return (
+      <ErrorState
+        message="로그인된 기기를 불러오지 못했어요."
+        onRetry={() => void sessions.refetch()}
+      />
+    );
+  }
   return (
     <div>
-      <ul className="divide-y divide-fog rounded-(--radius-control) border border-fog">
-        {sessions.data?.map((session) => (
+      {revoke.isError && (
+        <div className="mb-3">
+          <Alert>{errorMessage(revoke.error, t)}</Alert>
+        </div>
+      )}
+      <ul className="divide-y divide-fog rounded-xl border border-fog bg-surface">
+        {sessions.data.map((session) => (
           <li key={session.familyId} className="flex items-center gap-3 px-4 py-3">
             <span className="grid size-9 place-items-center rounded-lg bg-haze text-slate">
               <Monitor className="size-4" aria-hidden="true" />
@@ -274,14 +293,19 @@ function SessionsList() {
           </li>
         ))}
       </ul>
-      <Button
-        variant="secondary"
-        className="mt-4"
-        isLoading={logoutAll.isPending}
-        onClick={() => logoutAll.mutate()}
-      >
+      <Button variant="secondary" className="mt-4" onClick={() => setIsConfirmingLogoutAll(true)}>
         {t('settings.logoutAll')}
       </Button>
+      <ConfirmDialog
+        open={isConfirmingLogoutAll}
+        onOpenChange={setIsConfirmingLogoutAll}
+        title="모든 기기에서 로그아웃할까요?"
+        description="이 기기를 포함해 로그인된 모든 곳에서 로그아웃돼요. 다시 쓰려면 로그인해야 해요."
+        confirmLabel="모두 로그아웃"
+        isPending={logoutAll.isPending}
+        error={logoutAll.isError ? errorMessage(logoutAll.error, t) : null}
+        onConfirm={() => logoutAll.mutate()}
+      />
     </div>
   );
 }
@@ -335,21 +359,23 @@ export function SettingsPage() {
   return (
     <AppShell>
       <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)]">
-        <nav aria-label="설정 메뉴" className="lg:sticky lg:top-20 lg:self-start">
-          <h1 className="mb-3 text-2xl font-bold tracking-[-0.02em]">{t('settings.title')}</h1>
-          <ul className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
-            {SECTIONS.map((section) => (
-              <li key={section.id}>
-                <a
-                  href={`#${section.id}`}
-                  className="block rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-slate hover:bg-haze hover:text-sumi"
-                >
-                  {t(section.labelKey)}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          <h1 className="mb-3 text-xl font-bold tracking-[-0.02em]">{t('settings.title')}</h1>
+          <nav aria-label="설정 메뉴">
+            <ul className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
+              {SECTIONS.map((section) => (
+                <li key={section.id}>
+                  <a
+                    href={`#${section.id}`}
+                    className="block rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-slate hover:bg-haze hover:text-sumi"
+                  >
+                    {t(section.labelKey)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
         <div className="max-w-4xl">
           <Panel
             id="profile"

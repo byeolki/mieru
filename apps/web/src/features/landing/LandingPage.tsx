@@ -23,16 +23,6 @@ function Hero() {
         className={`${CONTAINER} relative grid items-center gap-14 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:py-24`}
       >
         <div>
-          <Link
-            to="/explore"
-            className="mb-7 inline-flex items-center gap-2 rounded-full border border-fog bg-surface py-1 pr-3 pl-1.5 text-sm text-slate hover:border-lilac hover:text-sumi"
-          >
-            <span className="rounded-full bg-haze-deep px-2 py-0.5 text-xs font-semibold text-sumi">
-              화제
-            </span>
-            {t('landing.badge')}
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
           <h1 className="text-[clamp(2.5rem,5.2vw,4rem)] leading-[1.1] font-bold tracking-[-0.035em] text-balance">
             {t('landing.title')}
           </h1>
@@ -64,7 +54,7 @@ function LiveTrending() {
     <section className={`${CONTAINER} pt-20`} aria-labelledby="live-trending">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 id="live-trending" className="text-2xl font-bold tracking-[-0.02em]">
+          <h2 id="live-trending" className="text-xl font-bold tracking-[-0.02em]">
             {sections.data?.trendingIsFallback ? '스타를 많이 받은 모델' : '이번 주 화제'}
           </h2>
           <p className="mt-1.5 text-sm text-slate">지금 mieru에 공개된 모델이에요.</p>
@@ -136,12 +126,10 @@ function FeatureRow({ feature, isReversed }: { feature: Feature; isReversed: boo
           />
           {feature.label}
         </p>
-        <h2 className="mt-3 text-3xl leading-tight font-bold tracking-[-0.025em] text-balance">
+        <h2 className="mt-3 text-xl leading-tight font-bold tracking-[-0.025em] text-balance">
           {feature.title}
         </h2>
-        <p className="mt-5 max-w-md text-[1.0625rem] leading-8 text-pretty text-slate">
-          {feature.body}
-        </p>
+        <p className="mt-4 max-w-md text-base leading-8 text-pretty text-slate">{feature.body}</p>
       </div>
       <div className="rounded-2xl bg-haze/60 p-4 md:p-6">{feature.mock}</div>
     </div>

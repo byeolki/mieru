@@ -85,7 +85,7 @@ export function SignupPage() {
         title={t('auth.welcomeTitle')}
         decoration={
           <div className="mb-4 flex gap-1.5" aria-hidden="true">
-            <Sparkle className="size-6" color="#DE7EA8" />
+            <Sparkle className="size-6" color="var(--color-mieru-pink)" />
             <Sparkle className="mt-3 size-4" color="#C8B6D4" />
           </div>
         }

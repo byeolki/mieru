@@ -115,13 +115,13 @@ export function TrendingMock() {
         {TRENDING.map((model, index) => (
           <li key={model.name} className="grid gap-2.5 px-5 py-4">
             <div className="flex items-center gap-3 text-sm">
-              <span className="tabular w-4 text-lilac">{index + 1}</span>
+              <span className="tabular w-4 text-slate">{index + 1}</span>
               <span>
                 <span className="text-slate">{model.owner} / </span>
                 <span className="font-semibold text-sumi">{model.name}</span>
               </span>
               <span className="tabular ml-auto flex items-center gap-1 text-slate">
-                <Sparkle className="size-3" color="#DE7EA8" /> {model.stars}
+                <Sparkle className="size-3" color="var(--color-mieru-pink)" /> {model.stars}
               </span>
             </div>
             <ArchitectureStrip
