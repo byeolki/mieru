@@ -1,21 +1,25 @@
 import type { z } from 'zod';
 import { ApiError, toApiError } from './api-error.js';
 import { getAccessToken, refreshSession } from './auth-store.js';
+import { linkTokenFor } from './link-store.js';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 async function send(path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = {};
   const token = getAccessToken();
   if (token) headers.authorization = `Bearer ${token}`;
+  const linkToken = linkTokenFor(path);
+  if (linkToken) headers['x-share-link'] = linkToken;
   if (options.body !== undefined) headers['content-type'] = 'application/json';
   return fetch(path, {
     method: options.method ?? 'GET',
-    headers,
+    headers: { ...headers, ...options.headers },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
     credentials: 'same-origin',

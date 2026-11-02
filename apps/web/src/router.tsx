@@ -8,6 +8,7 @@ import { GraphTab, StatsRoute } from './features/repo/GraphTab.js';
 import { OverviewTab } from './features/repo/OverviewTab.js';
 import { RepoLayout } from './features/repo/RepoLayout.js';
 import { SettingsPage } from './features/settings/SettingsPage.js';
+import { LinkEntryPage } from './features/sharing/LinkEntryPage.js';
 import { NewModelPage } from './features/upload/NewModelPage.js';
 import { RedirectIfSignedIn, RequireAuth } from './features/shell/guards.js';
 
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
           { path: 'stats', element: <StatsRoute /> },
         ],
       },
+      { path: '/s/:token', element: <LinkEntryPage /> },
       {
         path: '/settings',
         element: (

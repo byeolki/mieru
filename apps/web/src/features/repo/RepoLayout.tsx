@@ -9,9 +9,10 @@ import {
   Link2,
   Lock,
   Network,
+  Share2,
   Users,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router';
 import type { ModelDetail, Visibility } from '@mieru/shared';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
@@ -26,6 +27,7 @@ import { formatBytes, formatParams, formatRelative } from '../../lib/format.js';
 import { NotFoundPage } from '../NotFoundPage.js';
 import { downloadOriginal, getModel, modelKeys } from '../models/api.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from '../models/labels.js';
+import { ShareDialog } from '../sharing/ShareDialog.js';
 
 export interface RepoContext {
   model: ModelDetail;
@@ -111,6 +113,7 @@ const TAB_CLASS = ({ isActive }: { isActive: boolean }) =>
 
 function RepoHeader({ model }: { model: ModelDetail }) {
   const isOnnx = model.format === 'onnx';
+  const [isSharing, setIsSharing] = useState(false);
   return (
     <div className="border-b border-fog bg-paper px-4 pt-6 md:px-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -135,6 +138,11 @@ function RepoHeader({ model }: { model: ModelDetail }) {
             <Sparkle className="size-4" color="#DE7EA8" />
             {model.starCount}
           </span>
+          {model.myAccess.role === 'owner' && (
+            <Button icon={<Share2 className="size-4" />} onClick={() => setIsSharing(true)}>
+              공유
+            </Button>
+          )}
           {model.myAccess.canDownload && model.currentVersion && (
             <Button
               variant="secondary"
@@ -157,6 +165,7 @@ function RepoHeader({ model }: { model: ModelDetail }) {
           />
         )}
       </div>
+      {isSharing && <ShareDialog model={model} open={isSharing} onOpenChange={setIsSharing} />}
       <nav className="mt-5 flex gap-6" aria-label="저장소 탭">
         <NavLink to={`/m/${model.id}`} end className={TAB_CLASS}>
           <FileText className="size-4" aria-hidden="true" /> 개요

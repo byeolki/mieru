@@ -7,6 +7,7 @@ import type { DbPool } from './db/pool.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import { ProcessingQueue } from './features/models/processing.js';
 import { registerModelRoutes } from './features/models/routes.js';
+import { registerSharingRoutes } from './features/sharing/routes.js';
 import { registerUploadRoutes } from './features/uploads/tus.js';
 import { registerUserRoutes } from './features/users/routes.js';
 import { registerHealthRoutes } from './observability/health.js';
@@ -87,6 +88,7 @@ export async function buildApp({
   registerUserRoutes(app, routeDeps);
   registerUploadRoutes(app, routeDeps);
   registerModelRoutes(app, { config, db, clock, queue, requireModelAccess });
+  registerSharingRoutes(app, { ...routeDeps, requireModelAccess });
 
   return app;
 }
