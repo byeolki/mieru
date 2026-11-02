@@ -6,7 +6,11 @@ import { createPool } from './db/pool.js';
 const config = loadConfig();
 await mkdir(config.STORAGE_DIR, { recursive: true, mode: 0o700 });
 const db = createPool(config.DATABASE_URL);
-const app = await buildApp({ config, db });
+const app = await buildApp({
+  config,
+  db,
+  rateLimitEnabled: config.NODE_ENV === 'production' || config.RATE_LIMIT_ENABLED,
+});
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down');

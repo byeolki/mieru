@@ -21,6 +21,17 @@
   --color-lilac: #c8b6d4;
   --color-canvas-dark: #12141d;
   --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-success: #1f7a4d;
+  --color-haze: #f1edf8;
+  --color-haze-deep: #e7e0f3;
+
+  --radius-control: 10px;
+  --radius-panel: 16px;
+  --radius-sheet: 22px;
+
+  --shadow-soft: 0 1px 2px rgb(27 30 43 / 0.04), 0 10px 30px -14px rgb(120 92 170 / 0.28);
+  --shadow-lift: 0 2px 6px rgb(27 30 43 / 0.06), 0 22px 48px -20px rgb(120 92 170 / 0.38);
 
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
@@ -72,4 +83,23 @@
   background-color: var(--color-paper);
   background-image: radial-gradient(var(--color-fog) 1px, transparent 1px);
   background-size: 14px 14px;
+}
+
+@utility haze-tone {
+  background-color: var(--color-haze);
+  background-image: radial-gradient(rgb(200 182 212 / 0.55) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
 }

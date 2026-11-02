@@ -15,6 +15,11 @@ const configSchema = z.object({
   APP_ORIGIN: z.url(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
+  // Local dev and e2e create many accounts from one IP; production always keeps limits on.
+  RATE_LIMIT_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
   DATABASE_URL: z.string().startsWith('mysql://'),
   JWT_SECRET: secret,
   LINK_TOKEN_KEY: secret,

@@ -46,3 +46,25 @@ export const TRANSFORMER_STRIP: StripSegment[] = [
   { category: 'normalization', weight: 1 },
   { category: 'matmul', weight: 2 },
 ];
+
+export const UNET_STRIP: StripSegment[] = [
+  ...repeat(
+    [
+      { category: 'conv', weight: 2 },
+      { category: 'normalization', weight: 1 },
+      { category: 'activation', weight: 1 },
+      { category: 'pooling', weight: 1 },
+    ],
+    4,
+  ),
+  ...repeat(
+    [
+      { category: 'shape', weight: 1 },
+      { category: 'elementwise', weight: 1 },
+      { category: 'conv', weight: 2 },
+      { category: 'activation', weight: 1 },
+    ],
+    4,
+  ),
+  { category: 'conv', weight: 1 },
+];
