@@ -2,6 +2,7 @@ import { mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { PARSER_VERSION } from '@mieru/shared';
 import { createPool, type DbPool } from '../db/pool.js';
 import { execute } from '../db/query.js';
 import { collectGarbage } from './gc.js';
@@ -34,7 +35,7 @@ beforeAll(async () => {
     [keptKey, keptKey, Buffer.alloc(32, 1)],
   );
   await touch(`blobs/${keptKey}`, twoHoursAgo);
-  await touch(`parsed/${keptKey}.v1.json.gz`, twoHoursAgo);
+  await touch(`parsed/${keptKey}.v${PARSER_VERSION}.json.gz`, twoHoursAgo);
   await touch(`parsed/${keptKey}.v0.json.gz`, twoHoursAgo);
   await touch(`blobs/${orphanKey}`, twoHoursAgo);
   await touch(`blobs/${freshKey}`, now);
@@ -58,6 +59,8 @@ describe('collectGarbage', () => {
   it('deletes them with apply and keeps referenced or fresh files', async () => {
     await collectGarbage(db, dir, { apply: true, now });
     expect((await readdir(path.join(dir, 'blobs'))).sort()).toEqual([keptKey, freshKey].sort());
-    expect(await readdir(path.join(dir, 'parsed'))).toEqual([`${keptKey}.v1.json.gz`]);
+    expect(await readdir(path.join(dir, 'parsed'))).toEqual([
+      `${keptKey}.v${PARSER_VERSION}.json.gz`,
+    ]);
   });
 });

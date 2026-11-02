@@ -25,7 +25,11 @@ describe('buildStrip', () => {
     }));
     const strip = buildStrip(items);
     expect(strip.length).toBeLessThanOrEqual(512);
-    expect(strip.reduce((sum, segment) => sum + segment.weight, 0)).toBe(10_000);
+    expect(Math.round(strip.reduce((sum, segment) => sum + segment.weight, 0))).toBe(10_000);
+    // Both families survive compression instead of collapsing to the dominant one.
+    expect(new Set(strip.map((segment) => segment.family))).toEqual(
+      new Set(['compute', 'activation']),
+    );
   });
 });
 

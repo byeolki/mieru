@@ -3,21 +3,21 @@ import { OP_COLORS, type OpFamily } from '../../design/op-palette.js';
 interface PreviewNode {
   id: string;
   label: string;
-  category: OpFamily;
+  family: OpFamily;
   x: number;
   y: number;
 }
 
 const NODES: PreviewNode[] = [
-  { id: 'in', label: 'input', category: 'other', x: 150, y: 24 },
-  { id: 'conv1', label: 'Conv', category: 'compute', x: 150, y: 74 },
-  { id: 'bn1', label: 'BatchNorm', category: 'normalization', x: 150, y: 124 },
-  { id: 'relu1', label: 'Relu', category: 'activation', x: 150, y: 174 },
-  { id: 'conv2', label: 'Conv', category: 'compute', x: 82, y: 228 },
-  { id: 'conv3', label: 'Conv', category: 'compute', x: 218, y: 228 },
-  { id: 'add', label: 'Add', category: 'other', x: 150, y: 282 },
-  { id: 'pool', label: 'GlobalAvgPool', category: 'shape', x: 150, y: 332 },
-  { id: 'fc', label: 'Gemm', category: 'compute', x: 150, y: 382 },
+  { id: 'in', label: 'input', family: 'other', x: 150, y: 24 },
+  { id: 'conv1', label: 'Conv', family: 'compute', x: 150, y: 74 },
+  { id: 'bn1', label: 'BatchNorm', family: 'normalization', x: 150, y: 124 },
+  { id: 'relu1', label: 'Relu', family: 'activation', x: 150, y: 174 },
+  { id: 'conv2', label: 'Conv', family: 'compute', x: 82, y: 228 },
+  { id: 'conv3', label: 'Conv', family: 'compute', x: 218, y: 228 },
+  { id: 'add', label: 'Add', family: 'other', x: 150, y: 282 },
+  { id: 'pool', label: 'GlobalAvgPool', family: 'shape', x: 150, y: 332 },
+  { id: 'fc', label: 'Gemm', family: 'compute', x: 150, y: 382 },
 ];
 
 const EDGES: [string, string][] = [
@@ -70,7 +70,7 @@ export function GraphPreview() {
             stroke={node.id === 'conv3' ? '#BC3D86' : '#E3E6EE'}
             strokeWidth={node.id === 'conv3' ? 2 : 1}
           />
-          <rect x="8" y="9" width="10" height="10" rx="3" fill={OP_COLORS[node.category]} />
+          <rect x="8" y="9" width="10" height="10" rx="3" fill={OP_COLORS[node.family]} />
           <text
             x="26"
             y="18.5"

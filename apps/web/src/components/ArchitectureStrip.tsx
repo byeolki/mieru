@@ -1,7 +1,7 @@
 import { OP_COLORS, type OpFamily } from '../design/op-palette.js';
 
 export interface StripSegment {
-  category: OpFamily;
+  family: OpFamily;
   weight: number;
 }
 
@@ -33,7 +33,7 @@ export function ArchitectureStrip({
           key={index}
           style={{
             width: `${(segment.weight / total) * 100}%`,
-            backgroundColor: OP_COLORS[segment.category],
+            backgroundColor: OP_COLORS[segment.family],
           }}
         />
       ))}

@@ -1,13 +1,6 @@
-export const OP_FAMILIES = [
-  'compute',
-  'attention',
-  'normalization',
-  'activation',
-  'shape',
-  'other',
-] as const;
+import type { OpFamily } from '@mieru/shared';
 
-export type OpFamily = (typeof OP_FAMILIES)[number];
+export type { OpFamily };
 
 /**
  * Muted data palette, capped at six families so the graph stays readable. Kept apart from
@@ -23,7 +16,7 @@ export const OP_COLORS: Record<OpFamily, string> = {
 };
 
 export const OP_FAMILY_LABELS: Record<OpFamily, string> = {
-  compute: '연산 (Conv · MatMul · Gemm)',
+  compute: '연산',
   attention: '어텐션',
   normalization: '정규화',
   activation: '활성화',

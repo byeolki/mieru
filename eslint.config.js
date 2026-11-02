@@ -58,6 +58,8 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.flatConfigs.recommended.rules,
+      // Labels often wrap an input plus a title/description pair of spans.
+      'jsx-a11y/label-has-associated-control': ['error', { depth: 3 }],
     },
   },
 );

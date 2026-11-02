@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Bump when the parser output changes shape or meaning; old sidecars are re-parsed lazily. */
-export const PARSER_VERSION = 1;
+export const PARSER_VERSION = 2;
 
 export const OP_FAMILIES = [
   'compute',
