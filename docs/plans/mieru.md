@@ -1051,7 +1051,7 @@ Releases: **R1 Launch** = M0–M5 + M-B + M-R (P0 features plus the product esse
 | 5.3 | Admin UI (`/admin/reports`) | Playwright: admin dismisses and takes down from the queue |
 | 5.4 | Security review pass (authz per route, upload limits, headers, redaction, cookie flags, CSP) | checklist in the report, each item linked to a test |
 
-### M-B — Brand (direction picked from the Grok drafts in `docs/brand/drafts/`)
+### M-B — Brand (logo direction: `docs/brand/drafts/logo3-star-*`)
 | # | Task | AC |
 |---|---|---|
 | B.1 | Turn the chosen draft into a brand: logo/wordmark redrawn as SVG (generated images only set the direction), mascot or motif, display face, voice, final tokens (replacing §9.1's provisional values) | brand sheet committed under `docs/brand/`; `tokens.css` updated; contrast checks pass (`better-colors`) |
@@ -1166,4 +1166,4 @@ npm run build                                      # moderate CPU, ~1 min
 
 Each is worded so "yes" accepts the recommendation.
 
-1. **Branding**: pick a logo from the pastel pink/lavender round in `docs/brand/drafts/`: `logo2-a*` (Y2K kirakira swoosh + ミエル), `logo2-b*` (angel-core cloud, wings, halo + ミエル), `logo2-c*` (bubbly wordmark with eye dot and node-constellation tail). Earlier rounds (`logo-*`, `mascot-*`, `emblem-*`, `titlecard-*`) stay as reference. M-B redraws the pick as SVG with real lettering, so AI spelling glitches don't carry over.
+1. **Branding**: confirm the final logo draft in `docs/brand/drafts/logo3-star-*` (derived from `logo2-a2`: italic pastel-pink `mieru` with lavender offset shadow, the four-point star as the dot of the i, orbit swoosh, hiragana `みえる`; no other sparkles, no eye). Recommended pick: `logo3-star-2` (closest to the original swoosh and shadow). M-B redraws it as SVG with real lettering.
