@@ -1,6 +1,6 @@
 # Production stack for freeride. Run from this directory:
 #   docker compose --env-file /data/projects/mieru/mieru.env up -d --build
-# Traefik (Dokploy) routes mieru.byeolki.me to the app through the labels below.
+# Traefik (Dokploy) routes $APP_DOMAIN to the app through the labels below.
 name: mieru
 
 services:
@@ -40,7 +40,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      APP_ORIGIN: https://mieru.byeolki.me
+      APP_ORIGIN: https://${APP_DOMAIN:?}
       DATABASE_URL: mysql://mieru:${MYSQL_PASSWORD}@db:3306/mieru
       TRUST_PROXY: ${TRUST_PROXY:-2}
       BACKUP_DIR: /var/lib/mieru/backups
@@ -58,7 +58,7 @@ services:
     labels:
       traefik.enable: 'true'
       traefik.docker.network: dokploy-network
-      traefik.http.routers.mieru.rule: Host(`mieru.byeolki.me`)
+      traefik.http.routers.mieru.rule: Host(`${APP_DOMAIN:?}`)
       traefik.http.routers.mieru.entrypoints: web
       traefik.http.services.mieru.loadbalancer.server.port: '3000'
 

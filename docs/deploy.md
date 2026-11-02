@@ -1,10 +1,12 @@
 # Deploying mieru on freeride
 
-Target: `https://mieru.byeolki.me`. The stack is `deploy/compose.yml` (app, MySQL 8.4, backup
+Target: `https://mieru.dokploy.byeolki.me`. The stack is `deploy/compose.yml` (app, MySQL 8.4, backup
 sidecar), run with the Docker CLI next to Dokploy. Dokploy's Traefik picks up the app through
 Docker labels. Read `~/SERVER.md` on the host before touching anything there.
 
 Traffic path: Cloudflare → `cloudflared` (host service) → Traefik `:80` → `mieru-app-1:3000`.
+The tunnel already sends `*.dokploy.byeolki.me` to Traefik and DNS has a matching wildcard, so a
+new app needs no Cloudflare or `cloudflared` change: the Traefik label is enough.
 
 ## Layout on freeride
 
@@ -22,6 +24,7 @@ The app and backup containers run as `admin` (uid/gid 1001), so the host directo
 ## Env file
 
 ```sh
+APP_DOMAIN=mieru.dokploy.byeolki.me
 HOST_UID=1001
 HOST_GID=1001
 STORAGE_PATH=/data/projects/mieru/storage
@@ -50,12 +53,7 @@ ssh ssh.byeolki.me 'docker image prune -f --filter label=com.docker.compose.proj
 
 The app runs migrations at start, then the server. Rate limiting is always on in production.
 
-## Cloudflare (one time, needs the user)
-
-1. Cloudflare DNS: `CNAME mieru → a272d13d-b889-4e5a-afc9-1b6f1b04cb42.cfargotunnel.com`, proxied.
-2. `/etc/cloudflared/config.yml` gets an ingress entry before the 404 catch-all:
-   `- hostname: mieru.byeolki.me` / `service: http://localhost:80`.
-3. `sudo systemctl restart cloudflared`.
+## Cloudflare
 
 Keep Cloudflare caching off for `/api/*` (responses send `no-store`). Uploads use 50 MiB tus
 chunks, under Cloudflare's 100 MB request limit.
@@ -68,7 +66,7 @@ too high. Fix it in the env file and redeploy.
 
 ## Monitoring
 
-- Uptime Kuma: HTTP monitor on `https://mieru.byeolki.me/api/health/deep`, every 5 min, alert on
+- Uptime Kuma: HTTP monitor on `https://mieru.dokploy.byeolki.me/api/health/deep`, every 5 min, alert on
   non-200. The body names the failing check.
 - Logs: `docker logs mieru-app-1` or Dozzle. Tokens, cookies and passwords are redacted.
 

@@ -2,7 +2,7 @@
 
 Status: draft v5, revised after review round 4. Ready for approval.
 Date: 2026-11-02
-Production URL: https://mieru.byeolki.me
+Production URL: https://mieru.dokploy.byeolki.me (changed at deploy time from `mieru.byeolki.me` to reuse the existing `*.dokploy` tunnel route)
 
 **mieru** (見える, "visible") is a web service for **model repositories**. Each repository holds a neural-network model file, a README, and an issues channel. People can explore the model visually, star it, and share it with fine-grained access control. Auth and sharing are the core of the product; visualization is why people come.
 
@@ -145,7 +145,7 @@ Each job takes a MySQL `GET_LOCK` so an overlapping container during a rolling d
 - **Dokploy Application** `mieru-app`: auto-deploy from GitHub `main`, one replica, 2 GiB memory, 4 CPUs, health check `GET /api/health`, bind mount `/data/projects/mieru/storage:/var/lib/mieru/storage`, env vars in Dokploy only.
 - **Dokploy MySQL** `mieru-db`: MySQL 8.4, 1 GiB memory, `innodb_buffer_pool_size=512M`, internal network only.
 - **Entrypoint**: `node dist/scripts/migrate.js && node dist/server.js`.
-- **Domain**: `mieru.byeolki.me` on the Dokploy app, exposed through Cloudflare; `APP_ORIGIN=https://mieru.byeolki.me`.
+- **Domain**: `mieru.dokploy.byeolki.me` through the existing `*.dokploy.byeolki.me` tunnel route; `APP_ORIGIN=https://mieru.dokploy.byeolki.me`.
 - **Network path**: Cloudflare → `cloudflared` → Traefik → app. `TRUST_PROXY` hops and `CF-Connecting-IP` are verified in M-R.2. `/api` responses send `Cache-Control: private, no-store` unless stated otherwise.
 - **Backups**: daily `mysqldump --single-transaction` (keep 14) + `rsync` of `storage/blobs` into `/data/backups/mieru` as Dokploy scheduled tasks. Accepted risk: same NVMe as live data, so it protects against mistakes, not drive failure. Restore drill in M-R.
 - **Observability**: pino JSON logs (Dozzle / Dokploy), `GET /api/health` (liveness for Docker), `GET /api/health/deep` (`503` on low disk, stuck jobs, stale backups or trending older than 1 h) watched by an Uptime Kuma monitor.

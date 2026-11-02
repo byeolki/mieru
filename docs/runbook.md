@@ -6,7 +6,7 @@ Commands run on freeride unless noted. The stack is the `mieru` compose project
 
 ## Deep health is red
 
-`curl -s https://mieru.byeolki.me/api/health/deep | jq` and act on the failing check:
+`curl -s https://mieru.dokploy.byeolki.me/api/health/deep | jq` and act on the failing check:
 
 | Check | Meaning | Action |
 |---|---|---|
@@ -51,7 +51,7 @@ docker exec $APP node dist/scripts/storage-gc.js --apply
 Normally from **신고 관리** (`/admin/reports`). Without the UI:
 
 ```sh
-curl -X POST https://mieru.byeolki.me/api/admin/models/<id>/takedown \
+curl -X POST https://mieru.dokploy.byeolki.me/api/admin/models/<id>/takedown \
   -H "authorization: Bearer <admin access token>" -H 'content-type: application/json' \
   -d '{"reason":"..."}'
 ```
