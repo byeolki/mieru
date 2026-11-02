@@ -13,6 +13,8 @@ import { IssueThreadPage } from './features/issues/IssueThreadPage.js';
 import { NewIssuePage } from './features/issues/NewIssuePage.js';
 import { ActivityPage } from './features/activity/ActivityPage.js';
 import { StarsPage } from './features/activity/StarsPage.js';
+import { ExplorePage } from './features/explore/ExplorePage.js';
+import { ProfilePage } from './features/profile/ProfilePage.js';
 import { SettingsPage } from './features/settings/SettingsPage.js';
 import { LinkEntryPage } from './features/sharing/LinkEntryPage.js';
 import { NewModelPage } from './features/upload/NewModelPage.js';
@@ -69,6 +71,8 @@ export const router = createBrowserRouter([
         ],
       },
       { path: '/s/:token', element: <LinkEntryPage /> },
+      { path: '/explore', element: <ExplorePage /> },
+      { path: '/u/:username', element: <ProfilePage /> },
       {
         path: '/activity',
         element: (

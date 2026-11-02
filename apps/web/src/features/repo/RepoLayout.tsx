@@ -57,7 +57,9 @@ function TopBar({ model }: { model: ModelDetail }) {
         <img src="/brand/logo.png" alt="" className="h-9 w-auto" />
       </Link>
       <nav aria-label="경로" className="min-w-0 truncate text-sm">
-        <span className="text-slate">{model.owner.username}</span>
+        <Link to={`/u/${model.owner.username}`} className="text-slate hover:text-primary">
+          {model.owner.username}
+        </Link>
         <span className="mx-1.5 text-fog">/</span>
         <span className="font-semibold">{model.name}</span>
       </nav>
