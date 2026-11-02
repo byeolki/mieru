@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import type { ExploreSort, ModelFormat } from '@mieru/shared';
@@ -87,6 +87,73 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
 
 const CHIP = 'rounded-md border px-2.5 py-1 text-sm transition-colors';
 
+interface FiltersProps {
+  filters: SearchFilters;
+  update: (changes: Record<string, string | null>) => void;
+  radioName: string;
+}
+
+function Filters({ filters, update, radioName }: FiltersProps) {
+  return (
+    <>
+      <FilterGroup title="형식">
+        <div className="flex flex-wrap gap-1.5">
+          {FORMATS.map((format) => (
+            <button
+              key={format}
+              type="button"
+              aria-pressed={filters.format === format}
+              onClick={() => update({ format: filters.format === format ? null : format })}
+              className={clsx(
+                CHIP,
+                filters.format === format
+                  ? 'border-primary bg-haze font-medium text-sumi'
+                  : 'border-fog bg-surface text-slate hover:border-lilac hover:text-sumi',
+              )}
+            >
+              {FORMAT_LABELS[format]}
+            </button>
+          ))}
+        </div>
+      </FilterGroup>
+      <FilterGroup title="다운로드">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.downloadableOnly}
+            onChange={() => update({ downloadable: filters.downloadableOnly ? null : 'true' })}
+            className="size-4 accent-primary"
+          />
+          다운로드 가능만
+        </label>
+      </FilterGroup>
+      <FilterGroup title="정렬">
+        <div className="grid gap-0.5">
+          {(Object.keys(SORT_LABELS) as ExploreSort[]).map((sort) => (
+            <label
+              key={sort}
+              className={clsx(
+                'flex cursor-pointer items-center rounded-md px-2.5 py-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary',
+                filters.sort === sort ? 'bg-haze font-medium' : 'text-slate hover:text-sumi',
+              )}
+            >
+              <input
+                type="radio"
+                name={radioName}
+                value={sort}
+                checked={filters.sort === sort}
+                onChange={() => update({ sort: sort === 'trending' ? null : sort })}
+                className="sr-only"
+              />
+              {SORT_LABELS[sort]}
+            </label>
+          ))}
+        </div>
+      </FilterGroup>
+    </>
+  );
+}
+
 export function ExplorePage() {
   const [params, setParams] = useSearchParams();
   const [draft, setDraft] = useState(params.get('q') ?? '');
@@ -143,61 +210,20 @@ export function ExplorePage() {
         </form>
       </div>
       <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="grid content-start gap-5 lg:sticky lg:top-20 lg:self-start">
-          <FilterGroup title="형식">
-            <div className="flex flex-wrap gap-1.5">
-              {FORMATS.map((format) => (
-                <button
-                  key={format}
-                  type="button"
-                  aria-pressed={filters.format === format}
-                  onClick={() => update({ format: filters.format === format ? null : format })}
-                  className={clsx(
-                    CHIP,
-                    filters.format === format
-                      ? 'border-primary bg-haze font-medium text-sumi'
-                      : 'border-fog bg-surface text-slate hover:border-lilac hover:text-sumi',
-                  )}
-                >
-                  {FORMAT_LABELS[format]}
-                </button>
-              ))}
-            </div>
-          </FilterGroup>
-          <FilterGroup title="다운로드">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={filters.downloadableOnly}
-                onChange={() => update({ downloadable: filters.downloadableOnly ? null : 'true' })}
-                className="size-4 accent-primary"
-              />
-              다운로드 가능만
-            </label>
-          </FilterGroup>
-          <FilterGroup title="정렬">
-            <div className="grid gap-0.5">
-              {(Object.keys(SORT_LABELS) as ExploreSort[]).map((sort) => (
-                <label
-                  key={sort}
-                  className={clsx(
-                    'flex cursor-pointer items-center rounded-md px-2.5 py-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary',
-                    filters.sort === sort ? 'bg-haze font-medium' : 'text-slate hover:text-sumi',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="sort"
-                    value={sort}
-                    checked={filters.sort === sort}
-                    onChange={() => update({ sort: sort === 'trending' ? null : sort })}
-                    className="sr-only"
-                  />
-                  {SORT_LABELS[sort]}
-                </label>
-              ))}
-            </div>
-          </FilterGroup>
+        <details className="group rounded-xl border border-fog bg-surface lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
+            필터와 정렬
+            <ChevronDown
+              className="size-4 text-slate transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            />
+          </summary>
+          <div className="grid gap-5 border-t border-fog px-4 py-4">
+            <Filters filters={filters} update={update} radioName="sort-mobile" />
+          </div>
+        </details>
+        <aside className="hidden content-start gap-5 lg:sticky lg:top-20 lg:grid lg:self-start">
+          <Filters filters={filters} update={update} radioName="sort" />
         </aside>
 
         <div className="min-w-0">

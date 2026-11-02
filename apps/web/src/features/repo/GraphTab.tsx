@@ -53,7 +53,15 @@ export function GraphTab() {
       </p>
     );
   const { payload, summary } = query.data;
-  if (payload.kind === 'safetensors-tree') return <SafetensorsTreeView root={payload.root} />;
+  if (payload.kind === 'safetensors-tree') {
+    return (
+      <div className="mx-auto flex h-full max-w-[1280px] flex-col px-4 py-6 md:px-6">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-fog">
+          <SafetensorsTreeView root={payload.root} />
+        </div>
+      </div>
+    );
+  }
   return (
     <OnnxGraphView
       key={focusNode ?? 'graph'}
