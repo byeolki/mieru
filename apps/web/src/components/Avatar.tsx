@@ -25,7 +25,7 @@ export function Avatar({
     <span
       aria-hidden="true"
       className={clsx(
-        'inline-grid shrink-0 place-items-center rounded-full font-semibold text-sumi',
+        'inline-grid shrink-0 place-items-center rounded-full font-semibold text-ink',
         className,
       )}
       style={{

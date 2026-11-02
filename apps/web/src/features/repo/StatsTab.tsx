@@ -87,7 +87,7 @@ function HorizontalBars({
               margin={{ top: 0, right: 56, bottom: 0, left: 0 }}
               barCategoryGap={6}
             >
-              <CartesianGrid horizontal={false} stroke="#E3E6EE" />
+              <CartesianGrid horizontal={false} stroke="var(--color-fog)" />
               <XAxis type="number" hide />
               <YAxis
                 type="category"
@@ -95,15 +95,20 @@ function HorizontalBars({
                 width={220}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 12, fill: '#5A6072' }}
+                tick={{ fontSize: 12, fill: 'var(--color-slate)' }}
                 tickFormatter={(label: string) =>
                   label.length > 30 ? `…${label.slice(-29)}` : label
                 }
               />
               <Tooltip
-                cursor={{ fill: 'rgb(241 237 248 / 0.6)' }}
+                cursor={{ fill: 'var(--color-mask)' }}
                 formatter={(value) => [format(Number(value)), '']}
-                contentStyle={{ borderRadius: 12, border: '1px solid #E3E6EE', fontSize: 12 }}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: '1px solid var(--color-fog)',
+                  background: 'var(--color-surface)',
+                  fontSize: 12,
+                }}
               />
               <Bar
                 dataKey="value"
@@ -111,7 +116,7 @@ function HorizontalBars({
                 label={{
                   position: 'right',
                   fontSize: 11,
-                  fill: '#5A6072',
+                  fill: 'var(--color-slate)',
                   formatter: (value: unknown) => format(Number(value)),
                 }}
               ></Bar>

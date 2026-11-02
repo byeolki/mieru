@@ -41,7 +41,7 @@ export function ActivityPage() {
               >
                 <span
                   className="mt-1.5 size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: unread ? '#BC3D86' : 'transparent' }}
+                  style={{ backgroundColor: unread ? 'var(--color-primary)' : 'transparent' }}
                   aria-label={unread ? '안 읽음' : undefined}
                 />
                 <StateIcon state={issue.state} className="mt-0.5 size-4 shrink-0" />

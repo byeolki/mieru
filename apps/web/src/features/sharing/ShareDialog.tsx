@@ -113,7 +113,7 @@ function DownloadToggle({
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-3.5 accent-[#BC3D86]"
+        className="size-3.5 accent-primary"
         aria-label={label}
       />
       다운로드
@@ -163,7 +163,7 @@ function GeneralAccess({ model }: { model: ModelDetail }) {
             type="checkbox"
             checked={model.publicAllowDownload}
             onChange={(event) => mutation.mutate({ publicAllowDownload: event.target.checked })}
-            className="mt-0.5 size-4 accent-[#BC3D86]"
+            className="mt-0.5 size-4 accent-primary"
           />
           <span>
             <span className="font-medium">누구나 원본 파일 다운로드 허용</span>

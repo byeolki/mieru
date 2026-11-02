@@ -59,7 +59,7 @@ export function ProfilePage() {
           username={data.username}
           displayName={data.displayName}
           size={72}
-          className="ring-4 ring-white"
+          className="ring-4 ring-surface"
         />
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{data.displayName}</h1>

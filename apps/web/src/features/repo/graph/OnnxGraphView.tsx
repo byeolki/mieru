@@ -34,8 +34,8 @@ import {
   initialExpanded,
 } from './visible-graph.js';
 
-const EDGE_COLOR = '#B9B4C9';
-const EDGE_HIGHLIGHT = '#BC3D86';
+const EDGE_COLOR = 'var(--color-edge)';
+const EDGE_HIGHLIGHT = 'var(--color-primary)';
 const SEARCH_RESULTS = 8;
 const LARGE_VIEW_ITEMS = 60;
 const START_VIEW_ITEMS = 5;
@@ -298,7 +298,12 @@ function GraphCanvas({
           onNodeMouseLeave={() => setHoveredId(null)}
           onPaneClick={() => setSelection(null)}
         >
-          <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#D6D9E3" />
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={18}
+            size={1.2}
+            color="var(--color-dots)"
+          />
           {showMinimap && (
             <MiniMap
               pannable
@@ -310,9 +315,9 @@ function GraphCanvas({
                   ? OP_COLORS[
                       (node.data as { node: { family: keyof typeof OP_COLORS } }).node.family
                     ]
-                  : '#E3E6EE'
+                  : 'var(--color-fog)'
               }
-              maskColor="rgb(241 237 248 / 0.6)"
+              maskColor="var(--color-mask)"
             />
           )}
         </ReactFlow>

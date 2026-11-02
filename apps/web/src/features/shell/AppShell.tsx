@@ -104,7 +104,7 @@ function Sidebar() {
                 {t(labelKey)}
                 {to === '/activity' && unread > 0 && (
                   <span
-                    className="tabular ml-auto rounded-full bg-primary px-1.5 text-xs font-semibold text-white"
+                    className="tabular ml-auto rounded-full bg-primary px-1.5 text-xs font-semibold text-on-accent"
                     aria-label={`안 읽은 소식 ${unread}개`}
                   >
                     {unread}

@@ -52,7 +52,7 @@ export function GraphPreview() {
             key={`${from}-${to}`}
             d={`M${source.x},${y1} C${source.x},${midY} ${target.x},${midY} ${target.x},${y2}`}
             fill="none"
-            stroke="#B9B4C9"
+            stroke="var(--color-edge)"
             strokeWidth="1.4"
           />
         );
@@ -66,8 +66,8 @@ export function GraphPreview() {
             width={NODE_WIDTH}
             height={NODE_HEIGHT}
             rx="8"
-            fill="#FFFFFF"
-            stroke={node.id === 'conv3' ? '#BC3D86' : '#E3E6EE'}
+            fill="var(--color-surface)"
+            stroke={node.id === 'conv3' ? 'var(--color-primary)' : 'var(--color-fog)'}
             strokeWidth={node.id === 'conv3' ? 2 : 1}
           />
           <rect x="8" y="9" width="10" height="10" rx="3" fill={OP_COLORS[node.family]} />
@@ -76,7 +76,7 @@ export function GraphPreview() {
             y="18.5"
             fontSize="11"
             fontFamily="Pretendard Variable, sans-serif"
-            fill="#1B1E2B"
+            fill="var(--color-sumi)"
           >
             {node.label}
           </text>

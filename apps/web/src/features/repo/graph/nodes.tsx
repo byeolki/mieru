@@ -44,7 +44,7 @@ function FamilyTile({ family, size = 'size-7' }: { family: OpFamily; size?: stri
 function IssueBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="absolute -top-2 -right-2 grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold text-white shadow-sm">
+    <span className="absolute -top-2 -right-2 grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold text-on-accent shadow-sm">
       {count}
     </span>
   );

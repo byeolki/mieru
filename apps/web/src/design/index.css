@@ -3,7 +3,7 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme {
   --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
@@ -25,6 +25,13 @@
   --color-success: #1f7a4d;
   --color-haze: #f1edf8;
   --color-haze-deep: #e7e0f3;
+  /* Text on filled primary/danger buttons and badges. */
+  --color-on-accent: #ffffff;
+  /* Text on the pastel avatar backgrounds, which stay pastel in both themes. */
+  --color-ink: #1b1e2b;
+  --color-edge: #b9b4c9;
+  --color-dots: #d6d9e3;
+  --color-mask: rgb(241 237 248 / 0.6);
 
   --radius-control: 10px;
   --radius-panel: 16px;
@@ -41,8 +48,36 @@
   --text-2xl: 2.5rem;
 }
 
+/* Dark mode follows the system setting. Pink becomes the action color because it keeps 6.7:1
+   contrast on the dark canvas, where the light theme's deeper primary would be too dim. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #12141d;
+    --color-surface: #1a1d29;
+    --color-sumi: #eceef5;
+    --color-slate: #a3a9bb;
+    --color-fog: #2c3040;
+    --color-primary: #de7ea8;
+    --color-primary-hover: #e996bb;
+    --color-sakura: #5b2e48;
+    --color-lilac: #8f7aa3;
+    --color-danger: #f97066;
+    --color-danger-soft: #3b1f22;
+    --color-success: #5fd39a;
+    --color-haze: #221e31;
+    --color-haze-deep: #2d2742;
+    --color-on-accent: #12141d;
+    --color-edge: #4c4863;
+    --color-dots: #262a38;
+    --color-mask: rgb(18 20 29 / 0.6);
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+    --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 22px 48px -20px rgb(0 0 0 / 0.7);
+  }
+}
+
 @layer base {
   html {
+    color-scheme: light dark;
     font-family: var(--font-sans);
     font-size: 16px;
     color: var(--color-sumi);

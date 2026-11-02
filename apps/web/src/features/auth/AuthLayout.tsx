@@ -60,7 +60,7 @@ function BrandPanel() {
         {STICKERS.map((card) => (
           <div
             key={card.name}
-            className={`${card.rotate} ${card.offset} w-[78%] rounded-2xl border-[3px] border-white bg-surface/95 px-4 py-3 shadow-(--shadow-lift)`}
+            className={`${card.rotate} ${card.offset} w-[78%] rounded-2xl border-[3px] border-white dark:border-haze-deep bg-surface/95 px-4 py-3 shadow-(--shadow-lift)`}
           >
             <div className="flex items-baseline justify-between gap-3">
               <span className="font-semibold">{card.name}</span>

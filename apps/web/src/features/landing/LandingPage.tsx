@@ -12,7 +12,7 @@ function RepositoryMock() {
     <div className="haze-tone relative rounded-(--radius-sheet) p-6 sm:p-8" aria-hidden="true">
       <Sparkle className="absolute -top-3 right-10 size-7" color="#DE7EA8" />
       <Sparkle className="absolute top-16 -right-2 size-4" color="#C8B6D4" />
-      <div className="overflow-hidden rounded-(--radius-panel) border-[3px] border-white bg-surface shadow-(--shadow-lift)">
+      <div className="overflow-hidden rounded-(--radius-panel) border-[3px] border-white dark:border-haze-deep bg-surface shadow-(--shadow-lift)">
         <div className="border-b border-fog px-5 pt-4">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-sm">
@@ -69,7 +69,7 @@ function RepositoryMock() {
           </div>
         </div>
       </div>
-      <div className="absolute -bottom-6 -left-4 hidden w-64 rotate-[-4deg] rounded-2xl border-[3px] border-white bg-surface px-4 py-3 shadow-(--shadow-lift) sm:block">
+      <div className="absolute -bottom-6 -left-4 hidden w-64 rotate-[-4deg] rounded-2xl border-[3px] border-white dark:border-haze-deep bg-surface px-4 py-3 shadow-(--shadow-lift) sm:block">
         <div className="flex items-baseline justify-between text-sm">
           <span className="font-semibold">tiny-llama</span>
           <span className="tabular flex items-center gap-1 text-xs text-slate">
