@@ -1,23 +1,23 @@
-import { OP_COLORS, type OpCategory } from '../../design/op-palette.js';
+import { OP_COLORS, type OpFamily } from '../../design/op-palette.js';
 
 interface PreviewNode {
   id: string;
   label: string;
-  category: OpCategory;
+  category: OpFamily;
   x: number;
   y: number;
 }
 
 const NODES: PreviewNode[] = [
   { id: 'in', label: 'input', category: 'other', x: 150, y: 24 },
-  { id: 'conv1', label: 'Conv', category: 'conv', x: 150, y: 74 },
+  { id: 'conv1', label: 'Conv', category: 'compute', x: 150, y: 74 },
   { id: 'bn1', label: 'BatchNorm', category: 'normalization', x: 150, y: 124 },
   { id: 'relu1', label: 'Relu', category: 'activation', x: 150, y: 174 },
-  { id: 'conv2', label: 'Conv', category: 'conv', x: 82, y: 228 },
-  { id: 'conv3', label: 'Conv', category: 'conv', x: 218, y: 228 },
-  { id: 'add', label: 'Add', category: 'elementwise', x: 150, y: 282 },
-  { id: 'pool', label: 'GlobalAvgPool', category: 'pooling', x: 150, y: 332 },
-  { id: 'fc', label: 'Gemm', category: 'matmul', x: 150, y: 382 },
+  { id: 'conv2', label: 'Conv', category: 'compute', x: 82, y: 228 },
+  { id: 'conv3', label: 'Conv', category: 'compute', x: 218, y: 228 },
+  { id: 'add', label: 'Add', category: 'other', x: 150, y: 282 },
+  { id: 'pool', label: 'GlobalAvgPool', category: 'shape', x: 150, y: 332 },
+  { id: 'fc', label: 'Gemm', category: 'compute', x: 150, y: 382 },
 ];
 
 const EDGES: [string, string][] = [

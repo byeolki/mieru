@@ -884,7 +884,7 @@ Validated with the zod mirror at the SPA boundary. Tensor payload offsets stay s
 - P1 diff cache `parsed/diff-<fromBlob>-<toBlob>.v<N>.json.gz`; `GraphDiff` matches nodes by name (fallback op type + topological index) and tensors by name, statuses `added | removed | changed | unchanged`, weight changes via per-tensor hashes added in parser v2.
 
 ### 8.6 Large graphs
-- Fixed op-category palette (10 categories), color-vision-deficiency checked.
+- Muted op palette capped at **six families** (compute, attention, normalization, activation, shape & pooling, other), color-vision-deficiency checked; the inspector still shows the exact op type.
 - Grouping trie over `groupPath`, start at the shallowest depth with ≤ 300 visible items, expand re-lays out only that group (ELK `INCLUDE_CHILDREN`), hard cap 1,500 visible.
 - No hierarchical names and > 300 nodes → topological blocks of ~50.
 - elkjs in a Web Worker; `onlyRenderVisibleElements`; minimap off above 1,000 nodes; search pans and expands to matches.
@@ -946,7 +946,8 @@ weights: star added = 3, unique daily view = 1, issue opened = 2, new version (P
 | `canvas-dark` | `#12141D` | dark-mode canvas (dark mode ships at launch) |
 
 - Issue kinds use labels with text + icon, never color alone: 버그, 질문, 피드백.
-- The op-category palette is a separate data palette built with `dataviz`, CVD-checked on both canvases, never reusing `mieru-pink`/`primary`.
+- The op-family palette (six muted families) is a separate data palette, CVD-checked on both canvases, never reusing `mieru-pink`/`primary`.
+- Layout and component patterns follow `docs/design/references.md` (Dribbble research, 2026-11-02): repository pages use a top bar + tabs instead of the sidebar, the inspector is docked, Explore uses rows, tinted chips use `sumi` text.
 - Canvas background: fine screentone dot grid (`fog` on `paper`).
 
 **Type**: Pretendard for UI and body (Korean-first, tabular figures for numbers); IBM Plex Mono only for tensor literals (`[1, 3, 224, 224]`, `float16`) and code blocks in Markdown; the logo is artwork, redrawn as SVG in M-B. Scale 13 / 14 / 16 / 20 / 28 / 40 px; UI at 14. README/issue prose uses 16 px with 1.7 line height and a max width of ~72 characters.

@@ -1,7 +1,7 @@
-import { OP_COLORS, type OpCategory } from '../design/op-palette.js';
+import { OP_COLORS, type OpFamily } from '../design/op-palette.js';
 
 export interface StripSegment {
-  category: OpCategory;
+  category: OpFamily;
   weight: number;
 }
 

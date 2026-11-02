@@ -1,28 +1,32 @@
-export const OP_CATEGORIES = [
-  'conv',
-  'matmul',
+export const OP_FAMILIES = [
+  'compute',
+  'attention',
   'normalization',
   'activation',
-  'pooling',
-  'elementwise',
   'shape',
-  'attention',
-  'control',
   'other',
 ] as const;
 
-export type OpCategory = (typeof OP_CATEGORIES)[number];
+export type OpFamily = (typeof OP_FAMILIES)[number];
 
-/** Data palette for op categories; kept apart from brand colors so data never reads as selection. */
-export const OP_COLORS: Record<OpCategory, string> = {
-  conv: '#3B6FB6',
-  matmul: '#8A5CC2',
-  normalization: '#2F9E8F',
-  activation: '#E0A125',
-  pooling: '#5E9C3A',
-  elementwise: '#9AA3B5',
-  shape: '#C9CED9',
-  attention: '#D2603A',
-  control: '#6B4E3D',
-  other: '#B7BCC8',
+/**
+ * Muted data palette, capped at six families so the graph stays readable. Kept apart from
+ * brand colors so a data color never reads as selection.
+ */
+export const OP_COLORS: Record<OpFamily, string> = {
+  compute: '#4F74B8',
+  attention: '#C76A4A',
+  normalization: '#3E9688',
+  activation: '#D9A53F',
+  shape: '#8E8AA8',
+  other: '#BCC1CC',
+};
+
+export const OP_FAMILY_LABELS: Record<OpFamily, string> = {
+  compute: '연산 (Conv · MatMul · Gemm)',
+  attention: '어텐션',
+  normalization: '정규화',
+  activation: '활성화',
+  shape: '형태 · 풀링',
+  other: '기타',
 };

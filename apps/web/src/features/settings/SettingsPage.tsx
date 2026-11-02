@@ -234,7 +234,7 @@ function SessionsList() {
               <p className="truncate text-sm font-medium">
                 {describeAgent(session.userAgent)}
                 {session.current && (
-                  <span className="ml-2 rounded-full bg-sakura/60 px-2 py-0.5 text-xs font-medium text-primary">
+                  <span className="ml-2 rounded-full bg-sakura/70 px-2 py-0.5 text-xs font-medium text-sumi">
                     {t('settings.sessionCurrent')}
                   </span>
                 )}
