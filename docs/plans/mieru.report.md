@@ -86,6 +86,34 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 | Storage paths are UUID-only, under `STORAGE_DIR` | `storage/paths.test.ts` |
 | Downloads are `attachment` + `nosniff`; tickets expire and are bound to the principal | `features/models/files.test.ts`, `features/models/models.int.test.ts` |
 
+## Redesign (2026-11-03)
+
+Reworked the UI after Hugging Face, GitHub, Replicate and a few Dribbble shots (model catalog
+card, Coherence, Agently, settings pages). The logo is unchanged.
+
+- **Shell:** global top header (logo, `/` search, 둘러보기 · 내 모델 · 스타, 새 모델, activity, avatar
+  menu). It replaces the left sidebar.
+- **Repository:** `owner / name` heading with copy button, fact chips, split star button,
+  underlined tabs with counts, and the architecture strip as the header's bottom edge. The
+  overview is a README box plus a sidebar with model info, a precision bar, the op-family mix and
+  inputs/outputs. Issue threads get a sidebar too.
+- **Lists:** HF-style rows (mono `owner/name`, a meta line with icons, a thin strip). Explore has a
+  left filter panel and "featured" cards that use the strip as a cover.
+- **Other pages:** dashboard with a side rail, GitHub-style profile, settings with section
+  navigation, and a light landing with live trending models.
+- **Fixes found along the way:**
+  - A refresh replayed inside the grace window now rotates the family's current token. Before,
+    navigating mid-refresh signed users out.
+  - The app now restores the session before its first render. Before, owners briefly lost the
+    Share and edit controls.
+- **Review fixes:** applied a `better-interface` / `kill-ai-slop` review (run read-only by a
+  subagent): shared loading, error-with-retry, empty and confirm states; contrast; focus rings;
+  copy.
+
+Tests after the redesign: lint 0 errors; unit 101; integration 100; e2e 13 (headless).
+
+Screens: `.tmp/screens/*.png` (local, not committed).
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
@@ -93,9 +121,8 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 - **First backup was empty:** the sidecar's first dump ran a second before migrations, so it has
   no tables. The next run at 04:15 KST will have data.
 - **A 1+ GiB upload over the public domain** through Cloudflare.
-- **Brand (B.1/B.3):** the logo is still the keyed PNG from `docs/brand/logo-final.jpg`; the
-  SVG redraw with real lettering isn't done. The `impeccable` / `kill-ai-slop` polish passes were
-  not run.
+- **Brand (B.1/B.3):** the logo is still the keyed PNG from `docs/brand/logo-final.jpg` (kept on
+  purpose). `kill-ai-slop` ran as part of the redesign review; `impeccable` was not run.
 - **Graph quality and performance (3.7)** on real models (ResNet-50, BERT-base, a small LLM). The
   synthetic large graph was reviewed visually only; no first-render or memory numbers were
   measured.
