@@ -88,7 +88,6 @@ All run on m4pro, headless, against the Paseo `mysql`/`server`/`web` scripts.
 
 ## Needs manual check
 
-- **Uptime Kuma** monitor on `https://mieru.dokploy.byeolki.me/api/health/deep` (needs its UI).
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
   you sign up.
 - **First backup was empty:** the sidecar's first dump ran a second before migrations, so it has

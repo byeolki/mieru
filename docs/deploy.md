@@ -66,8 +66,8 @@ too high. Fix it in the env file and redeploy.
 
 ## Monitoring
 
-- Uptime Kuma: HTTP monitor on `https://mieru.dokploy.byeolki.me/api/health/deep`, every 5 min, alert on
-  non-200. The body names the failing check.
+- `curl -s https://mieru.dokploy.byeolki.me/api/health/deep` returns 503 and names the failing
+  check when something needs attention (see `docs/runbook.md`).
 - Logs: `docker logs mieru-app-1` or Dozzle. Tokens, cookies and passwords are redacted.
 
 ## First admin

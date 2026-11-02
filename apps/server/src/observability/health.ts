@@ -127,8 +127,8 @@ export interface HealthDeps {
 }
 
 /**
- * `/api/health` is the cheap liveness probe for Docker. `/api/health/deep` is for Uptime Kuma:
- * it also flags conditions that need a human (low disk, stuck parsing, stalled jobs, old backups).
+ * `/api/health` is the cheap liveness probe for Docker. `/api/health/deep` is for manual or
+ * external checks: it also flags conditions that need a human (low disk, stuck parsing, stalled jobs, old backups).
  */
 export function registerHealthRoutes(app: FastifyInstance, deps: HealthDeps): void {
   const { config, db, clock, jobs } = deps;

@@ -17,7 +17,7 @@ This is a product plan, not an MVP plan. Release 1 should feel finished: secure 
 | Round | Decisions |
 |---|---|
 | 1 | Deploy on freeride with Dokploy. MySQL on m4pro for dev/tests. No email at all. Name **mieru**, Japanese-subculture branding. Per-person download setting. Public visibility in scope. Links can grant editor (anonymous = viewer). npm workspaces. Design via skills. Account deletion |
-| 2 | **10 GiB per repository** (no per-user total). No password recovery. Domain `mieru.byeolki.me` via Dokploy + Cloudflare. Same-machine backups accepted. No legal pages. **Korean UI first.** Monitoring = existing Uptime Kuma/Dozzle (no Prometheus). Anonymous reports OK |
+| 2 | **10 GiB per repository** (no per-user total). No password recovery. Domain `mieru.byeolki.me` via Dokploy + Cloudflare. Same-machine backups accepted. No legal pages. **Korean UI first.** Monitoring = Dozzle logs and `/api/health/deep` (no Prometheus; external monitor dropped). Anonymous reports OK |
 | 3 | Public models: owner picks **downloadable (default)** or **view only**. Logo confirmed (`docs/brand/logo-final.jpg`); primary colors sampled from it |
 | 4 | **Forks removed.** **README** uploaded with the model and editable. **Issues channel** per repository (bug / question / feedback). **Comments and the commenter role removed:** roles are viewer and editor (+ owner). **Stars.** **Explore shows trending models** without searching. **Email + password accounts only** (no GitHub/Google) |
 
@@ -148,7 +148,7 @@ Each job takes a MySQL `GET_LOCK` so an overlapping container during a rolling d
 - **Domain**: `mieru.dokploy.byeolki.me` through the existing `*.dokploy.byeolki.me` tunnel route; `APP_ORIGIN=https://mieru.dokploy.byeolki.me`.
 - **Network path**: Cloudflare → `cloudflared` → Traefik → app. `TRUST_PROXY` hops and `CF-Connecting-IP` are verified in M-R.2. `/api` responses send `Cache-Control: private, no-store` unless stated otherwise.
 - **Backups**: daily `mysqldump --single-transaction` (keep 14) + `rsync` of `storage/blobs` into `/data/backups/mieru` as Dokploy scheduled tasks. Accepted risk: same NVMe as live data, so it protects against mistakes, not drive failure. Restore drill in M-R.
-- **Observability**: pino JSON logs (Dozzle / Dokploy), `GET /api/health` (liveness for Docker), `GET /api/health/deep` (`503` on low disk, stuck jobs, stale backups or trending older than 1 h) watched by an Uptime Kuma monitor.
+- **Observability**: pino JSON logs (Dozzle / Dokploy), `GET /api/health` (liveness for Docker), `GET /api/health/deep` (`503` on low disk, stuck jobs, stale backups or trending older than 1 h).
 
 ---
 
@@ -1133,7 +1133,7 @@ For `/m/:id` and `/u/:username`, Fastify injects Open Graph tags into `index.htm
 | # | Task | AC |
 |---|---|---|
 | R.1 | Dockerfile (multi-stage, non-root, healthcheck) | image built by Dokploy on freeride; build log in the report |
-| R.2 | `docs/deploy.md`: Dokploy app + MySQL, env list, bind mount, limits, proxy chain/`TRUST_PROXY`, domain, Uptime Kuma monitor | `/api/health` healthy over `mieru.byeolki.me` (deploy with your approval) |
+| R.2 | `docs/deploy.md`: Dokploy app + MySQL, env list, bind mount, limits, proxy chain/`TRUST_PROXY`, domain | `/api/health` healthy over `mieru.byeolki.me` (deploy with your approval) |
 | R.3 | Backups + `docs/runbook.md` (restore, gc, takedown, secret rotation) | restore drill into a scratch DB succeeds |
 | R.4 | `/api/health/deep` (disk, stuck jobs, backup age, trending age) | stubbed low disk → 503; liveness stays 200 |
 | R.5 | Full e2e suite + production build | `npm run test:e2e` and `npm run build` pass |
@@ -1201,7 +1201,7 @@ npm run build                                      # moderate CPU, ~1 min
 ```
 
 ### 12.3 Needs manual check
-- Deployment on freeride via Dokploy at `mieru.byeolki.me`, the Cloudflare → Traefik → app chain, a 1+ GiB upload over the public domain, and the Uptime Kuma monitor.
+- Deployment on freeride via Dokploy at `mieru.byeolki.me`, the Cloudflare → Traefik → app chain and a 1+ GiB upload over the public domain.
 - WebGPU demo backend (headless runs WASM).
 - Graph layout quality on real models (ResNet-50, BERT-base, a small LLM export).
 - Trending feel with real traffic (weights in §8.7 are a starting point).
