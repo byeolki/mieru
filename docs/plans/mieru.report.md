@@ -101,6 +101,9 @@ card, Coherence, Agently, settings pages). The logo is unchanged.
   left filter panel and "featured" cards that use the strip as a cover.
 - **Other pages:** dashboard with a side rail, GitHub-style profile, settings with section
   navigation, and a light landing with live trending models.
+- **Landing hero:** the preview window unfolds once on load (strip, then nodes, edges, inspector).
+  After that its nodes are selectable by mouse or keyboard and fill the inspector with real
+  shapes, attributes and parameter counts. Reduced-motion users get the final state immediately.
 - **Fixes found along the way:**
   - A refresh replayed inside the grace window now rotates the family's current token. Before,
     navigating mid-refresh signed users out.
