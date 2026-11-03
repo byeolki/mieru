@@ -289,3 +289,54 @@
   width: 400%;
   animation: glyph-window-content 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
+
+/* Landing hero: the structure unfolds once on load. The strip fills, nodes drop in top to
+   bottom, edges draw toward each node, and the inspector arrives last. `--i` is a node's
+   position in the sequence. Only transform, opacity and stroke offsets animate. */
+@keyframes hero-strip-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes hero-node-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes hero-edge-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hero-inspector-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+@utility hero-strip-in {
+  animation: hero-strip-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+}
+
+@utility hero-node-in {
+  animation: hero-node-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 450ms);
+}
+
+@utility hero-edge-in {
+  stroke-dasharray: 1;
+  animation: hero-edge-in 320ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 70ms + 380ms);
+}
+
+@utility hero-inspector-in {
+  animation: hero-inspector-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms both;
+}

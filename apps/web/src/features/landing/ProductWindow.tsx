@@ -1,36 +1,28 @@
 import * as Tabs from '@radix-ui/react-tabs';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { Avatar } from '../../components/Avatar.js';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS, type OpFamily } from '../../design/op-palette.js';
-import { GraphPreview } from './GraphPreview.js';
+import { GraphPreview, PREVIEW_NODES, PreviewInspector } from './GraphPreview.js';
 import { RESNET_STRIP } from './sample-strips.js';
 
+const INITIAL_NODE = 'main';
+
 function GraphPanel() {
+  const [selectedId, setSelectedId] = useState(INITIAL_NODE);
+  const selected = PREVIEW_NODES.find((node) => node.id === selectedId) ?? PREVIEW_NODES[0];
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)_13rem] max-sm:grid-cols-1">
-      <div className="h-80 p-5">
-        <GraphPreview />
+      <div className="h-[26rem] bg-[radial-gradient(var(--color-dots)_1px,transparent_1px)] bg-size-[16px_16px] px-5 py-4">
+        <GraphPreview selectedId={selectedId} onSelect={setSelectedId} />
       </div>
-      <dl className="grid content-start gap-4 border-l border-fog p-5 font-mono text-xs max-sm:hidden">
-        <div>
-          <dt className="font-sans text-sm font-semibold text-sumi">layer1.0.conv2</dt>
-          <dd className="mt-0.5 font-sans text-slate">Conv</dd>
-        </div>
-        {[
-          ['입력', '[1,64,56,56]'],
-          ['출력', '[1,64,56,56]'],
-          ['kernel_shape', '[3,3]'],
-          ['pads', '[1,1,1,1]'],
-          ['파라미터', '36,864'],
-        ].map(([label, value]) => (
-          <div key={label}>
-            <dt className="font-sans text-slate">{label}</dt>
-            <dd className="mt-0.5 text-sumi">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div
+        className="border-fog p-5 max-sm:border-t sm:border-l motion-safe:hero-inspector-in"
+        aria-live="polite"
+      >
+        {selected && <PreviewInspector node={selected} />}
+      </div>
     </div>
   );
 }
@@ -51,7 +43,7 @@ const TREE_ROWS: { depth: number; name: string; detail?: string }[] = [
 
 function TreePanel() {
   return (
-    <ul className="h-80 overflow-hidden p-5 font-mono text-[13px] leading-8">
+    <ul className="h-[26rem] overflow-hidden p-5 font-mono text-[13px] leading-8">
       {TREE_ROWS.map((row) => (
         <li
           key={`${String(row.depth)}-${row.name}`}
@@ -77,7 +69,7 @@ const STATS_MAX = Math.max(...STATS.map((stat) => stat.count));
 
 function StatsPanel() {
   return (
-    <div className="grid h-80 content-center gap-4 px-8">
+    <div className="grid h-[26rem] content-center gap-4 px-8">
       {STATS.map((stat) => (
         <div
           key={stat.family}
@@ -102,7 +94,7 @@ const TABS: { id: string; label: string; body: string; panel: ReactNode }[] = [
   {
     id: 'graph',
     label: '계산 그래프',
-    body: 'ONNX 파일은 노드와 연결로 펼쳐져요. 노드를 누르면 입출력 크기와 속성이 나와요.',
+    body: 'ONNX 파일은 노드와 연결로 펼쳐져요. 노드를 눌러 보세요.',
     panel: <GraphPanel />,
   },
   {
@@ -158,7 +150,7 @@ export function ProductWindow() {
         segments={RESNET_STRIP}
         label="resnet50-v2 아키텍처"
         height={3}
-        className="rounded-none"
+        className="origin-left rounded-none motion-safe:hero-strip-in"
       />
       {TABS.map((tab) => (
         <Tabs.Content key={tab.id} value={tab.id} className="focus-visible:outline-offset-[-2px]">

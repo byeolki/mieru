@@ -54,7 +54,7 @@ const FIELD_CLASSES =
 export function GlyphField({ maskClassName = 'glyph-field-mask' }: { maskClassName?: string }) {
   return (
     <div aria-hidden="true" className={`${maskClassName} pointer-events-none absolute inset-0`}>
-      <pre className={`${FIELD_CLASSES} text-fog`}>{FIELD}</pre>
+      <pre className={`${FIELD_CLASSES} text-fog opacity-70`}>{FIELD}</pre>
       <div className="glyph-window absolute inset-y-0 left-0 hidden overflow-hidden will-change-transform motion-safe:block">
         <pre className={`${FIELD_CLASSES} glyph-window-content text-primary will-change-transform`}>
           {FIELD}
