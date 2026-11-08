@@ -30,6 +30,14 @@ function floatTensor(name: string, dims: number[], random: () => number) {
   return { name, dims, dataType: FLOAT, rawData: data };
 }
 
+/** Like `floatTensor` but strictly positive, for values such as BatchNorm variance. */
+function positiveFloatTensor(name: string, dims: number[], random: () => number) {
+  const count = dims.reduce((product, dim) => product * dim, 1);
+  const data = Buffer.alloc(count * 4);
+  for (let index = 0; index < count; index += 1) data.writeFloatLE(0.1 + random() * 0.9, index * 4);
+  return { name, dims, dataType: FLOAT, rawData: data };
+}
+
 function int64Tensor(name: string, values: number[]) {
   const data = Buffer.alloc(values.length * 8);
   values.forEach((value, index) => data.writeBigInt64LE(BigInt(value), index * 8));
@@ -83,7 +91,8 @@ export function tinyCnnOnnx(): Buffer {
       floatTensor('bn.scale', [4], random),
       floatTensor('bn.bias', [4], random),
       floatTensor('bn.mean', [4], random),
-      floatTensor('bn.var', [4], random),
+      // A negative variance would make the model produce NaN when it is actually run.
+      positiveFloatTensor('bn.var', [4], random),
       floatTensor('branch_a.weight', [4, 4, 3, 3], random),
       floatTensor('branch_b.weight', [4, 4, 3, 3], random),
       floatTensor('fc.weight', [10, 4], random),
