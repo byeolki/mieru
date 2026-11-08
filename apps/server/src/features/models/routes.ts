@@ -8,6 +8,7 @@ import {
   createModelBodySchema,
   fileTicketBodySchema,
   fileTicketResponseSchema,
+  labelsSchema,
   modelDetailSchema,
   modelListResponseSchema,
   readmeResponseSchema,
@@ -38,6 +39,7 @@ import {
   saveReadme,
   updateModel,
 } from './service.js';
+import { readLabels, saveLabels } from './labels.js';
 import { createTicket, verifyTicket } from './tickets.js';
 import { recordView, viewerHash } from '../explore/views.js';
 
@@ -218,6 +220,28 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
         clock(),
       );
       return getReadme(db, request.params.id);
+    },
+  );
+
+  routes.get(
+    '/api/models/:id/labels',
+    {
+      preHandler: requireModelAccess('viewer'),
+      schema: { params: idParams, response: { 200: labelsSchema } },
+    },
+    async (request) => ({ labels: await readLabels(db, config.STORAGE_DIR, request.params.id) }),
+  );
+
+  routes.put(
+    '/api/models/:id/labels',
+    {
+      preHandler: [requireUser, requireModelAccess('editor', { loggedIn: true })],
+      bodyLimit: 4 * 1024 * 1024,
+      schema: { params: idParams, body: labelsSchema, response: { 200: labelsSchema } },
+    },
+    async (request) => {
+      await saveLabels(db, config.STORAGE_DIR, request.params.id, request.body.labels, request.log);
+      return { labels: await readLabels(db, config.STORAGE_DIR, request.params.id) };
     },
   );
 

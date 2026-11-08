@@ -129,6 +129,14 @@ export const fileTicketBodySchema = z.object({
 });
 export const fileTicketResponseSchema = z.object({ url: z.string(), expiresAt: z.string() });
 
+/** Class names for a model's output indices, used by the in-browser demo. */
+export const LABELS_MAX = 50_000;
+export const LABEL_MAX_LENGTH = 200;
+export const labelsSchema = z.object({
+  labels: z.array(z.string().trim().max(LABEL_MAX_LENGTH)).max(LABELS_MAX),
+});
+export type Labels = z.infer<typeof labelsSchema>;
+
 export const modelListResponseSchema = z.object({
   items: z.array(modelListItemSchema),
   nextCursor: z.string().nullable(),
