@@ -91,6 +91,12 @@ export const router = createBrowserRouter([
               Component: (await import('./features/repo/GraphTab.js')).StatsRoute,
             }),
           },
+          {
+            path: 'demo',
+            lazy: async () => ({
+              Component: (await import('./features/demo/DemoTab.js')).DemoTab,
+            }),
+          },
           { path: 'issues', element: <IssuesTab /> },
           { path: 'issues/new', element: <NewIssuePage /> },
           { path: 'issues/:number', element: <IssueThreadPage /> },

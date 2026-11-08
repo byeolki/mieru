@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { issueKeys, nodeIssueCounts } from '../issues/api.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { getGraph, modelKeys } from '../models/api.js';
+import { ActivationModelContext } from '../demo/activation-store.js';
 import { OnnxGraphView } from './graph/OnnxGraphView.js';
 import { useRepo } from './RepoLayout.js';
 import { SafetensorsTreeView } from './SafetensorsTreeView.js';
@@ -63,16 +64,18 @@ export function GraphTab() {
     );
   }
   return (
-    <OnnxGraphView
-      key={focusNode ?? 'graph'}
-      payload={payload}
-      summary={summary}
-      initialFocusName={focusNode}
-      issueCounts={counts.data ? new Map(Object.entries(counts.data)) : undefined}
-      onOpenIssue={(nodeRef) =>
-        void navigate(`/m/${model.id}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)
-      }
-    />
+    <ActivationModelContext value={model.id}>
+      <OnnxGraphView
+        key={focusNode ?? 'graph'}
+        payload={payload}
+        summary={summary}
+        initialFocusName={focusNode}
+        issueCounts={counts.data ? new Map(Object.entries(counts.data)) : undefined}
+        onOpenIssue={(nodeRef) =>
+          void navigate(`/m/${model.id}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)
+        }
+      />
+    </ActivationModelContext>
   );
 }
 

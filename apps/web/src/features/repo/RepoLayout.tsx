@@ -13,6 +13,7 @@ import {
   Link2,
   Lock,
   Network,
+  Play,
   Share2,
   Users,
 } from 'lucide-react';
@@ -199,6 +200,11 @@ function RepoHeader({ model }: { model: ModelDetail }) {
             )}
             {isOnnx ? '그래프' : '모듈 트리'}
           </NavLink>
+          {isOnnx && (
+            <NavLink to={`/m/${model.id}/demo`} className={TAB_CLASS}>
+              <Play className="size-4" aria-hidden="true" /> 실행
+            </NavLink>
+          )}
           <NavLink to={`/m/${model.id}/stats`} className={TAB_CLASS}>
             <BarChart3 className="size-4" aria-hidden="true" /> 통계
           </NavLink>

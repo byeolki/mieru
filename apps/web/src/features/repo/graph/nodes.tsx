@@ -5,6 +5,7 @@ import { memo } from 'react';
 import type { OnnxNode, OpFamily, TensorInfo } from '@mieru/shared';
 import { OP_COLORS } from '../../../design/op-palette.js';
 import { formatParams, formatShape } from '../../../lib/format.js';
+import { useActivationPreview } from '../../demo/activation-store.js';
 import type { GroupInfo } from './visible-graph.js';
 
 // Type aliases (not interfaces) so React Flow's `Record<string, unknown>` data constraint holds.
@@ -51,6 +52,8 @@ function IssueBadge({ count }: { count: number }) {
 }
 
 export const OpNodeView = memo(function OpNodeView({ data }: NodeProps<Node<OpNodeData>>) {
+  // After a demo run, the node shows its real output: first channel and runtime shape.
+  const preview = useActivationPreview(data.node.outputs[0]);
   return (
     <div
       className={clsx(
@@ -60,12 +63,19 @@ export const OpNodeView = memo(function OpNodeView({ data }: NodeProps<Node<OpNo
     >
       <Handle type="target" position={Position.Top} className={handleClass} />
       <FamilyTile family={data.node.family} />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] leading-tight font-semibold">{data.node.opType}</p>
         <p className="mt-0.5 truncate font-mono text-[11px] leading-tight text-slate">
-          {formatShape(data.outputShape)}
+          {formatShape(preview?.dims ?? data.outputShape)}
         </p>
       </div>
+      {preview && (
+        <img
+          src={preview.dataUrl}
+          alt=""
+          className="size-9 shrink-0 rounded-[4px] border border-fog [image-rendering:pixelated]"
+        />
+      )}
       <IssueBadge count={data.issueCount} />
       <Handle type="source" position={Position.Bottom} className={handleClass} />
     </div>
