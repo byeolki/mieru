@@ -42,6 +42,9 @@ export async function createTestContext(options: TestContextOptions = {}): Promi
     TICKET_SECRET: TEST_SECRET,
     VIEW_SALT_SECRET: TEST_SECRET,
     STORAGE_DIR: storageDir,
+    // Tests write a few KB to a temp dir; the production reserve would make them depend on how
+    // full the developer's disk is. Tests about the reserve override this.
+    DISK_RESERVE_BYTES: '1048576',
     ...options.env,
   });
   const db = createPool(databaseUrl);
