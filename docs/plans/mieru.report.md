@@ -117,6 +117,51 @@ Tests after the redesign: lint 0 errors; unit 101; integration 100; e2e 13 (head
 
 Screens: `.tmp/screens/*.png` (local, not committed).
 
+## R2/R3 features (2026-11-09)
+
+Built M8 (versions + diff), M10 + M12 (in-browser demo with feature maps), M11 (weights) and
+M13 (design mode). M9 (workspaces) was not in scope this round.
+
+- **Demo (M10, M12):** an "실행" tab runs the ONNX file in the browser with onnxruntime-web,
+  on WebGPU when available and WASM otherwise. It handles image inputs (resize, optional
+  ImageNet normalization) and numeric inputs, shows Top-5 with editable class labels
+  (`PUT /api/models/:id/labels`), and draws per-layer feature maps. After a run, graph nodes
+  show their activation preview and runtime shape.
+- **Versions (M8):** `POST/GET/DELETE /api/models/:id/versions`. Uploads carry
+  `targetModelId`, and editor rights plus the 10 GiB repository limit are checked at tus
+  creation. The versions tab has a size meter. `GET /diff` matches nodes by name and compares
+  tensors by hashing their byte ranges. The compare page marks added and changed nodes on
+  the graph.
+- **Weights (M11):** a "가중치" tab with per-tensor histograms and statistics; very large
+  tensors are summarized from 64 evenly spaced windows. Convolution filter grids show RGB for
+  3-channel kernels and a diverging map otherwise; they are gated on download permission.
+  Inspector parameter names link here.
+- **Design mode (M13):** at `/designs`. Drag layers onto an `nn.Sequential` chain with live
+  shape inference, mismatches in red with a one-click fix, and PyTorch export. Designs are
+  saved per owner and can be shared publicly as read-only (with "내 설계로 복사").
+- **Fixes found along the way:**
+  - Terminating an upload that a model already consumed is now refused (409). It could delete
+    a file while it was being processed.
+  - The tiny CNN fixture now has a positive BatchNorm variance, so it actually runs.
+
+### Deviations from the plan
+- **M12:** instead of a server-side ONNX rewrite and a derived file, the browser appends a
+  second `graph { output { name } }` message to the downloaded bytes. Protobuf merges it into
+  the original graph, so the model is never re-encoded and nothing extra is stored. The
+  download gate is unchanged, because the demo needs the file anyway.
+- **M10:** no COOP/COEP isolation, so WASM runs single-threaded. WebGPU does not need it.
+- **M8:** diff results are cached in memory (LRU of 32), not as `parsed/diff-*` sidecars.
+  Storage keys are UUID-only, and diffs of immutable blobs are cheap to recompute after a
+  restart. A new version is not yet counted as a trending event.
+- **M13:** the migration is `002_designs.sql` (M9 was skipped). Designs have their own
+  owner/public access instead of going through the model resolver, since they are a
+  different object with no files to protect.
+
+Tests after this round: unit 144; integration 121; e2e 18 (headless), including demo,
+versions, weights and design. Verified on production after deploy: the demo returned the
+same 43.9% top-1 as the Node reference, plus the weights histogram and design export. The
+test account was deleted afterwards.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
@@ -133,6 +178,8 @@ Screens: `.tmp/screens/*.png` (local, not committed).
   pixel baselines, because timestamps and usernames in the data make baselines flaky.
 - **Admin UI (7.3):** the Playwright test covers report → takedown → restore. Dismissing a report
   and deleting an issue are covered by integration tests only.
+- **WebGPU on real hardware:** headless tests run on WASM. Large models in the demo (hundreds of
+  MB) and diffs of multi-GB versions have not been timed.
 - **Trending feel** with real traffic (weights in §8.7 are a starting point).
 
 ## Open questions
