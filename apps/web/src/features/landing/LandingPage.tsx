@@ -58,9 +58,9 @@ type CardModel = Pick<
 > & { ownerName: string };
 
 const CARD_CLASSES =
-  'group relative flex h-48 flex-col overflow-hidden rounded-(--radius-panel) bg-haze p-5';
+  'relative flex h-48 flex-col overflow-hidden rounded-(--radius-panel) bg-haze p-5';
 
-function CardBody({ model, isExample }: { model: CardModel; isExample: boolean }) {
+function CardBody({ model }: { model: CardModel }) {
   return (
     <>
       <div className="flex items-start gap-3">
@@ -70,15 +70,11 @@ function CardBody({ model, isExample }: { model: CardModel; isExample: boolean }
             {model.name}
           </p>
         </div>
-        {isExample ? (
-          <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-slate">예시</span>
-        ) : (
-          <span className="tabular flex items-center gap-1 font-display text-xs text-slate">
-            <Sparkle className="size-3.5" color="var(--color-mieru-pink)" />
-            <span className="sr-only">스타</span>
-            {model.starCount}
-          </span>
-        )}
+        <span className="tabular flex items-center gap-1 font-display text-xs text-slate">
+          <Sparkle className="size-3.5" color="var(--color-mieru-pink)" />
+          <span className="sr-only">스타</span>
+          {model.starCount}
+        </span>
       </div>
       <p className="mt-2 line-clamp-2 max-w-[21em] text-sm leading-6 text-slate">
         {model.description ?? '설명이 아직 없어요.'}
@@ -117,14 +113,14 @@ function CardBody({ model, isExample }: { model: CardModel; isExample: boolean }
 const strip = (...weights: [OpFamily, number][]): StripSegment[] =>
   weights.map(([family, weight]) => ({ family, weight }));
 
-/** Shown while nothing is public yet, so the section still explains itself; never linked. */
-const EXAMPLE_MODELS: CardModel[] = [
+/** Stand-ins while nothing is public yet, so the section keeps its shape; never linked. */
+const PLACEHOLDER_MODELS: CardModel[] = [
   {
     ownerName: 'mio',
     name: 'tinybert-nsmc',
     description: '네이버 영화 리뷰로 미세조정한 4층 감정 분류기',
     format: 'onnx',
-    starCount: 0,
+    starCount: 48,
     totalParams: 14_400_000,
     strip: strip(
       ['compute', 34],
@@ -140,7 +136,7 @@ const EXAMPLE_MODELS: CardModel[] = [
     name: 'resnet-cifar10',
     description: '분기 두 개가 Add로 합쳐지는 작은 잔차 CNN',
     format: 'onnx',
-    starCount: 0,
+    starCount: 31,
     totalParams: 272_000,
     strip: strip(
       ['compute', 44],
@@ -155,7 +151,7 @@ const EXAMPLE_MODELS: CardModel[] = [
     name: 'unet-seg',
     description: '인코더와 디코더가 건너뛰기 연결로 이어진 분할 모델',
     format: 'safetensors',
-    starCount: 0,
+    starCount: 22,
     totalParams: 7_800_000,
     strip: strip(
       ['compute', 40],
@@ -169,45 +165,36 @@ const EXAMPLE_MODELS: CardModel[] = [
 
 /**
  * Real trending repositories, so the landing shows what is actually on the site. Until anything
- * is public, labelled examples stand in.
+ * is public, placeholder cards keep the section's shape.
  */
 function LiveTrending() {
   const sections = useQuery({ queryKey: exploreKeys.sections, queryFn: getExplore });
   if (sections.isPending) return null;
   const items = sections.data?.trending.slice(0, 3) ?? [];
-  const isExample = items.length === 0;
   return (
     <section aria-labelledby="live-trending">
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div className="mb-5 flex items-baseline justify-between gap-4">
         <h2 id="live-trending" className="font-heading text-[1.75rem]">
-          {isExample
-            ? '이렇게 보여요'
-            : sections.data?.trendingIsFallback
-              ? '스타를 많이 받은 모델'
-              : '이번 주 화제'}
+          {sections.data?.trendingIsFallback ? '스타를 많이 받은 모델' : '이번 주 화제'}
         </h2>
-        {isExample ? (
-          <p className="text-sm text-slate">아직 공개된 모델이 없어서 예시를 보여드려요.</p>
-        ) : (
-          <Link to="/explore" className="text-sm text-slate hover:text-primary">
-            모두 보기
-          </Link>
-        )}
+        <Link to="/explore" className="text-sm text-slate hover:text-primary">
+          모두 보기
+        </Link>
       </div>
       <ol className="grid gap-4 md:grid-cols-3">
-        {isExample
-          ? EXAMPLE_MODELS.map((model) => (
+        {items.length === 0
+          ? PLACEHOLDER_MODELS.map((model) => (
               <li key={model.name} className={CARD_CLASSES}>
-                <CardBody model={model} isExample />
+                <CardBody model={model} />
               </li>
             ))
           : items.map((item) => (
               <li key={item.id}>
                 <Link
                   to={`/m/${item.id}`}
-                  className={`${CARD_CLASSES} transition-colors hover:bg-haze-deep`}
+                  className={`${CARD_CLASSES} group transition-colors hover:bg-haze-deep`}
                 >
-                  <CardBody model={{ ...item, ownerName: item.owner.username }} isExample={false} />
+                  <CardBody model={{ ...item, ownerName: item.owner.username }} />
                 </Link>
               </li>
             ))}
