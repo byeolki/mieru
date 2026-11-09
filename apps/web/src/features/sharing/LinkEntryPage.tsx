@@ -53,7 +53,7 @@ export function LinkEntryPage() {
         </p>
         <Link
           to="/"
-          className="sticker mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
+          className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
         >
           처음으로 돌아가기
         </Link>

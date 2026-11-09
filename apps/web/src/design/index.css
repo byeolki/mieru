@@ -101,7 +101,7 @@
 }
 
 /* The "sticker" outline from the logo: white edge, pink line, lilac drop. Reserved for the
-   main action, the active tab and the selected node so it keeps meaning something. */
+   selected graph node and the hero's hover card; buttons stay plain pills. */
 @utility sticker {
   box-shadow:
     0 0 0 2px var(--color-surface),

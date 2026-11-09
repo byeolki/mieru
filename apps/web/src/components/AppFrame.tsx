@@ -173,7 +173,7 @@ function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean; onToggle: ()
               aria-label={isCollapsed ? '새 모델 올리기' : undefined}
               title={isCollapsed ? '새 모델 올리기' : undefined}
               className={clsx(
-                'sticker flex items-center justify-center gap-2 rounded-full bg-primary font-semibold text-on-accent transition-colors hover:bg-primary-hover',
+                'flex items-center justify-center gap-2 rounded-full bg-primary font-semibold text-on-accent transition-colors hover:bg-primary-hover',
                 isCollapsed ? 'size-10' : 'h-11 text-sm',
               )}
             >
@@ -197,7 +197,7 @@ function Sidebar({ isCollapsed, onToggle }: { isCollapsed: boolean; onToggle: ()
                 <>
                   <Link
                     to="/signup"
-                    className="sticker flex h-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-on-accent hover:bg-primary-hover"
+                    className="flex h-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-on-accent hover:bg-primary-hover"
                   >
                     시작하기
                   </Link>

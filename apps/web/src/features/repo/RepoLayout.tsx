@@ -182,7 +182,7 @@ function RepoActions({
     <div className="flex flex-wrap items-center gap-2">
       {model.myAccess.canDownload && model.currentVersion && (
         <Button
-          className="sticker rounded-full"
+          className="rounded-full"
           icon={<Download className="size-4" />}
           isLoading={download.isPending}
           onClick={() => download.mutate()}

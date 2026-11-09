@@ -11,7 +11,7 @@ export function NotFoundPage() {
         </p>
         <Link
           to="/"
-          className="sticker mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
+          className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
         >
           처음으로 돌아가기
         </Link>
@@ -29,7 +29,7 @@ export function RouteErrorPage() {
         <p className="mt-3 text-slate">새로고침해도 계속되면 잠시 뒤에 다시 시도해주세요.</p>
         <Link
           to="/"
-          className="sticker mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
+          className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
         >
           처음으로 돌아가기
         </Link>
