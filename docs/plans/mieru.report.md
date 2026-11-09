@@ -186,6 +186,16 @@ collapsed sidebar is a 64px icon rail instead of the mockup's ~100px.
 - Tests: unit 144 passed; e2e 18 passed (headless). `theme.spec.ts` now expects the new paper
   colors. Integration tests were not rerun because the server did not change.
 
+## Demo content in production (2026-11-09)
+
+Requested in chat: production holds seeded demo content so the site looks lived in.
+
+- **Accounts:** five demo accounts (`mio`, `kai`, `hana`, `sora`, `jun`).
+- **Models:** eight public models re-uploaded from Hugging Face. Each README credits its source and license; Gemma's notes its terms of use.
+- **Activity:** stars and four issues, three of them linked to graph nodes.
+- **Credentials:** emails use the reserved `seed.mieru.invalid` domain. Accounts and generated passwords are only on freeride, in `/data/projects/mieru/seed/accounts.json` (mode 600).
+- **Removal:** run `seed-remove.mjs`, which sits next to `accounts.json`, in a `node:22-alpine` container on the `mieru_internal` network, with `BASE=http://mieru-app-1:3000` and `ORIGIN` set to the public origin. Deleting the accounts deletes their models, stars and issues.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
