@@ -1,50 +1,42 @@
 import { useSyncExternalStore } from 'react';
 
-export type ThemePreference = 'system' | 'light' | 'dark';
-export type ResolvedTheme = 'light' | 'dark';
+export type Theme = 'light' | 'dark';
 
 // public/theme-init.js reads the same key before the first paint.
 const STORAGE_KEY = 'mieru.theme';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 const listeners = new Set<() => void>();
 
-function isPreference(value: string | null): value is ThemePreference {
-  return value === 'system' || value === 'light' || value === 'dark';
-}
-
-function readPreference(): ThemePreference {
+/** The theme the visitor picked, or null while the system setting decides. */
+function savedTheme(): Theme | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return isPreference(stored) ? stored : 'system';
+    return stored === 'light' || stored === 'dark' ? stored : null;
   } catch (error) {
-    console.warn('Theme preference is unavailable; following the system', error);
-    return 'system';
+    console.warn('Theme choice is unavailable; following the system', error);
+    return null;
   }
 }
 
-function resolve(preference: ThemePreference): ResolvedTheme {
-  if (preference !== 'system') return preference;
-  return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
-}
-
 function apply(): void {
-  document.documentElement.dataset.theme = resolve(readPreference());
+  const theme = savedTheme() ?? (window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = theme;
   for (const listener of listeners) listener();
 }
 
-/** Follows OS theme changes while the preference is `system`; call once at startup. */
+/** Follows OS theme changes until the visitor picks a theme; call once at startup. */
 export function watchSystemTheme(): void {
   window.matchMedia(DARK_QUERY).addEventListener('change', () => {
-    if (readPreference() === 'system') apply();
+    if (savedTheme() === null) apply();
   });
 }
 
-export function setThemePreference(preference: ThemePreference): void {
+/** Saves the visitor's choice and applies it. */
+export function setTheme(theme: Theme): void {
   try {
-    if (preference === 'system') localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, preference);
+    localStorage.setItem(STORAGE_KEY, theme);
   } catch (error) {
-    console.warn('Could not save the theme preference', error);
+    console.warn('Could not save the theme choice', error);
   }
   apply();
 }
@@ -54,11 +46,9 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** The saved preference and the theme actually shown. */
-export function useTheme(): { preference: ThemePreference; resolved: ResolvedTheme } {
-  const preference = useSyncExternalStore(subscribe, readPreference);
-  const resolved = useSyncExternalStore(subscribe, () =>
+/** The theme currently shown. */
+export function useTheme(): Theme {
+  return useSyncExternalStore(subscribe, () =>
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
   );
-  return { preference, resolved };
 }
