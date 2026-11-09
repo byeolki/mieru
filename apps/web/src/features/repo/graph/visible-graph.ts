@@ -1,8 +1,14 @@
 import type { OnnxEdge, OnnxGraphPayload, OnnxNode, OpFamily, TensorInfo } from '@mieru/shared';
 
-export const MAX_VISIBLE = 300;
+/**
+ * Items the first view aims for. Repeated blocks (transformer layers) stay folded above this, so
+ * a big model opens as a short overview instead of a chain hundreds of nodes tall.
+ */
+export const MAX_VISIBLE = 80;
 export const HARD_CAP = 1500;
 const CHUNK_SIZE = 50;
+/** Flat graphs (no name hierarchy) are only cut into blocks above this many nodes. */
+const CHUNK_THRESHOLD = 300;
 const ROOT = '';
 
 export interface GroupInfo {
@@ -87,7 +93,7 @@ export function buildGroupTree(nodes: readonly OnnxNode[]): GroupTree {
     families: {},
   });
   const ungrouped = nodes.filter((node) => node.groupPath.length === 0);
-  const shouldChunk = ungrouped.length > MAX_VISIBLE;
+  const shouldChunk = ungrouped.length > CHUNK_THRESHOLD;
   const nodeGroup = new Map<string, string>();
   let ungroupedIndex = 0;
   for (const node of nodes) {

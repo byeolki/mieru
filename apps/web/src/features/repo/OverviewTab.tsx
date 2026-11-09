@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { hasRoleAtLeast, type StripSegment } from '@mieru/shared';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
+import { ShowMoreList } from '../../components/ShowMoreList.js';
 import { OP_COLORS, OP_FAMILY_LABELS, type OpFamily } from '../../design/op-palette.js';
 import { Markdown } from '../../design/Markdown.js';
 import { ButtonLink } from '../../design/ui/Button.js';
@@ -144,14 +145,15 @@ function TensorList({
   return (
     <div className="mt-3 first:mt-0">
       <h3 className="text-xs text-slate">{title}</h3>
-      <ul className="mt-1.5 grid gap-1">
-        {tensors.map((tensor) => (
-          <li key={tensor.name} className="flex justify-between gap-3 font-mono text-xs">
-            <span className="min-w-0 break-all">{tensor.name}</span>
-            <span className="shrink-0 text-slate">{formatShape(tensor.shape)}</span>
+      <ShowMoreList
+        className="mt-1.5 grid gap-1.5"
+        items={tensors.map((tensor) => (
+          <li key={tensor.name} className="min-w-0 font-mono text-xs leading-5">
+            <span className="block break-all">{tensor.name}</span>
+            <span className="block break-all text-slate">{formatShape(tensor.shape)}</span>
           </li>
         ))}
-      </ul>
+      />
     </div>
   );
 }

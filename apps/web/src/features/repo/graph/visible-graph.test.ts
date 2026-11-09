@@ -87,10 +87,26 @@ describe('group tree and level of detail', () => {
     const tree = buildGroupTree(nodes);
     const expanded = initialExpanded(tree);
     const visible = buildVisibleGraph(payload, tree, expanded);
-    expect(visible.items.filter((item) => item.kind !== 'io').length).toBeLessThanOrEqual(
-      MAX_VISIBLE,
-    );
-    expect(visible.items.some((item) => item.kind === 'group')).toBe(true);
+    // 170 layer cards exceed the budget, but beat a single block holding everything.
+    expect(visible.items.filter((item) => item.kind !== 'io').length).toBeLessThanOrEqual(HARD_CAP);
+    expect(visible.items.every((item) => item.kind !== 'node')).toBe(true);
+  });
+
+  it('opens a small LLM folded at its layers instead of as one long chain', () => {
+    // Gemma-3 270M: 18 layers, about 20 nodes each.
+    const nodes: OnnxNode[] = [];
+    for (let layer = 0; layer < 18; layer += 1) {
+      for (let index = 0; index < 20; index += 1) {
+        nodes.push(
+          node(`n${layer}_${index}`, ['model', `layers.${layer}`, index < 10 ? 'attn' : 'mlp']),
+        );
+      }
+    }
+    const tree = buildGroupTree(nodes);
+    const visible = buildVisibleGraph(chainPayload(nodes), tree, initialExpanded(tree));
+    const shown = visible.items.filter((item) => item.kind !== 'io');
+    expect(shown.length).toBeLessThanOrEqual(MAX_VISIBLE);
+    expect(shown.every((item) => item.kind === 'group')).toBe(true);
   });
 
   it('shows everything when the graph is small', () => {
