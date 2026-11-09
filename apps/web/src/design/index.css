@@ -132,6 +132,12 @@
     overflow-wrap: anywhere;
   }
 
+  /* No elastic bounce or sideways drift past the page edges (trackpads, iOS). */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   body {
     min-height: 100dvh;
   }

@@ -120,7 +120,7 @@ function SatelliteNode({ satellite, order }: { satellite: Satellite; order: numb
  */
 export function KanjiOrbit() {
   return (
-    <figure className="@container relative mx-auto aspect-[780/460] w-full max-w-[780px]">
+    <figure className="@container relative mx-auto aspect-[780/460] w-full max-w-[1080px]">
       <OrbitLayer isFront={false} />
       {SPARKLES.map((sparkle) => (
         <span

@@ -21,32 +21,23 @@ function Hero() {
   const { t } = useTranslation();
   return (
     <section className="overflow-hidden">
-      <div
-        className={`${CONTAINER} grid items-center gap-6 pt-12 pb-16 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:pt-16 lg:pb-20`}
-      >
-        <div>
-          <h1 className="font-heading text-[clamp(2.6rem,4.8vw,4rem)] leading-[1.15] text-balance">
-            {t('landing.title')}
-          </h1>
-          <p className="mt-6 max-w-[30em] text-lg leading-8 text-pretty text-slate">
-            {t('landing.lead')}
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <ButtonLink
-              to="/new"
-              size="lg"
-              className={`${PILL} sticker`}
-              icon={<Plus className="size-4.5" strokeWidth={2.4} />}
-            >
-              {t('landing.primaryAction')}
-            </ButtonLink>
-            <ButtonLink to="/explore" size="lg" variant="secondary" className={`${PILL} border-0`}>
-              {t('landing.secondaryAction')}
-            </ButtonLink>
-          </div>
-          <p className="mt-5 text-sm text-slate">{t('landing.formats')}</p>
-        </div>
+      <div className={`${CONTAINER} flex flex-col items-center pt-6 pb-16 lg:pb-20`}>
+        {/* The headline is for screen readers and search; the picture says it on screen. */}
+        <h1 className="sr-only">{t('landing.title')}</h1>
         <KanjiOrbit />
+        <div className="mt-2 flex flex-wrap justify-center gap-3">
+          <ButtonLink
+            to="/new"
+            size="lg"
+            className={`${PILL} sticker`}
+            icon={<Plus className="size-4.5" strokeWidth={2.4} />}
+          >
+            {t('landing.primaryAction')}
+          </ButtonLink>
+          <ButtonLink to="/explore" size="lg" variant="secondary" className={`${PILL} border-0`}>
+            {t('landing.secondaryAction')}
+          </ButtonLink>
+        </div>
       </div>
     </section>
   );
