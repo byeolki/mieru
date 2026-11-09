@@ -3,6 +3,7 @@ import type { OpFamily, StripSegment } from '@mieru/shared';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS } from '../../design/op-palette.js';
 import {
+  angleAtFraction,
   arcDashes,
   arcMidAngles,
   pointOnEllipse,
@@ -17,8 +18,6 @@ const RING: Ellipse = { cx: 390, cy: 215, rx: 345, ry: 98, tiltDegrees: -9 };
 const NODE_ORBIT: Ellipse = { ...RING, rx: RING.rx + 46, ry: RING.ry + 44 };
 /** Invisible stroke around each arc that catches the pointer; wider than the arc itself. */
 const HIT_WIDTH = 44;
-/** The ring passes in front of the glyphs below this line, behind them above it. */
-const FRONT_CLIP_OFFSET = 10;
 
 /** Op mix of a small transformer encoder, grouped so each family reads as one arc. */
 const HERO_STRIP: StripSegment[] = [
@@ -46,6 +45,27 @@ const SATELLITES: Record<OpFamily, Satellite> = {
   other: { op: 'Add', family: 'other', shape: '[1,128,768]' },
 };
 
+/**
+ * The first arc (compute, the one crossing the glyphs) is drawn in front of them, the rest
+ * behind. The cut runs from the ring's centre through the white gaps on either side of that arc,
+ * so the two layers meet where there is only white border and no seam can show.
+ */
+const FRONT_WEDGE = (() => {
+  const total = HERO_STRIP.reduce((sum, segment) => sum + segment.weight, 0);
+  const end = angleAtFraction(RING, (HERO_STRIP[0]?.weight ?? 0) / total);
+  const steps = 12;
+  const reach = 3;
+  const points = [[RING.cx, RING.cy]];
+  for (let step = 0; step <= steps; step += 1) {
+    const angle = ((end * step) / steps / 180) * Math.PI;
+    points.push([
+      RING.cx + reach * RING.rx * Math.cos(angle),
+      RING.cy + reach * RING.ry * Math.sin(angle),
+    ]);
+  }
+  return points.map(([x, y]) => `${String(x)},${String(y)}`).join(' ');
+})();
+
 const MID_ANGLES = new Map(
   arcMidAngles(RING, HERO_STRIP).map((angle, index) => [HERO_STRIP[index]?.family, angle]),
 );
@@ -71,17 +91,14 @@ function OrbitLayer({ isFront }: { isFront: boolean }) {
         <>
           <defs>
             <clipPath id={clipId}>
-              <rect
-                x={-100}
-                y={RING.cy + FRONT_CLIP_OFFSET}
-                width={WIDTH + 200}
-                height={HEIGHT}
+              <polygon
+                points={FRONT_WEDGE}
                 transform={`rotate(${String(RING.tiltDegrees)} ${String(RING.cx)} ${String(RING.cy)})`}
               />
             </clipPath>
           </defs>
           <g clipPath={`url(#${clipId})`}>
-            <TiltedOrbit ellipse={RING} segments={HERO_STRIP} strokeWidth={16} hasTrack={false} />
+            <TiltedOrbit ellipse={RING} segments={HERO_STRIP} strokeWidth={16} />
           </g>
         </>
       ) : (
