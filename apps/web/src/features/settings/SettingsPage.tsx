@@ -360,7 +360,7 @@ export function SettingsPage() {
     <AppShell>
       <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)]">
         <div className="lg:sticky lg:top-20 lg:self-start">
-          <h1 className="mb-3 text-xl font-bold tracking-[-0.02em]">{t('settings.title')}</h1>
+          <h1 className="mb-3 font-heading text-xl">{t('settings.title')}</h1>
           <nav aria-label="설정 메뉴">
             <ul className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
               {SECTIONS.map((section) => (

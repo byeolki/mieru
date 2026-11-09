@@ -30,7 +30,7 @@ export function FeaturedCard({ item, rank }: { item: ModelListItem; rank: number
     <li>
       <Link
         to={`/m/${item.id}`}
-        className="group flex h-full flex-col rounded-xl border border-fog bg-surface p-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
+        className="group flex h-full flex-col rounded-(--radius-panel) border border-fog bg-surface p-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
       >
         <StripCover item={item} />
         <div className="flex flex-1 flex-col px-1 pt-3.5 pb-1">

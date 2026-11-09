@@ -7,12 +7,12 @@ export type { OpFamily };
  * brand colors so a data color never reads as selection.
  */
 export const OP_COLORS: Record<OpFamily, string> = {
-  compute: '#4F74B8',
-  attention: '#C76A4A',
-  normalization: '#3E9688',
-  activation: '#D9A53F',
-  shape: '#8E8AA8',
-  other: '#BCC1CC',
+  compute: '#5B7FC4',
+  attention: '#D7795A',
+  normalization: '#46A596',
+  activation: '#E3B14A',
+  shape: '#9A92BE',
+  other: '#C9C2D6',
 };
 
 export const OP_FAMILY_LABELS: Record<OpFamily, string> = {

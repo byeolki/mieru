@@ -246,7 +246,7 @@ export function WeightsTab() {
   else {
     content = (
       <div className="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className="flex max-h-[44rem] flex-col overflow-hidden rounded-xl border border-fog bg-surface">
+        <aside className="flex max-h-[44rem] flex-col overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
           <label className="relative block border-b border-fog p-2">
             <span className="sr-only">텐서 이름으로 찾기</span>
             <Search
@@ -293,7 +293,7 @@ export function WeightsTab() {
             </p>
           )}
         </aside>
-        <section className="rounded-xl border border-fog bg-surface p-5">
+        <section className="rounded-(--radius-panel) border border-fog bg-surface p-5">
           {selectedName ? (
             <TensorPanel key={selectedName} name={selectedName} version={version} />
           ) : null}

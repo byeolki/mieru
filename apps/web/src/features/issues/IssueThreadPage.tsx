@@ -55,7 +55,7 @@ function CommentBox({
       ) : (
         <span className="mt-1 size-[34px] shrink-0 rounded-full bg-fog" aria-hidden="true" />
       )}
-      <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-fog bg-surface">
+      <div className="min-w-0 flex-1 overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
         <header className="flex items-center gap-2 border-b border-fog bg-paper px-4 py-2 text-sm">
           <AuthorName author={author} />
           <span className="text-xs text-slate">{formatRelative(createdAt)}</span>
@@ -186,7 +186,7 @@ function Composer({ issue, modelId }: { issue: Issue; modelId: string }) {
     },
   });
   return (
-    <div className="ml-[46px] rounded-xl border border-fog bg-surface p-4">
+    <div className="ml-[46px] rounded-(--radius-panel) border border-fog bg-surface p-4">
       <MarkdownEditor
         label="답글 쓰기"
         value={body}

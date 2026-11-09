@@ -22,7 +22,7 @@ export function LoginPage() {
 
   return (
     <AuthLayout>
-      <h1 className="text-xl font-bold tracking-tight">{t('auth.loginTitle')}</h1>
+      <h1 className="font-heading text-xl">{t('auth.loginTitle')}</h1>
       <p className="mt-2 text-sm text-slate">{t('auth.loginLead')}</p>
       <form
         className="mt-8 flex flex-col gap-5"

@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react';
-import { AppHeader } from '../../components/AppHeader.js';
+import { AppFrame } from '../../components/AppFrame.js';
 
-/** Header plus a centered page column; used by every page except the landing and repositories. */
+/** Sidebar frame plus a centered page column; used by every page except landing and repositories. */
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh">
-      <AppHeader />
-      <main className="mx-auto w-full max-w-[1280px] px-4 py-8 md:px-6 md:py-10">{children}</main>
-    </div>
+    <AppFrame>
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-8 md:px-10 md:py-10">{children}</div>
+    </AppFrame>
   );
 }
 
@@ -23,7 +22,7 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-xl font-bold tracking-[-0.02em]">{title}</h1>
+        <h1 className="font-heading text-xl">{title}</h1>
         {description && <p className="mt-1.5 text-sm text-slate">{description}</p>}
       </div>
       {actions}

@@ -22,7 +22,7 @@ import type {
   DesignSpec,
   DesignVisibility,
 } from '@mieru/shared';
-import { AppHeader } from '../../components/AppHeader.js';
+import { AppFrame } from '../../components/AppFrame.js';
 import { OP_COLORS } from '../../design/op-palette.js';
 import { Alert } from '../../design/ui/Alert.js';
 import { Button } from '../../design/ui/Button.js';
@@ -536,9 +536,8 @@ function Editor({ initial }: { initial: Design | null }) {
   const selected = spec.layers[selectedIndex];
 
   return (
-    <div className="flex h-dvh min-h-[36rem] flex-col">
-      <AppHeader />
-      <div className="flex flex-wrap items-center gap-3 border-b border-fog bg-surface px-4 py-2.5 md:px-6">
+    <AppFrame isWorkspace isFullHeight>
+      <div className="flex flex-wrap items-center gap-3 border-b border-fog px-4 py-3 md:px-6">
         <label className="min-w-0 flex-1">
           <span className="sr-only">설계 이름</span>
           <input
@@ -673,7 +672,7 @@ function Editor({ initial }: { initial: Design | null }) {
         </aside>
       </div>
       <ExportDialog spec={spec} open={isExporting} onOpenChange={setIsExporting} />
-    </div>
+    </AppFrame>
   );
 }
 
@@ -690,12 +689,11 @@ export function DesignPage() {
   if (design.isPending) return <Loading className="grid min-h-dvh place-items-center text-lilac" />;
   if (design.isError) {
     return (
-      <div className="min-h-dvh">
-        <AppHeader />
-        <div className="mx-auto max-w-[1280px] px-4 md:px-6">
+      <AppFrame>
+        <div className="mx-auto max-w-[1280px] px-4 md:px-10">
           <ErrorState message="설계를 불러오지 못했어요." onRetry={() => void design.refetch()} />
         </div>
-      </div>
+      </AppFrame>
     );
   }
   return <Editor key={design.data.id} initial={design.data} />;

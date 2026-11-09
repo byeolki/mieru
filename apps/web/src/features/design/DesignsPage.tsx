@@ -42,7 +42,7 @@ export function DesignsPage() {
             <li key={design.id}>
               <Link
                 to={`/designs/${design.id}`}
-                className="flex items-center gap-3 rounded-xl border border-fog bg-surface px-4 py-3.5 hover:border-lilac/70"
+                className="flex items-center gap-3 rounded-(--radius-panel) border border-fog bg-surface px-4 py-3.5 hover:border-lilac/70"
               >
                 <Shapes className="size-4 text-slate" aria-hidden="true" />
                 <span className="font-medium">{design.name}</span>

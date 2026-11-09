@@ -32,7 +32,7 @@ export function ActivityPage() {
           </p>
         </section>
       ) : (
-        <ul className="divide-y divide-fog overflow-hidden rounded-xl border border-fog bg-surface">
+        <ul className="divide-y divide-fog overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
           {activity.data.items.map(({ model, issue, unread }) => (
             <li key={`${model.id}-${issue.number}`}>
               <Link

@@ -29,22 +29,19 @@ const handleClass = '!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent';
 
 function frame(isSelected: boolean, isDimmed: boolean) {
   return clsx(
-    'transition-[opacity,box-shadow,border-color] duration-150',
+    'transition-[opacity,box-shadow,border-color,background-color] duration-150',
     isDimmed && 'opacity-40',
-    isSelected
-      ? 'border-[1.5px] border-primary ring-4 ring-primary/15'
-      : 'border border-fog hover:border-lilac',
+    isSelected ? 'sticker bg-sakura' : 'border border-edge bg-surface hover:border-mieru-pink',
   );
 }
 
-function FamilyTile({ family, size = 'size-7' }: { family: OpFamily; size?: string }) {
+/** The op family as a small orbit: a colored ring around an empty center. */
+function FamilyRing({ family }: { family: OpFamily }) {
   return (
     <span
-      className={clsx('grid shrink-0 place-items-center rounded-md', size)}
-      style={{ backgroundColor: `${OP_COLORS[family]}22` }}
-    >
-      <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: OP_COLORS[family] }} />
-    </span>
+      className="size-4 shrink-0 rounded-full border-[3.5px] bg-surface"
+      style={{ borderColor: OP_COLORS[family] }}
+    />
   );
 }
 
@@ -55,7 +52,7 @@ function DiffStripe({ mark }: { mark: DiffMark }) {
   return (
     <>
       <span
-        className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full"
+        className="absolute inset-y-3.5 left-1.5 w-[3px] rounded-full"
         style={{ backgroundColor: `var(--color-diff-${mark})` }}
         aria-hidden="true"
       />
@@ -84,14 +81,16 @@ export const OpNodeView = memo(function OpNodeView({ data }: NodeProps<Node<OpNo
   return (
     <div
       className={clsx(
-        'relative flex h-[56px] w-[188px] items-center gap-2.5 rounded-lg bg-surface px-3',
+        'relative flex h-[56px] w-[188px] items-center gap-2.5 rounded-full pr-3 pl-4',
         frame(data.isSelected, data.isDimmed),
       )}
     >
       <Handle type="target" position={Position.Top} className={handleClass} />
-      <FamilyTile family={data.node.family} />
+      <FamilyRing family={data.node.family} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] leading-tight font-semibold">{data.node.opType}</p>
+        <p className="truncate font-display text-[12.5px] leading-tight font-medium">
+          {data.node.opType}
+        </p>
         <p className="mt-0.5 truncate font-mono text-[11px] leading-tight text-slate">
           {formatShape(preview?.dims ?? data.outputShape)}
         </p>
@@ -100,7 +99,7 @@ export const OpNodeView = memo(function OpNodeView({ data }: NodeProps<Node<OpNo
         <img
           src={preview.dataUrl}
           alt=""
-          className="size-9 shrink-0 rounded-[4px] border border-fog [image-rendering:pixelated]"
+          className="size-9 shrink-0 rounded-full border border-fog [image-rendering:pixelated]"
         />
       )}
       {data.diffMark && <DiffStripe mark={data.diffMark} />}
@@ -117,19 +116,19 @@ export const GroupNodeView = memo(function GroupNodeView({ data }: NodeProps<Nod
     <div className="relative">
       {/* Stacked-card edge hints that this box holds more nodes. */}
       <div
-        className="absolute inset-x-2 -bottom-1.5 h-full rounded-xl border border-fog bg-paper"
+        className="absolute inset-x-3 -bottom-1.5 h-full rounded-(--radius-panel) border border-edge bg-haze-deep"
         aria-hidden="true"
       />
       <div
         className={clsx(
-          'relative h-[76px] w-[232px] rounded-xl bg-surface px-3.5 py-2.5',
+          'relative h-[76px] w-[232px] rounded-(--radius-panel) px-4 py-2.5',
           frame(data.isSelected, data.isDimmed),
         )}
       >
         <Handle type="target" position={Position.Top} className={handleClass} />
         <div className="flex items-center gap-2">
           <Layers className="size-3.5 shrink-0 text-slate" aria-hidden="true" />
-          <p className="truncate text-[13px] font-semibold">{data.group.label}</p>
+          <p className="truncate font-display text-[12.5px] font-medium">{data.group.label}</p>
         </div>
         <p className="tabular mt-1 text-[11px] text-slate">
           노드 {data.group.nodeCount} · {formatParams(data.group.paramCount)} params
@@ -158,8 +157,9 @@ export const IoNodeView = memo(function IoNodeView({ data }: NodeProps<Node<IoNo
   return (
     <div
       className={clsx(
-        'flex h-[40px] w-[168px] items-center gap-2 rounded-full bg-haze px-3.5',
+        'flex h-[40px] w-[168px] items-center gap-2 rounded-full px-3.5',
         frame(data.isSelected, data.isDimmed),
+        !data.isSelected && 'border-dashed',
       )}
     >
       {data.direction === 'out' && (

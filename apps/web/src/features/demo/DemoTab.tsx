@@ -60,7 +60,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-fog bg-surface">
+    <section className="rounded-(--radius-panel) border border-fog bg-surface">
       <div className="flex h-11 items-center gap-2 border-b border-fog px-4">
         <h2 className="text-sm font-semibold">{title}</h2>
         <div className="ml-auto">{action}</div>
@@ -366,7 +366,7 @@ function FeatureMapCard({
 }) {
   const grid = activationGrid(output.dims);
   return (
-    <li className="rounded-xl border border-fog bg-surface p-3">
+    <li className="rounded-(--radius-panel) border border-fog bg-surface p-3">
       <div className="flex items-center gap-2">
         <span
           className="size-2 rounded-[2px]"

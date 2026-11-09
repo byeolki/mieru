@@ -188,7 +188,7 @@ export function ComparePage() {
         {model.format === 'onnx' && graph.data?.payload.kind === 'onnx-graph' && (
           <section
             aria-label={`v${String(to)} 그래프`}
-            className="h-[36rem] overflow-hidden rounded-xl border border-fog"
+            className="h-[36rem] overflow-hidden rounded-(--radius-panel)"
           >
             <OnnxGraphView
               key={`${String(from)}-${String(to)}`}

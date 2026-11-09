@@ -72,7 +72,7 @@ export function ProfilePage() {
             size={176}
             className="ring-1 ring-fog"
           />
-          <h1 className="mt-5 text-xl font-bold tracking-[-0.02em]">{data.displayName}</h1>
+          <h1 className="mt-5 font-heading text-xl">{data.displayName}</h1>
           <p className="text-lg text-slate">@{data.username}</p>
           {data.bio && <p className="mt-4 leading-7">{data.bio}</p>}
           {isMe && (

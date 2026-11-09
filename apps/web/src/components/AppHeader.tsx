@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router';
 import { Sparkle } from '../design/Sparkle.js';
 import { ButtonLink } from '../design/ui/Button.js';
@@ -25,7 +25,7 @@ const NAV_LINK = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'text-sumi font-medium' : 'text-slate hover:text-sumi',
   );
 
-function useUnreadActivity(isSignedIn: boolean): number {
+export function useUnreadActivity(isSignedIn: boolean): number {
   const activity = useQuery({
     queryKey: issueKeys.activity,
     queryFn: getActivity,
@@ -36,7 +36,7 @@ function useUnreadActivity(isSignedIn: boolean): number {
 }
 
 /** Global model search; `/` focuses it from anywhere, like GitHub. */
-function HeaderSearch() {
+export function HeaderSearch({ variant = 'bar' }: { variant?: 'bar' | 'pill' }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const urlQuery = params.get('q') ?? '';
@@ -48,6 +48,7 @@ function HeaderSearch() {
     setQuery(urlQuery);
   }
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -63,7 +64,10 @@ function HeaderSearch() {
   return (
     <form
       role="search"
-      className="group relative hidden w-full max-w-[22rem] md:block"
+      className={clsx(
+        'group relative w-full',
+        variant === 'bar' ? 'hidden max-w-[22rem] md:block' : 'block',
+      )}
       onSubmit={(event) => {
         event.preventDefault();
         const trimmed = query.trim();
@@ -74,17 +78,22 @@ function HeaderSearch() {
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate"
         aria-hidden="true"
       />
-      <label htmlFor="header-search" className="sr-only">
+      <label htmlFor={inputId} className="sr-only">
         모델 검색
       </label>
       <input
         ref={inputRef}
-        id="header-search"
+        id={inputId}
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="모델 검색"
-        className="h-9 w-full rounded-lg border border-fog bg-paper pr-9 pl-9 text-sm placeholder:text-slate focus:border-primary focus:bg-surface focus:outline-none"
+        className={clsx(
+          'h-9 w-full pr-9 pl-9 text-sm placeholder:text-slate focus:border-primary focus:bg-surface focus:outline-none',
+          variant === 'bar'
+            ? 'rounded-lg border border-fog bg-paper'
+            : 'rounded-full border border-transparent bg-surface shadow-[inset_0_0_0_1px_var(--color-haze-deep)]',
+        )}
       />
       <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-fog px-1.5 font-mono text-[11px] text-slate group-focus-within:hidden">
         /
@@ -113,7 +122,7 @@ function MenuItem({
   );
 }
 
-function UserMenu() {
+export function UserMenu({ align = 'end' }: { align?: 'start' | 'end' }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   if (!user) return null;
@@ -127,7 +136,7 @@ function UserMenu() {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          align="end"
+          align={align}
           sideOffset={8}
           className="z-50 w-60 rounded-xl border border-fog bg-surface p-1.5 shadow-(--shadow-lift)"
         >

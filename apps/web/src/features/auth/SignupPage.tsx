@@ -30,7 +30,7 @@ export function SignupPage() {
 
   return (
     <AuthLayout>
-      <h1 className="text-xl font-bold tracking-tight">{t('auth.signupTitle')}</h1>
+      <h1 className="font-heading text-xl">{t('auth.signupTitle')}</h1>
       <p className="mt-2 text-sm text-slate">{t('auth.signupLead')}</p>
       <form
         className="mt-8 flex flex-col gap-5"

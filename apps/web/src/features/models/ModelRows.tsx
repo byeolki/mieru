@@ -53,7 +53,7 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
     <li>
       <Link
         to={`/m/${item.id}`}
-        className="group block rounded-xl border border-fog bg-surface px-4 pt-3.5 pb-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
+        className="group block rounded-(--radius-panel) border border-fog bg-surface px-4 pt-3.5 pb-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
       >
         <div className="flex min-w-0 items-center gap-2">
           {showOwner && (

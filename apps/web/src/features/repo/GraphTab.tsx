@@ -80,7 +80,7 @@ export function GraphTab() {
   if (payload.kind === 'safetensors-tree') {
     return (
       <div className="mx-auto flex h-full max-w-[1280px] flex-col px-4 py-6 md:px-6">
-        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-fog">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-(--radius-panel) border border-fog">
           <SafetensorsTreeView root={payload.root} />
         </div>
       </div>
@@ -89,7 +89,7 @@ export function GraphTab() {
   return (
     <div className="flex h-full flex-col">
       {version && <OlderVersionBanner modelId={model.id} version={version} />}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 px-3 pb-3 md:px-6 md:pb-5">
         <ActivationModelContext value={model.id}>
           <OnnxGraphView
             key={focusNode ?? 'graph'}

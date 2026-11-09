@@ -191,7 +191,7 @@ function ReportList({ status }: { status: ReportStatus }) {
 export function AdminReportsPage() {
   return (
     <AppShell>
-      <h1 className="mb-6 text-xl font-bold tracking-tight">신고 관리</h1>
+      <h1 className="mb-6 font-heading text-xl">신고 관리</h1>
       <Tabs.Root defaultValue="open">
         <Tabs.List className="mb-6 flex gap-6 border-b border-fog" aria-label="신고 상태">
           {STATUS_TABS.map((tab) => (

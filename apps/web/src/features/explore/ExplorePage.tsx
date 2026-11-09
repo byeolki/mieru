@@ -177,7 +177,7 @@ export function ExplorePage() {
     <AppShell>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-[-0.02em]">모델 둘러보기</h1>
+          <h1 className="font-heading text-xl">모델 둘러보기</h1>
           <p className="mt-1.5 text-sm text-slate">
             {filters.q
               ? `‘${filters.q}’ 검색 결과예요.`

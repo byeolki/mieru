@@ -211,7 +211,7 @@ function InfoPanel() {
 
 function ReadmeBox({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-fog bg-surface">
+    <section className="overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
       <div className="flex h-11 items-center gap-2 border-b border-fog px-4 text-sm">
         <BookOpen className="size-4 text-slate" aria-hidden="true" />
         <span className="font-medium">README</span>

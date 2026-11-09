@@ -9,11 +9,11 @@ test.describe('color scheme', () => {
   test('follows the system dark setting', async ({ page }) => {
     await page.goto('/explore');
     await expect(page.getByRole('heading', { name: '모델 둘러보기' })).toBeVisible();
-    expect(await backgroundOf(page)).toBe('rgb(18, 20, 29)');
+    expect(await backgroundOf(page)).toBe('rgb(22, 15, 34)');
   });
 });
 
 test('uses the light paper background by default', async ({ page }) => {
   await page.goto('/explore');
-  expect(await backgroundOf(page)).toBe('rgb(246, 247, 250)');
+  expect(await backgroundOf(page)).toBe('rgb(243, 236, 250)');
 });

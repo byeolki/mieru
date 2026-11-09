@@ -280,8 +280,8 @@ function GraphCanvas({
   }, [query, payload.nodes]);
 
   return (
-    <div className="flex h-full min-h-0">
-      <div className="relative min-w-0 flex-1">
+    <div className="flex h-full min-h-0 gap-3">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-(--radius-panel) bg-haze">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -432,7 +432,7 @@ function GraphCanvas({
 
       {isInspectorOpen && (
         <aside
-          className="w-[320px] shrink-0 overflow-y-auto border-l border-fog bg-surface"
+          className="w-[320px] shrink-0 overflow-y-auto rounded-(--radius-panel) border border-fog bg-surface"
           aria-label="노드 정보"
         >
           <Inspector

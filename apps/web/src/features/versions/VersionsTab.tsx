@@ -66,7 +66,10 @@ function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
   const state = upload.state;
   const accept = model.format ? ACCEPTED_EXTENSIONS[model.format] : '.onnx,.safetensors';
   return (
-    <section className="rounded-xl border border-fog bg-surface p-4" aria-labelledby="new-version">
+    <section
+      className="rounded-(--radius-panel) border border-fog bg-surface p-4"
+      aria-labelledby="new-version"
+    >
       <h2 id="new-version" className="text-sm font-semibold">
         새 버전 올리기
       </h2>
@@ -234,7 +237,7 @@ export function VersionsTab() {
 
       {canEdit && <NewVersionPanel onCreated={refresh} />}
 
-      <ul className="divide-y divide-fog overflow-hidden rounded-xl border border-fog bg-surface">
+      <ul className="divide-y divide-fog overflow-hidden rounded-(--radius-panel) border border-fog bg-surface">
         {items.map((version) => (
           <li
             key={version.number}

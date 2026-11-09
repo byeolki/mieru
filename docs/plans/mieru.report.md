@@ -162,6 +162,25 @@ versions, weights and design. Verified on production after deploy: the demo retu
 same 43.9% top-1 as the Node reference, plus the weights histogram and design export. The
 test account was deleted afterwards.
 
+## Kirakira Orbit redesign (2026-11-09)
+
+Mockup B ("Kirakira Orbit") applied to the app, with one change requested after review: the
+collapsed sidebar is a 64px icon rail instead of the mockup's ~100px.
+
+- Tokens: lilac paper, white content sheet with a 28px top-left radius, plum ink, deep pink
+  actions; Unbounded for Latin titles and numbers, Orbit for Korean headings, JetBrains Mono for
+  code. A `sticker` outline marks only the main action, the active tab and the selected node.
+- Shell: a left sidebar (236px, or the 64px rail) replaces the top header on desktop, with search,
+  navigation, recently opened models (localStorage, last 5) and the upload button. The graph and
+  the design editor start collapsed; other pages remember the user's choice. Phones keep the top
+  header.
+- Repository: a hero header on the overview (title, fact pills, actions and an orbit ring of the
+  op mix with the parameter count) and a one-row header on the other tabs; pill tabs.
+- Graph: pill nodes with a family ring, selected node in blush with the sticker outline, canvas
+  and inspector as rounded panels.
+- Tests: unit 144 passed; e2e 18 passed (headless). `theme.spec.ts` now expects the new paper
+  colors. Integration tests were not rerun because the server did not change.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after

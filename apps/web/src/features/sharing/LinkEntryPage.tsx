@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { AppHeader } from '../../components/AppHeader.js';
+import { AppFrame } from '../../components/AppFrame.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { rememberLinkToken } from '../../lib/link-store.js';
@@ -45,17 +45,19 @@ export function LinkEntryPage() {
     );
   }
   return (
-    <div className="min-h-dvh">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-24">
-        <h1 className="text-xl font-bold">이 링크로는 볼 수 없어요</h1>
+    <AppFrame>
+      <div className="mx-auto max-w-[1280px] px-6 py-24 md:px-10">
+        <h1 className="font-heading text-xl">이 링크로는 볼 수 없어요</h1>
         <p className="mt-3 text-slate">
           링크가 만료됐거나 취소됐을 수 있어요. 공유한 사람에게 새 링크를 요청해주세요.
         </p>
-        <Link to="/" className="mt-6 inline-block font-medium text-primary hover:underline">
+        <Link
+          to="/"
+          className="sticker mt-8 inline-flex h-11 items-center rounded-full bg-primary px-5 font-semibold text-on-accent hover:bg-primary-hover"
+        >
           처음으로 돌아가기
         </Link>
-      </main>
-    </div>
+      </div>
+    </AppFrame>
   );
 }
