@@ -7,6 +7,7 @@ import {
   useReactFlow,
   type Edge,
   type Node,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/base.css';
 import clsx from 'clsx';
@@ -39,6 +40,16 @@ const EDGE_HIGHLIGHT = 'var(--color-primary)';
 const SEARCH_RESULTS = 8;
 const LARGE_VIEW_ITEMS = 60;
 const START_VIEW_ITEMS = 5;
+/** Below this zoom node labels can't be read, so the first view shows the top of the graph. */
+const MIN_READABLE_ZOOM = 0.4;
+
+function fitTop(flow: ReactFlowInstance, positions: Positions): void {
+  const firstIds = [...positions.entries()]
+    .sort((a, b) => a[1].y - b[1].y || a[1].x - b[1].x)
+    .slice(0, START_VIEW_ITEMS)
+    .map(([id]) => ({ id }));
+  void flow.fitView({ nodes: firstIds, duration: 0, padding: 0.2, maxZoom: 1 });
+}
 
 interface OnnxGraphViewProps {
   payload: OnnxGraphPayload;
@@ -147,15 +158,14 @@ function GraphCanvas({
         return;
       }
       if (positions.size <= LARGE_VIEW_ITEMS) {
-        void flow.fitView({ duration: 0, padding: 0.12, maxZoom: 1 });
+        void flow.fitView({ duration: 0, padding: 0.12, maxZoom: 1 }).then(() => {
+          // A tall chain fitted whole shrinks to unreadable cards; show its top instead.
+          if (flow.getZoom() < MIN_READABLE_ZOOM) fitTop(flow, positions);
+        });
         return;
       }
       // Fitting hundreds of blocks makes them unreadable; start at the top of the graph instead.
-      const firstIds = [...positions.entries()]
-        .sort((a, b) => a[1].y - b[1].y || a[1].x - b[1].x)
-        .slice(0, START_VIEW_ITEMS)
-        .map(([id]) => ({ id }));
-      void flow.fitView({ nodes: firstIds, duration: 0, padding: 0.2, maxZoom: 1 });
+      fitTop(flow, positions);
     });
   }, [positions, flow]);
 

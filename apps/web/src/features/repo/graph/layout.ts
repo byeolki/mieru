@@ -31,7 +31,8 @@ export async function layoutGraph(
       'elk.direction': 'DOWN',
       'elk.layered.spacing.nodeNodeBetweenLayers': '44',
       'elk.spacing.nodeNode': '28',
-      'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+      // Keeps long chains (stacked transformer layers) in one straight column instead of zigzagging.
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
       'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
       'elk.edgeRouting': 'ORTHOGONAL',
     },
