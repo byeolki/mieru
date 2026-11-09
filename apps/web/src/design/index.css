@@ -1,8 +1,6 @@
 @import 'tailwindcss';
 @import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 @import '@fontsource-variable/unbounded';
-@import '@fontsource/jua/korean-400.css';
-@import '@fontsource/jua/latin-400.css';
 @import '@fontsource-variable/jetbrains-mono';
 
 @font-face {
@@ -21,8 +19,8 @@
   --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
   /* Latin titles and numbers. Unbounded has no Hangul, which falls back to Pretendard. */
   --font-display: 'Unbounded Variable', 'Pretendard Variable', sans-serif;
-  /* Korean headings and tabs: round and heavy, one weight only. */
-  --font-heading: 'Jua', 'Pretendard Variable', sans-serif;
+  /* Korean headings and tabs: the body family, made heavier and tighter by .font-heading. */
+  --font-heading: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
   /* Only the three glyphs of 見える, subset from Dela Gothic One. */
   --font-kanji: 'Mieru Kanji', 'Pretendard Variable', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
@@ -130,6 +128,11 @@
     /* Korean wraps between words, not mid-word. */
     word-break: keep-all;
     overflow-wrap: anywhere;
+  }
+
+  .font-heading {
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   /* No elastic bounce or sideways drift past the page edges (trackpads, iOS). */

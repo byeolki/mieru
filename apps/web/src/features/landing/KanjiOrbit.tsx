@@ -1,14 +1,22 @@
-import clsx from 'clsx';
-import type { CSSProperties } from 'react';
+import { useState } from 'react';
 import type { OpFamily, StripSegment } from '@mieru/shared';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS } from '../../design/op-palette.js';
-import { arcMidAngles, pointOnEllipse, TiltedOrbit, type Ellipse } from './TiltedOrbit.js';
+import {
+  arcDashes,
+  arcMidAngles,
+  pointOnEllipse,
+  TiltedOrbit,
+  type Ellipse,
+} from './TiltedOrbit.js';
 
 const WIDTH = 780;
 const HEIGHT = 460;
 const RING: Ellipse = { cx: 390, cy: 215, rx: 345, ry: 98, tiltDegrees: -9 };
-const OUTER: Ellipse = { ...RING, rx: 372, ry: 160 };
+/** Where a hovered arc's node appears: just outside the ring. */
+const NODE_ORBIT: Ellipse = { ...RING, rx: RING.rx + 46, ry: RING.ry + 44 };
+/** Invisible stroke around each arc that catches the pointer; wider than the arc itself. */
+const HIT_WIDTH = 44;
 /** The ring passes in front of the glyphs below this line, behind them above it. */
 const FRONT_CLIP_OFFSET = 10;
 
@@ -25,18 +33,18 @@ const HERO_STRIP: StripSegment[] = [
 interface Satellite {
   op: string;
   family: OpFamily;
-  shape?: string;
-  isSelected?: boolean;
+  shape: string;
 }
 
-/** One node per colored arc; each is placed next to the arc of its own family. */
-const SATELLITES: Satellite[] = [
-  { op: 'MatMul', family: 'compute', shape: '[1,12,128,128]', isSelected: true },
-  { op: 'Softmax', family: 'attention' },
-  { op: 'LayerNorm', family: 'normalization' },
-  { op: 'Gelu', family: 'activation' },
-  { op: 'Reshape', family: 'shape' },
-];
+/** The node each arc reveals on hover, keyed by the arc's op family. */
+const SATELLITES: Record<OpFamily, Satellite> = {
+  compute: { op: 'MatMul', family: 'compute', shape: '[1,12,128,128]' },
+  attention: { op: 'Softmax', family: 'attention', shape: '[1,12,128,128]' },
+  normalization: { op: 'LayerNorm', family: 'normalization', shape: '[1,128,768]' },
+  activation: { op: 'Gelu', family: 'activation', shape: '[1,128,3072]' },
+  shape: { op: 'Reshape', family: 'shape', shape: '[1,128,12,64]' },
+  other: { op: 'Add', family: 'other', shape: '[1,128,768]' },
+};
 
 const MID_ANGLES = new Map(
   arcMidAngles(RING, HERO_STRIP).map((angle, index) => [HERO_STRIP[index]?.family, angle]),
@@ -77,54 +85,71 @@ function OrbitLayer({ isFront }: { isFront: boolean }) {
           </g>
         </>
       ) : (
-        <>
-          <TiltedOrbit ellipse={RING} segments={HERO_STRIP} strokeWidth={16} />
-          <ellipse
-            cx={OUTER.cx}
-            cy={OUTER.cy}
-            rx={OUTER.rx}
-            ry={OUTER.ry}
-            transform={`rotate(${String(OUTER.tiltDegrees)} ${String(OUTER.cx)} ${String(OUTER.cy)})`}
-            fill="none"
-            stroke="var(--color-lilac)"
-            strokeWidth={1.5}
-            strokeDasharray="2 8"
-            strokeLinecap="round"
-          />
-        </>
+        <TiltedOrbit ellipse={RING} segments={HERO_STRIP} strokeWidth={16} />
       )}
     </svg>
   );
 }
 
-function SatelliteNode({ satellite, order }: { satellite: Satellite; order: number }) {
-  // Same parametric angle on the outer orbit puts the node just outside its arc.
-  const [x, y] = pointOnEllipse(OUTER, MID_ANGLES.get(satellite.family) ?? 0);
+function SatelliteNode({ satellite }: { satellite: Satellite }) {
+  // Same parametric angle on a slightly larger orbit puts the node just outside its arc.
+  const [x, y] = pointOnEllipse(NODE_ORBIT, MID_ANGLES.get(satellite.family) ?? 0);
   return (
     <span
-      className={clsx(
-        'hero-node-in absolute flex h-11 -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-full pr-4 pl-3 whitespace-nowrap',
-        satellite.isSelected ? 'sticker bg-sakura' : 'border border-edge bg-surface',
-      )}
-      style={{ left: percent(x, WIDTH), top: percent(y, HEIGHT), '--i': order } as CSSProperties}
+      className="sticker hero-node-in pointer-events-none absolute flex h-11 -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-full bg-surface pr-4 pl-3 whitespace-nowrap"
+      style={{ left: percent(x, WIDTH), top: percent(y, HEIGHT) }}
     >
       <span
         className="size-[15px] rounded-full border-[3.5px] bg-surface"
         style={{ borderColor: OP_COLORS[satellite.family] }}
       />
       <span className="font-display text-[12.5px] font-medium">{satellite.op}</span>
-      {satellite.shape && (
-        <span className="font-mono text-[11px] text-slate">{satellite.shape}</span>
-      )}
+      <span className="font-mono text-[11px] text-slate">{satellite.shape}</span>
     </span>
   );
 }
 
+const HIT_DASHES = arcDashes(HERO_STRIP);
+
+/** Transparent, wide copies of the arcs on top of everything, so each arc can be hovered. */
+function ArcHitAreas({ onHover }: { onHover: (family: OpFamily | null) => void }) {
+  const { cx, cy, rx, ry, tiltDegrees } = RING;
+  return (
+    <svg
+      viewBox={`0 0 ${String(WIDTH)} ${String(HEIGHT)}`}
+      className="pointer-events-none absolute inset-0 size-full overflow-visible"
+      aria-hidden="true"
+    >
+      <g transform={`rotate(${String(tiltDegrees)} ${String(cx)} ${String(cy)})`}>
+        {HERO_STRIP.map((segment, index) => (
+          <ellipse
+            key={segment.family}
+            cx={cx}
+            cy={cy}
+            rx={rx}
+            ry={ry}
+            pathLength={100}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={HIT_WIDTH}
+            strokeDasharray={HIT_DASHES[index]?.dasharray}
+            strokeDashoffset={HIT_DASHES[index]?.dashoffset}
+            pointerEvents="stroke"
+            onPointerEnter={() => onHover(segment.family)}
+            onPointerLeave={() => onHover(null)}
+          />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
 /**
- * 見える with the architecture ring orbiting through it, and a few graph nodes riding the outer
- * orbit. Purely decorative; the page's h1 carries the message.
+ * 見える with the architecture ring orbiting through it. Hovering an arc shows a graph node of
+ * that op family next to it. Purely decorative; the page's h1 carries the message.
  */
 export function KanjiOrbit() {
+  const [hovered, setHovered] = useState<OpFamily | null>(null);
   return (
     <div className="@container relative mx-auto aspect-[780/460] w-full max-w-[1080px]">
       <OrbitLayer isFront={false} />
@@ -144,7 +169,7 @@ export function KanjiOrbit() {
       <div
         lang="ja"
         aria-hidden="true"
-        className="absolute inset-0 text-[22cqw] leading-none tracking-[0.04em] select-none"
+        className="pointer-events-none absolute inset-0 text-[22cqw] leading-none tracking-[0.04em] select-none"
       >
         {['kanji-drop', 'kanji-outline', 'kanji-fill'].map((layer) => (
           <span key={layer} className={`${layer} absolute inset-0 grid place-items-center`}>
@@ -153,11 +178,12 @@ export function KanjiOrbit() {
         ))}
       </div>
       <OrbitLayer isFront />
-      <div className="max-sm:hidden" aria-hidden="true">
-        {SATELLITES.map((satellite, index) => (
-          <SatelliteNode key={satellite.op} satellite={satellite} order={index} />
-        ))}
-      </div>
+      <ArcHitAreas onHover={setHovered} />
+      {hovered && (
+        <div aria-hidden="true">
+          <SatelliteNode key={hovered} satellite={SATELLITES[hovered]} />
+        </div>
+      )}
     </div>
   );
 }

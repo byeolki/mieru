@@ -65,6 +65,23 @@ export function arcMidAngles(ellipse: Ellipse, segments: readonly StripSegment[]
   });
 }
 
+/** Dash pattern that draws each segment's share of a `pathLength={100}` ellipse, in order. */
+export function arcDashes(
+  segments: readonly StripSegment[],
+): { dasharray: string; dashoffset: number }[] {
+  const total = segments.reduce((sum, segment) => sum + segment.weight, 0) || 1;
+  let start = 0;
+  return segments.map((segment) => {
+    const length = (segment.weight / total) * 100;
+    const dash = {
+      dasharray: `${String(Math.max(length - ARC_GAP, 0.1))} ${String(100 - length + ARC_GAP)}`,
+      dashoffset: -start - ARC_GAP / 2,
+    };
+    start += length;
+    return dash;
+  });
+}
+
 interface TiltedOrbitProps {
   ellipse: Ellipse;
   segments: readonly StripSegment[];
@@ -79,11 +96,7 @@ interface TiltedOrbitProps {
  */
 export function TiltedOrbit({ ellipse, segments, strokeWidth, hasTrack = true }: TiltedOrbitProps) {
   const { cx, cy, rx, ry, tiltDegrees } = ellipse;
-  const total = segments.reduce((sum, segment) => sum + segment.weight, 0) || 1;
-  const starts = segments.reduce<number[]>(
-    (acc, segment, index) => [...acc, (acc[index] ?? 0) + (segment.weight / total) * 100],
-    [0],
-  );
+  const dashes = arcDashes(segments);
   return (
     <g transform={`rotate(${String(tiltDegrees)} ${String(cx)} ${String(cy)})`}>
       {hasTrack && (
@@ -108,26 +121,23 @@ export function TiltedOrbit({ ellipse, segments, strokeWidth, hasTrack = true }:
           />
         </>
       )}
-      {segments.map((segment, index) => {
-        const length = (segment.weight / total) * 100;
-        return (
-          <ellipse
-            // Segments are an ordered sequence, so position is their identity.
-            key={index}
-            cx={cx}
-            cy={cy}
-            rx={rx}
-            ry={ry}
-            pathLength={100}
-            fill="none"
-            stroke={OP_COLORS[segment.family]}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={`${String(Math.max(length - ARC_GAP, 0.1))} ${String(100 - length + ARC_GAP)}`}
-            strokeDashoffset={-(starts[index] ?? 0) - ARC_GAP / 2}
-          />
-        );
-      })}
+      {segments.map((segment, index) => (
+        <ellipse
+          // Segments are an ordered sequence, so position is their identity.
+          key={index}
+          cx={cx}
+          cy={cy}
+          rx={rx}
+          ry={ry}
+          pathLength={100}
+          fill="none"
+          stroke={OP_COLORS[segment.family]}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={dashes[index]?.dasharray}
+          strokeDashoffset={dashes[index]?.dashoffset}
+        />
+      ))}
     </g>
   );
 }
