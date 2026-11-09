@@ -100,19 +100,14 @@
   --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 22px 48px -20px rgb(0 0 0 / 0.7);
 }
 
-/* The "sticker" outline from the logo: white edge, pink line, lilac drop. Reserved for the
-   selected graph node and the hero's hover card; buttons stay plain pills. */
+/* The "sticker" outline from the logo: white edge, pink line, lilac drop. Only for things that
+   are picked out, not pressed: the selected graph node and the hero's hover card. Buttons and
+   tabs stay flat. */
 @utility sticker {
   box-shadow:
     0 0 0 2px var(--color-surface),
     0 0 0 3.5px var(--color-mieru-pink),
     0 5px 0 3.5px var(--color-lilac);
-}
-
-@utility sticker-sm {
-  box-shadow:
-    0 0 0 1.5px var(--color-mieru-pink),
-    0 3px 0 1.5px var(--color-lilac);
 }
 
 @layer base {

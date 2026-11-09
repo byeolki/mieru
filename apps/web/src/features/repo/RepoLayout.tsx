@@ -114,7 +114,7 @@ function FactChips({ model }: { model: ModelDetail }) {
 const TAB_CLASS = ({ isActive }: { isActive: boolean }) =>
   clsx(
     'flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 font-heading text-[14.5px] whitespace-nowrap transition-colors',
-    isActive ? 'sticker-sm bg-surface text-sumi' : 'text-slate hover:text-sumi',
+    isActive ? 'bg-surface text-sumi ring-1 ring-edge' : 'text-slate hover:text-sumi',
   );
 
 function RepoTabs({ model }: { model: ModelDetail }) {

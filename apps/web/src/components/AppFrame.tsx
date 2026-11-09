@@ -63,7 +63,7 @@ function NavEntry({
           'relative flex items-center rounded-xl text-[0.95rem] transition-colors',
           isCollapsed ? 'size-10 justify-center' : 'gap-2.5 px-3 py-2',
           isActive
-            ? 'bg-surface font-semibold text-sumi shadow-[0_1px_0_var(--color-haze-deep)]'
+            ? 'bg-surface font-semibold text-sumi'
             : 'text-slate hover:bg-surface/60 hover:text-sumi',
         )
       }
