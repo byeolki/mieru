@@ -27,6 +27,44 @@ export function pointOnEllipse(
   ];
 }
 
+const LENGTH_SAMPLES = 720;
+
+/**
+ * Parametric angle (degrees) at which `fraction` of the ellipse's perimeter has been travelled,
+ * starting at the rightmost point and moving the way an SVG ellipse path is drawn. Dash arrays
+ * measure length, not angle, so this is what lines things up with the drawn arcs.
+ */
+export function angleAtFraction({ rx, ry }: Pick<Ellipse, 'rx' | 'ry'>, fraction: number): number {
+  const lengths = [0];
+  for (let step = 1; step <= LENGTH_SAMPLES; step += 1) {
+    const before = ((step - 1) / LENGTH_SAMPLES) * Math.PI * 2;
+    const after = (step / LENGTH_SAMPLES) * Math.PI * 2;
+    const dx = rx * (Math.cos(after) - Math.cos(before));
+    const dy = ry * (Math.sin(after) - Math.sin(before));
+    lengths.push((lengths[step - 1] ?? 0) + Math.hypot(dx, dy));
+  }
+  const target = (((fraction % 1) + 1) % 1) * (lengths[LENGTH_SAMPLES] ?? 0);
+  const step = Math.max(
+    lengths.findIndex((length) => length >= target),
+    1,
+  );
+  const before = lengths[step - 1] ?? 0;
+  const span = (lengths[step] ?? before) - before;
+  const within = span > 0 ? (target - before) / span : 0;
+  return ((step - 1 + within) / LENGTH_SAMPLES) * 360;
+}
+
+/** Parametric angle (degrees) at the middle of each segment's arc, in segment order. */
+export function arcMidAngles(ellipse: Ellipse, segments: readonly StripSegment[]): number[] {
+  const total = segments.reduce((sum, segment) => sum + segment.weight, 0) || 1;
+  let start = 0;
+  return segments.map((segment) => {
+    const middle = (start + segment.weight / 2) / total;
+    start += segment.weight;
+    return angleAtFraction(ellipse, middle);
+  });
+}
+
 interface TiltedOrbitProps {
   ellipse: Ellipse;
   segments: readonly StripSegment[];

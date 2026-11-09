@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import type { OpFamily, StripSegment } from '@mieru/shared';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS } from '../../design/op-palette.js';
-import { pointOnEllipse, TiltedOrbit, type Ellipse } from './TiltedOrbit.js';
+import { arcMidAngles, pointOnEllipse, TiltedOrbit, type Ellipse } from './TiltedOrbit.js';
 
 const WIDTH = 780;
 const HEIGHT = 460;
@@ -23,23 +23,28 @@ const HERO_STRIP: StripSegment[] = [
 ];
 
 interface Satellite {
-  angleDegrees: number;
   op: string;
   family: OpFamily;
   shape?: string;
   isSelected?: boolean;
 }
 
+/** One node per colored arc; each is placed next to the arc of its own family. */
 const SATELLITES: Satellite[] = [
-  { angleDegrees: 228, op: 'MatMul', family: 'compute', shape: '[1,12,128,128]', isSelected: true },
-  { angleDegrees: 300, op: 'Softmax', family: 'attention' },
-  { angleDegrees: 28, op: 'LayerNorm', family: 'normalization' },
-  { angleDegrees: 140, op: 'Gelu', family: 'activation' },
+  { op: 'MatMul', family: 'compute', shape: '[1,12,128,128]', isSelected: true },
+  { op: 'Softmax', family: 'attention' },
+  { op: 'LayerNorm', family: 'normalization' },
+  { op: 'Gelu', family: 'activation' },
+  { op: 'Reshape', family: 'shape' },
 ];
+
+const MID_ANGLES = new Map(
+  arcMidAngles(RING, HERO_STRIP).map((angle, index) => [HERO_STRIP[index]?.family, angle]),
+);
 
 const SPARKLES = [
   { x: 735, y: 70, size: 40, color: 'var(--color-mieru-pink)' },
-  { x: 40, y: 330, size: 22, color: 'var(--color-butter)' },
+  { x: 30, y: 150, size: 22, color: 'var(--color-butter)' },
   { x: 690, y: 380, size: 18, color: 'var(--color-mint)' },
   { x: 120, y: 60, size: 16, color: 'var(--color-lilac)' },
 ];
@@ -93,7 +98,8 @@ function OrbitLayer({ isFront }: { isFront: boolean }) {
 }
 
 function SatelliteNode({ satellite, order }: { satellite: Satellite; order: number }) {
-  const [x, y] = pointOnEllipse(OUTER, satellite.angleDegrees);
+  // Same parametric angle on the outer orbit puts the node just outside its arc.
+  const [x, y] = pointOnEllipse(OUTER, MID_ANGLES.get(satellite.family) ?? 0);
   return (
     <span
       className={clsx(
