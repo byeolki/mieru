@@ -2,15 +2,18 @@ import path from 'node:path';
 import { FileStore } from '@tus/file-store';
 import { Server, type Upload } from '@tus/server';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { hasRoleAtLeast } from '@mieru/shared';
 import type { Clock } from '../../clock.js';
 import type { AppConfig } from '../../config.js';
 import type { DbPool } from '../../db/pool.js';
 import { execute, selectOne } from '../../db/query.js';
-import { notFound, unauthorized } from '../../errors.js';
+import { conflict, notFound, unauthorized } from '../../errors.js';
 import { newId } from '../../ids.js';
 import { LIMITS, routeLimit } from '../../plugins/rate-limits.js';
 import { freeBytes } from '../../storage/disk.js';
 import { isStorageKey } from '../../storage/paths.js';
+import { repositoryBytes } from '../models/versions.js';
+import { resolveModelAccess } from '../sharing/access-service.js';
 import { formatFromFilename, maxBytesFor, sanitizeFilename } from './formats.js';
 
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
@@ -45,6 +48,40 @@ export interface UploadDeps {
   rateLimitEnabled: boolean;
 }
 
+/**
+ * An upload meant as a new version must come from an editor of that repository and keep the
+ * repository under its size limit, so oversized pushes fail before any byte is sent.
+ */
+async function assertCanAddVersion(
+  db: DbPool,
+  config: AppConfig,
+  target: { modelId: string; userId: string; size: number; now: Date },
+): Promise<void> {
+  if (!isStorageKey(target.modelId)) throw reject(404, 'not_found', 'Model not found');
+  const access = await resolveModelAccess(
+    db,
+    target.modelId,
+    { userId: target.userId, linkTokenHash: null },
+    target.now,
+  );
+  if (!access) throw reject(404, 'not_found', 'Model not found');
+  if (!hasRoleAtLeast(access.role, 'editor')) {
+    throw reject(403, 'forbidden', 'Only editors can add versions');
+  }
+  const used = await repositoryBytes(db, target.modelId);
+  if (used + target.size > config.MAX_REPO_BYTES) {
+    throw reject(
+      413,
+      'repository_too_large',
+      'This version would push the repository over its limit',
+      {
+        maxBytes: config.MAX_REPO_BYTES,
+        usedBytes: used,
+      },
+    );
+  }
+}
+
 export function createTusServer({ config, db, clock }: UploadDeps): Server {
   return new Server({
     path: '/api/uploads',
@@ -77,11 +114,28 @@ export function createTusServer({ config, db, clock }: UploadDeps): Server {
         throw reject(507, 'server_storage_low', 'The server is running low on storage');
       }
       const now = clock();
+      const targetModelId = upload.metadata?.targetModelId ?? null;
+      if (targetModelId) {
+        await assertCanAddVersion(db, config, {
+          modelId: targetModelId,
+          userId,
+          size: upload.size,
+          now,
+        });
+      }
       await execute(
         db,
-        `INSERT INTO uploads (id, user_id, original_name, declared_size, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [upload.id, userId, filename, upload.size, new Date(now.getTime() + UPLOAD_TTL_MS), now],
+        `INSERT INTO uploads (id, user_id, original_name, declared_size, target_model_id, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          upload.id,
+          userId,
+          filename,
+          upload.size,
+          targetModelId,
+          new Date(now.getTime() + UPLOAD_TTL_MS),
+          now,
+        ],
       );
       return { metadata: { ...upload.metadata, filename } };
     },
@@ -128,12 +182,17 @@ export function registerUploadRoutes(app: FastifyInstance, deps: UploadDeps): Se
     if (!request.auth) throw unauthorized();
     const { uploadId } = request.params as { uploadId: string };
     if (!isStorageKey(uploadId)) throw notFound('Upload not found');
-    const row = await selectOne<{ user_id: string }>(
+    const row = await selectOne<{ user_id: string; consumed_at: Date | null }>(
       deps.db,
-      'SELECT user_id FROM uploads WHERE id = ?',
+      'SELECT user_id, consumed_at FROM uploads WHERE id = ?',
       [uploadId],
     );
     if (row?.user_id !== request.auth.userId) throw notFound('Upload not found');
+    // Once a repository or version took the upload, its file belongs to the processing job;
+    // terminating it now would delete the file out from under the parser.
+    if (row.consumed_at && request.method === 'DELETE') {
+      throw conflict('upload_consumed', 'This upload is already part of a model');
+    }
   };
 
   app.options('/api/uploads', handOff);

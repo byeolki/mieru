@@ -161,14 +161,18 @@ export async function tusUpload(
   filename: string,
   bytes: Buffer,
   chunkSize = 1024,
+  metadata: Record<string, string> = {},
 ): Promise<string> {
+  const encoded = Object.entries({ filename, ...metadata })
+    .map(([key, value]) => `${key} ${Buffer.from(value).toString('base64')}`)
+    .join(',');
   const create = await fetch(`${context.baseUrl}/api/uploads`, {
     method: 'POST',
     headers: {
       ...TUS_HEADERS,
       authorization: `Bearer ${token}`,
       'upload-length': String(bytes.length),
-      'upload-metadata': `filename ${Buffer.from(filename).toString('base64')}`,
+      'upload-metadata': encoded,
     },
   });
   if (create.status !== 201)

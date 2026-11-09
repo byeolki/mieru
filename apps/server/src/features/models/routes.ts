@@ -9,6 +9,9 @@ import {
   fileTicketBodySchema,
   fileTicketResponseSchema,
   labelsSchema,
+  createVersionBodySchema,
+  modelDiffSchema,
+  versionListResponseSchema,
   modelDetailSchema,
   modelListResponseSchema,
   readmeResponseSchema,
@@ -40,6 +43,13 @@ import {
   updateModel,
 } from './service.js';
 import { readLabels, saveLabels } from './labels.js';
+import {
+  createVersion,
+  deleteVersion,
+  diffVersions,
+  listVersions,
+  repositoryBytes,
+} from './versions.js';
 import { createTicket, verifyTicket } from './tickets.js';
 import { recordView, viewerHash } from '../explore/views.js';
 
@@ -221,6 +231,77 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
       );
       return getReadme(db, request.params.id);
     },
+  );
+
+  const versionList = async (modelId: string) => ({
+    items: await listVersions(db, modelId),
+    usedBytes: await repositoryBytes(db, modelId),
+    limitBytes: config.MAX_REPO_BYTES,
+  });
+
+  routes.get(
+    '/api/models/:id/versions',
+    {
+      preHandler: requireModelAccess('viewer'),
+      schema: { params: idParams, response: { 200: versionListResponseSchema } },
+    },
+    async (request) => versionList(request.params.id),
+  );
+
+  routes.post(
+    '/api/models/:id/versions',
+    {
+      preHandler: [requireUser, requireModelAccess('editor', { loggedIn: true })],
+      schema: { params: idParams, body: createVersionBodySchema },
+    },
+    async (request, reply) => {
+      const versionId = await createVersion(
+        db,
+        request.params.id,
+        currentUser(request).userId,
+        request.body,
+        clock(),
+      );
+      queue.enqueueVersion(versionId);
+      return reply.status(202).send(await versionList(request.params.id));
+    },
+  );
+
+  routes.delete(
+    '/api/models/:id/versions/:number',
+    {
+      preHandler: [requireUser, requireModelAccess('owner', { loggedIn: true })],
+      schema: {
+        params: z.object({ id: z.uuid(), number: z.coerce.number().int().positive() }),
+      },
+    },
+    async (request, reply) => {
+      await deleteVersion(
+        db,
+        config.STORAGE_DIR,
+        request.params.id,
+        request.params.number,
+        request.log,
+      );
+      return reply.status(204).send();
+    },
+  );
+
+  routes.get(
+    '/api/models/:id/diff',
+    {
+      preHandler: requireModelAccess('viewer'),
+      schema: {
+        params: idParams,
+        querystring: z.object({
+          from: z.coerce.number().int().positive(),
+          to: z.coerce.number().int().positive(),
+        }),
+        response: { 200: modelDiffSchema },
+      },
+    },
+    async (request) =>
+      diffVersions(db, config.STORAGE_DIR, request.params.id, request.query.from, request.query.to),
   );
 
   routes.get(

@@ -9,14 +9,20 @@ import { useActivationPreview } from '../../demo/activation-store.js';
 import type { GroupInfo } from './visible-graph.js';
 
 // Type aliases (not interfaces) so React Flow's `Record<string, unknown>` data constraint holds.
+export type DiffMark = 'added' | 'changed';
+
 type Decoration = {
   isSelected: boolean;
   isDimmed: boolean;
   issueCount: number;
 };
 
-export type OpNodeData = { node: OnnxNode; outputShape: TensorInfo['shape'] } & Decoration;
-export type GroupNodeData = { group: GroupInfo } & Decoration;
+export type OpNodeData = {
+  node: OnnxNode;
+  outputShape: TensorInfo['shape'];
+  diffMark: DiffMark | null;
+} & Decoration;
+export type GroupNodeData = { group: GroupInfo; diffCount: number } & Decoration;
 export type IoNodeData = { tensor: TensorInfo; direction: 'in' | 'out' } & Decoration;
 
 const handleClass = '!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent';
@@ -39,6 +45,27 @@ function FamilyTile({ family, size = 'size-7' }: { family: OpFamily; size?: stri
     >
       <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: OP_COLORS[family] }} />
     </span>
+  );
+}
+
+const DIFF_LABELS: Record<DiffMark, string> = { added: '추가됨', changed: '바뀜' };
+
+/** A colored edge on the node's left side plus a text label, so the mark never relies on color alone. */
+function DiffStripe({ mark }: { mark: DiffMark }) {
+  return (
+    <>
+      <span
+        className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full"
+        style={{ backgroundColor: `var(--color-diff-${mark})` }}
+        aria-hidden="true"
+      />
+      <span
+        className="absolute -top-2 left-2 rounded-full px-1.5 text-[10px] leading-4 font-semibold text-on-accent"
+        style={{ backgroundColor: `var(--color-diff-${mark})` }}
+      >
+        {DIFF_LABELS[mark]}
+      </span>
+    </>
   );
 }
 
@@ -76,6 +103,7 @@ export const OpNodeView = memo(function OpNodeView({ data }: NodeProps<Node<OpNo
           className="size-9 shrink-0 rounded-[4px] border border-fog [image-rendering:pixelated]"
         />
       )}
+      {data.diffMark && <DiffStripe mark={data.diffMark} />}
       <IssueBadge count={data.issueCount} />
       <Handle type="source" position={Position.Bottom} className={handleClass} />
     </div>
@@ -114,6 +142,11 @@ export const GroupNodeView = memo(function GroupNodeView({ data }: NodeProps<Nod
             />
           ))}
         </div>
+        {data.diffCount > 0 && (
+          <span className="absolute -top-2 left-3 rounded-full bg-(--color-diff-changed) px-1.5 text-[10px] leading-4 font-semibold text-on-accent">
+            바뀐 노드 {data.diffCount}
+          </span>
+        )}
         <IssueBadge count={data.issueCount} />
         <Handle type="source" position={Position.Bottom} className={handleClass} />
       </div>

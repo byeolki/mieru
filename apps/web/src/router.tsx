@@ -97,6 +97,18 @@ export const router = createBrowserRouter([
               Component: (await import('./features/demo/DemoTab.js')).DemoTab,
             }),
           },
+          {
+            path: 'versions',
+            lazy: async () => ({
+              Component: (await import('./features/versions/VersionsTab.js')).VersionsTab,
+            }),
+          },
+          {
+            path: 'versions/compare',
+            lazy: async () => ({
+              Component: (await import('./features/versions/ComparePage.js')).ComparePage,
+            }),
+          },
           { path: 'issues', element: <IssuesTab /> },
           { path: 'issues/new', element: <NewIssuePage /> },
           { path: 'issues/:number', element: <IssueThreadPage /> },

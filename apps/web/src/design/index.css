@@ -30,6 +30,9 @@
   /* Text on the pastel avatar backgrounds, which stay pastel in both themes. */
   --color-ink: #1b1e2b;
   --color-edge: #b9b4c9;
+  /* Version diff marks: kept apart from the op palette and from selection pink. */
+  --color-diff-added: #2f8f5b;
+  --color-diff-changed: #b8741a;
   --color-dots: #d6d9e3;
   --color-mask: rgb(241 237 248 / 0.6);
 
@@ -68,6 +71,8 @@
     --color-haze-deep: #2d2742;
     --color-on-accent: #12141d;
     --color-edge: #4c4863;
+    --color-diff-added: #5fc792;
+    --color-diff-changed: #e5a24a;
     --color-dots: #262a38;
     --color-mask: rgb(18 20 29 / 0.6);
     --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);

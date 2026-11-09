@@ -9,6 +9,7 @@ import {
   Flag,
   FileText,
   GitFork,
+  History,
   Globe,
   Link2,
   Lock,
@@ -207,6 +208,14 @@ function RepoHeader({ model }: { model: ModelDetail }) {
           )}
           <NavLink to={`/m/${model.id}/stats`} className={TAB_CLASS}>
             <BarChart3 className="size-4" aria-hidden="true" /> 통계
+          </NavLink>
+          <NavLink to={`/m/${model.id}/versions`} className={TAB_CLASS}>
+            <History className="size-4" aria-hidden="true" /> 버전
+            {model.latestVersion && model.latestVersion.number > 1 && (
+              <span className="tabular rounded-full bg-fog px-1.5 text-xs font-medium text-sumi">
+                {model.latestVersion.number}
+              </span>
+            )}
           </NavLink>
           <NavLink to={`/m/${model.id}/issues`} className={TAB_CLASS}>
             <CircleDot className="size-4" aria-hidden="true" /> 이슈

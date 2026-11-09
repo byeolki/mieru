@@ -42,6 +42,11 @@ async function writeLargeSafetensors(name: string): Promise<void> {
 
 await mkdir(outputDir, { recursive: true });
 await writeFixture('tiny-cnn.onnx', tinyCnnOnnx());
+// A "retrained" next version: one kernel changed and an extra Relu on the head.
+await writeFixture(
+  'tiny-cnn-v2.onnx',
+  tinyCnnOnnx({ perturb: 'branch_a.weight', extraHeadRelu: true }),
+);
 await writeFixture('tiny-mlp.onnx', tinyMlpOnnx());
 await writeFixture('synthetic-transformer-10k.onnx', syntheticTransformerOnnx(770));
 await writeFixture('nested.safetensors', safetensorsBuffer(NESTED_SAFETENSORS, { format: 'pt' }));

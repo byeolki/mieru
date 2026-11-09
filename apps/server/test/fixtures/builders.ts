@@ -38,6 +38,15 @@ function positiveFloatTensor(name: string, dims: number[], random: () => number)
   return { name, dims, dataType: FLOAT, rawData: data };
 }
 
+function perturbed<T extends { name: string; rawData: Buffer }>(tensors: T[], name?: string): T[] {
+  return tensors.map((tensor) => {
+    if (tensor.name !== name) return tensor;
+    const rawData = Buffer.from(tensor.rawData);
+    rawData.writeFloatLE(rawData.readFloatLE(0) + 1, 0);
+    return { ...tensor, rawData };
+  });
+}
+
 function int64Tensor(name: string, values: number[]) {
   const data = Buffer.alloc(values.length * 8);
   values.forEach((value, index) => data.writeBigInt64LE(BigInt(value), index * 8));
@@ -78,26 +87,36 @@ function encodeModel(graph: object): Buffer {
  * Tiny CNN: Conv → BatchNorm → Relu → two Conv branches → Add → GlobalAveragePool →
  * Reshape (shape from a Constant node) → Gemm. Parameter total is fixed and asserted in tests.
  */
-export function tinyCnnOnnx(): Buffer {
+export interface TinyCnnOptions {
+  /** Flips the first value of this initializer, to model a retrained layer in a new version. */
+  perturb?: string;
+  /** Adds a Relu after the head, to model an architecture change. */
+  extraHeadRelu?: boolean;
+}
+
+export function tinyCnnOnnx(options: TinyCnnOptions = {}): Buffer {
   const random = seededRandom(1);
   const shapeConstant = int64Tensor('shape_value', [1, 4]);
   return encodeModel({
     name: 'tiny-cnn',
     input: [valueInfo('input', ['batch', 3, 8, 8])],
     output: [valueInfo('logits', ['batch', 10])],
-    initializer: [
-      floatTensor('conv1.weight', [4, 3, 3, 3], random),
-      floatTensor('conv1.bias', [4], random),
-      floatTensor('bn.scale', [4], random),
-      floatTensor('bn.bias', [4], random),
-      floatTensor('bn.mean', [4], random),
-      // A negative variance would make the model produce NaN when it is actually run.
-      positiveFloatTensor('bn.var', [4], random),
-      floatTensor('branch_a.weight', [4, 4, 3, 3], random),
-      floatTensor('branch_b.weight', [4, 4, 3, 3], random),
-      floatTensor('fc.weight', [10, 4], random),
-      floatTensor('fc.bias', [10], random),
-    ],
+    initializer: perturbed(
+      [
+        floatTensor('conv1.weight', [4, 3, 3, 3], random),
+        floatTensor('conv1.bias', [4], random),
+        floatTensor('bn.scale', [4], random),
+        floatTensor('bn.bias', [4], random),
+        floatTensor('bn.mean', [4], random),
+        // A negative variance would make the model produce NaN when it is actually run.
+        positiveFloatTensor('bn.var', [4], random),
+        floatTensor('branch_a.weight', [4, 4, 3, 3], random),
+        floatTensor('branch_b.weight', [4, 4, 3, 3], random),
+        floatTensor('fc.weight', [10, 4], random),
+        floatTensor('fc.bias', [10], random),
+      ],
+      options.perturb,
+    ),
     valueInfo: [valueInfo('relu_out', ['batch', 4, 8, 8])],
     node: [
       {
@@ -147,9 +166,12 @@ export function tinyCnnOnnx(): Buffer {
         name: '/head/fc/Gemm',
         opType: 'Gemm',
         input: ['flat', 'fc.weight', 'fc.bias'],
-        output: ['logits'],
+        output: [options.extraHeadRelu ? 'fc_out' : 'logits'],
         attribute: [int('transB', 1)],
       },
+      ...(options.extraHeadRelu
+        ? [{ name: '/head/act/Relu', opType: 'Relu', input: ['fc_out'], output: ['logits'] }]
+        : []),
     ],
   });
 }

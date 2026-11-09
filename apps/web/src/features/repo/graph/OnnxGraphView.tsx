@@ -25,7 +25,7 @@ import { OP_COLORS } from '../../../design/op-palette.js';
 import { Spinner } from '../../../design/ui/Spinner.js';
 import { Inspector, type Selection } from './Inspector.js';
 import { NODE_SIZE, layoutGraph, type Positions } from './layout.js';
-import { NODE_TYPES } from './nodes.js';
+import { NODE_TYPES, type DiffMark } from './nodes.js';
 import {
   buildGroupTree,
   buildVisibleGraph,
@@ -44,6 +44,8 @@ interface OnnxGraphViewProps {
   payload: OnnxGraphPayload;
   summary: ModelSummary;
   issueCounts?: ReadonlyMap<string, number>;
+  /** Version-diff marks by node name; unmarked nodes are unchanged. */
+  diffMarks?: ReadonlyMap<string, DiffMark>;
   onOpenIssue?: (nodeRef: string) => void;
   /** Node to select and center on first render (deep links from issues). */
   initialFocusName?: string | null;
@@ -81,6 +83,7 @@ function GraphCanvas({
   payload,
   summary,
   issueCounts,
+  diffMarks,
   onOpenIssue,
   initialFocusName,
 }: OnnxGraphViewProps) {
@@ -198,16 +201,21 @@ function GraphCanvas({
               isSelected,
               isDimmed,
               issueCount: issueCounts?.get(item.node.name) ?? 0,
+              diffMark: diffMarks?.get(item.node.name) ?? null,
             },
           },
         ];
       }
       if (item.kind === 'group') {
+        const isInGroup = (name: string) =>
+          name.startsWith(`/${item.group.path}/`) || name.startsWith(`${item.group.path}/`);
         let issueCount = 0;
         if (issueCounts) {
-          for (const [name, count] of issueCounts)
-            if (name.startsWith(`/${item.group.path}/`) || name.startsWith(`${item.group.path}/`))
-              issueCount += count;
+          for (const [name, count] of issueCounts) if (isInGroup(name)) issueCount += count;
+        }
+        let diffCount = 0;
+        if (diffMarks) {
+          for (const name of diffMarks.keys()) if (isInGroup(name)) diffCount += 1;
         }
         return [
           {
@@ -215,7 +223,7 @@ function GraphCanvas({
             type: 'group',
             position,
             ...size,
-            data: { group: item.group, isSelected, isDimmed, issueCount },
+            data: { group: item.group, isSelected, isDimmed, issueCount, diffCount },
           },
         ];
       }
@@ -235,7 +243,7 @@ function GraphCanvas({
         },
       ];
     });
-  }, [positions, visible.items, highlighted, selectedId, outputShapes, issueCounts]);
+  }, [positions, visible.items, highlighted, selectedId, outputShapes, issueCounts, diffMarks]);
 
   const edges: Edge[] = useMemo(
     () =>
