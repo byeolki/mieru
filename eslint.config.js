@@ -50,6 +50,11 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    // Plain scripts served as-is from the web app's public folder (theme-init.js).
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: globals.browser, sourceType: 'script' },
+  },
+  {
     files: ['apps/server/**/*.ts', 'packages/shared/**/*.ts', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },

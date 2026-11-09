@@ -18,6 +18,7 @@ import { ButtonLink } from '../design/ui/Button.js';
 import { signOut, useAuth } from '../lib/auth-store.js';
 import { getActivity, issueKeys } from '../features/issues/api.js';
 import { Avatar } from './Avatar.js';
+import { ThemeToggle } from './ThemeToggle.js';
 
 const NAV_LINK = ({ isActive }: { isActive: boolean }) =>
   clsx(
@@ -212,6 +213,7 @@ export function AppHeader() {
           )}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           {isSignedIn ? (
             <>
               <ButtonLink

@@ -12,7 +12,8 @@
   unicode-range: U+3048, U+308B, U+898B;
 }
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* public/theme-init.js sets data-theme before paint, from the saved choice or the system. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /* "Kirakira Orbit": colors pulled from the logo. Lilac page, white sheets for content, plum
    ink, deep pink for actions; mint and butter only as small sparkle accents. */
@@ -72,34 +73,33 @@
   --text-2xl: 2.5rem;
 }
 
-/* Dark mode follows the system setting: deep plum night with the logo pink as the action
-   color, which keeps strong contrast where the light theme's deep pink would sink. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-paper: #160f22;
-    --color-surface: #201632;
-    --color-sumi: #f1e9fa;
-    --color-slate: #b7a8cb;
-    --color-mist: #8c7ba3;
-    --color-fog: #362a4d;
-    --color-primary: #f08fbe;
-    --color-primary-hover: #f5a8cd;
-    --color-sakura: #4a2440;
-    --color-lilac: #9d86bd;
-    --color-danger: #f97066;
-    --color-danger-soft: #3b1f22;
-    --color-success: #5fd39a;
-    --color-haze: #271c3b;
-    --color-haze-deep: #32254a;
-    --color-on-accent: #1b1029;
-    --color-edge: #5a4977;
-    --color-diff-added: #5fc792;
-    --color-diff-changed: #e5a24a;
-    --color-dots: #2c2140;
-    --color-mask: rgb(22 15 34 / 0.6);
-    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
-    --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 22px 48px -20px rgb(0 0 0 / 0.7);
-  }
+/* Dark mode (the system setting unless the user picked one): deep plum night with the logo pink
+   as the action color, which keeps strong contrast where the light theme's deep pink would sink. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-paper: #160f22;
+  --color-surface: #201632;
+  --color-sumi: #f1e9fa;
+  --color-slate: #b7a8cb;
+  --color-mist: #8c7ba3;
+  --color-fog: #362a4d;
+  --color-primary: #f08fbe;
+  --color-primary-hover: #f5a8cd;
+  --color-sakura: #4a2440;
+  --color-lilac: #9d86bd;
+  --color-danger: #f97066;
+  --color-danger-soft: #3b1f22;
+  --color-success: #5fd39a;
+  --color-haze: #271c3b;
+  --color-haze-deep: #32254a;
+  --color-on-accent: #1b1029;
+  --color-edge: #5a4977;
+  --color-diff-added: #5fc792;
+  --color-diff-changed: #e5a24a;
+  --color-dots: #2c2140;
+  --color-mask: rgb(22 15 34 / 0.6);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 22px 48px -20px rgb(0 0 0 / 0.7);
 }
 
 /* The "sticker" outline from the logo: white edge, pink line, lilac drop. Reserved for the
@@ -119,7 +119,7 @@
 
 @layer base {
   html {
-    color-scheme: light dark;
+    color-scheme: light;
     font-family: var(--font-sans);
     font-size: 16px;
     color: var(--color-sumi);

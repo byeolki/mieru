@@ -12,6 +12,7 @@ import { formatParams } from '../../lib/format.js';
 import { exploreKeys, getExplore } from '../explore/api.js';
 import { FORMAT_LABELS } from '../models/labels.js';
 import { KanjiOrbit } from './KanjiOrbit.js';
+import { RESNET_STRIP, TRANSFORMER_STRIP, UNET_STRIP } from './sample-strips.js';
 import { TiltedOrbit } from './TiltedOrbit.js';
 
 const CONTAINER = 'mx-auto w-full max-w-[1280px] px-5 md:px-10';
@@ -52,79 +53,142 @@ function Hero() {
   );
 }
 
-function ModelCard({ item }: { item: ModelListItem }) {
+type CardModel = Pick<
+  ModelListItem,
+  'name' | 'description' | 'format' | 'starCount' | 'totalParams' | 'strip'
+> & { ownerName: string };
+
+const CARD_CLASSES =
+  'group relative flex h-48 flex-col overflow-hidden rounded-(--radius-panel) bg-haze p-5';
+
+function CardBody({ model, isExample }: { model: CardModel; isExample: boolean }) {
   return (
-    <li>
-      <Link
-        to={`/m/${item.id}`}
-        className="group relative flex h-48 flex-col overflow-hidden rounded-(--radius-panel) bg-haze p-5 transition-colors hover:bg-haze-deep"
-      >
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-slate">{item.owner.username}</p>
-            <p className="mt-0.5 truncate font-display text-xl font-semibold tracking-[-0.03em] group-hover:text-primary">
-              {item.name}
-            </p>
-          </div>
+    <>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-slate">{model.ownerName}</p>
+          <p className="mt-0.5 truncate font-display text-xl font-semibold tracking-[-0.03em] group-hover:text-primary">
+            {model.name}
+          </p>
+        </div>
+        {isExample ? (
+          <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-slate">예시</span>
+        ) : (
           <span className="tabular flex items-center gap-1 font-display text-xs text-slate">
             <Sparkle className="size-3.5" color="var(--color-mieru-pink)" />
             <span className="sr-only">스타</span>
-            {item.starCount}
+            {model.starCount}
           </span>
-        </div>
-        <p className="mt-2 line-clamp-2 max-w-[21em] text-sm leading-6 text-slate">
-          {item.description ?? '설명이 아직 없어요.'}
-        </p>
-        <div className="relative z-10 mt-auto flex flex-wrap gap-1.5">
-          {item.format && (
-            <span className="rounded-full bg-sumi px-3 py-1 font-display text-[11px] font-semibold text-paper">
-              {FORMAT_LABELS[item.format]}
+        )}
+      </div>
+      <p className="mt-2 line-clamp-2 max-w-[21em] text-sm leading-6 text-slate">
+        {model.description ?? '설명이 아직 없어요.'}
+      </p>
+      <div className="relative z-10 mt-auto flex flex-wrap gap-1.5">
+        {model.format && (
+          <span className="rounded-full bg-sumi px-3 py-1 font-display text-[11px] font-semibold text-paper">
+            {FORMAT_LABELS[model.format]}
+          </span>
+        )}
+        {model.totalParams !== null && (
+          <span className="rounded-full bg-surface px-3 py-1 text-xs text-slate">
+            파라미터{' '}
+            <span className="font-display text-[11.5px] font-medium text-sumi">
+              {formatParams(model.totalParams)}
             </span>
-          )}
-          {item.totalParams !== null && (
-            <span className="rounded-full bg-surface px-3 py-1 text-xs text-slate">
-              파라미터{' '}
-              <span className="font-display text-[11.5px] font-medium text-sumi">
-                {formatParams(item.totalParams)}
-              </span>
-            </span>
-          )}
-        </div>
-        <svg
-          viewBox="0 0 230 110"
-          className="absolute -right-10 -bottom-3.5 h-[110px] w-[230px]"
-          aria-hidden="true"
-        >
-          <TiltedOrbit
-            ellipse={{ cx: 115, cy: 60, rx: 92, ry: 34, tiltDegrees: -12 }}
-            segments={item.strip}
-            strokeWidth={9}
-          />
-        </svg>
-      </Link>
-    </li>
+          </span>
+        )}
+      </div>
+      <svg
+        viewBox="0 0 230 110"
+        className="absolute -right-10 -bottom-3.5 h-[110px] w-[230px]"
+        aria-hidden="true"
+      >
+        <TiltedOrbit
+          ellipse={{ cx: 115, cy: 60, rx: 92, ry: 34, tiltDegrees: -12 }}
+          segments={model.strip}
+          strokeWidth={9}
+        />
+      </svg>
+    </>
   );
 }
 
-/** Real trending repositories, so the landing shows what is actually on the site. */
+/** Shown while nothing is public yet, so the section still explains itself; never linked. */
+const EXAMPLE_MODELS: CardModel[] = [
+  {
+    ownerName: 'mio',
+    name: 'tinybert-nsmc',
+    description: '네이버 영화 리뷰로 미세조정한 4층 감정 분류기',
+    format: 'onnx',
+    starCount: 0,
+    totalParams: 14_400_000,
+    strip: TRANSFORMER_STRIP,
+  },
+  {
+    ownerName: 'kai',
+    name: 'resnet-mini-cifar10',
+    description: '분기 두 개가 Add로 합쳐지는 작은 잔차 CNN',
+    format: 'onnx',
+    starCount: 0,
+    totalParams: 272_000,
+    strip: RESNET_STRIP,
+  },
+  {
+    ownerName: 'ren',
+    name: 'unet-small-seg',
+    description: '인코더와 디코더가 건너뛰기 연결로 이어진 분할 모델',
+    format: 'safetensors',
+    starCount: 0,
+    totalParams: 7_800_000,
+    strip: UNET_STRIP,
+  },
+];
+
+/**
+ * Real trending repositories, so the landing shows what is actually on the site. Until anything
+ * is public, labelled examples stand in.
+ */
 function LiveTrending() {
   const sections = useQuery({ queryKey: exploreKeys.sections, queryFn: getExplore });
+  if (sections.isPending) return null;
   const items = sections.data?.trending.slice(0, 3) ?? [];
-  if (items.length === 0) return null;
+  const isExample = items.length === 0;
   return (
     <section aria-labelledby="live-trending">
-      <div className="mb-5 flex items-baseline justify-between gap-4">
+      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="live-trending" className="font-heading text-[1.75rem]">
-          {sections.data?.trendingIsFallback ? '스타를 많이 받은 모델' : '이번 주 화제'}
+          {isExample
+            ? '이렇게 보여요'
+            : sections.data?.trendingIsFallback
+              ? '스타를 많이 받은 모델'
+              : '이번 주 화제'}
         </h2>
-        <Link to="/explore" className="text-sm text-slate hover:text-primary">
-          모두 보기
-        </Link>
+        {isExample ? (
+          <p className="text-sm text-slate">아직 공개된 모델이 없어서 예시를 보여드려요.</p>
+        ) : (
+          <Link to="/explore" className="text-sm text-slate hover:text-primary">
+            모두 보기
+          </Link>
+        )}
       </div>
       <ol className="grid gap-4 md:grid-cols-3">
-        {items.map((item) => (
-          <ModelCard key={item.id} item={item} />
-        ))}
+        {isExample
+          ? EXAMPLE_MODELS.map((model) => (
+              <li key={model.name} className={CARD_CLASSES}>
+                <CardBody model={model} isExample />
+              </li>
+            ))
+          : items.map((item) => (
+              <li key={item.id}>
+                <Link
+                  to={`/m/${item.id}`}
+                  className={`${CARD_CLASSES} transition-colors hover:bg-haze-deep`}
+                >
+                  <CardBody model={{ ...item, ownerName: item.owner.username }} isExample={false} />
+                </Link>
+              </li>
+            ))}
       </ol>
     </section>
   );

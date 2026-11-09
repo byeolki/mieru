@@ -6,7 +6,10 @@ import './design/index.css';
 import './i18n/index.js';
 import { getAuthState, refreshSession, subscribeToAuth } from './lib/auth-store.js';
 import { queryClient } from './lib/query-client.js';
+import { watchSystemTheme } from './lib/theme.js';
 import { router } from './router.js';
+
+watchSystemTheme();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Missing #root element');

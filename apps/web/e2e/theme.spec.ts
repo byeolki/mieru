@@ -17,3 +17,14 @@ test('uses the light paper background by default', async ({ page }) => {
   await page.goto('/explore');
   expect(await backgroundOf(page)).toBe('rgb(243, 236, 250)');
 });
+
+test('the header toggle switches to dark and remembers it after a reload', async ({ page }) => {
+  await page.goto('/');
+  const toggle = page.getByRole('button', { name: /^테마:/ });
+  await toggle.click(); // system → light
+  await toggle.click(); // light → dark
+  await expect(toggle).toHaveAccessibleName(/테마: 다크/);
+  expect(await backgroundOf(page)).toBe('rgb(22, 15, 34)');
+  await page.reload();
+  expect(await backgroundOf(page)).toBe('rgb(22, 15, 34)');
+});
