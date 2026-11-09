@@ -159,13 +159,25 @@
   }
 }
 
-/* 見える drawn like the logo sticker: white fill, pink outline, lilac drop. */
-@utility kanji-sticker {
+/* 見える drawn like the logo sticker, as three stacked copies of the text: lilac drop, pink
+   outline, white fill. Stroking one copy instead would outline every overlapping contour inside
+   the glyphs and let the drop show through them. */
+@utility kanji-drop {
+  font-family: var(--font-kanji);
+  color: var(--color-lilac);
+  -webkit-text-stroke: 0.05em var(--color-lilac);
+  translate: 0 0.065em;
+}
+
+@utility kanji-outline {
+  font-family: var(--font-kanji);
+  color: var(--color-mieru-pink);
+  -webkit-text-stroke: 0.05em var(--color-mieru-pink);
+}
+
+@utility kanji-fill {
   font-family: var(--font-kanji);
   color: var(--color-surface);
-  -webkit-text-stroke: 0.04em var(--color-mieru-pink);
-  paint-order: stroke fill;
-  text-shadow: 0 0.065em 0 var(--color-lilac);
 }
 
 @utility tabular {

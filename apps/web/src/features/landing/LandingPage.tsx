@@ -25,11 +25,11 @@ function Hero() {
         {/* The headline is for screen readers and search; the picture says it on screen. */}
         <h1 className="sr-only">{t('landing.title')}</h1>
         <KanjiOrbit />
-        <div className="mt-2 flex flex-wrap justify-center gap-3">
+        <div className="-mt-4 flex flex-wrap justify-center gap-3 lg:-mt-10">
           <ButtonLink
             to="/new"
             size="lg"
-            className={`${PILL} sticker`}
+            className={PILL}
             icon={<Plus className="size-4.5" strokeWidth={2.4} />}
           >
             {t('landing.primaryAction')}
@@ -360,7 +360,7 @@ export function LandingPage() {
               </h2>
               <p className="mt-4 text-slate">파일을 올리면 몇 초 안에 그래프로 보여드려요.</p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <ButtonLink to="/new" size="lg" className={`${PILL} sticker`}>
+                <ButtonLink to="/new" size="lg" className={PILL}>
                   {t('landing.primaryAction')}
                 </ButtonLink>
                 <ButtonLink to="/explore" size="lg" variant="ghost" className={`${PILL} bg-haze`}>

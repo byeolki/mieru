@@ -116,11 +116,11 @@ function SatelliteNode({ satellite, order }: { satellite: Satellite; order: numb
 
 /**
  * 見える with the architecture ring orbiting through it, and a few graph nodes riding the outer
- * orbit. Decorative apart from the gloss, which says what the word means.
+ * orbit. Purely decorative; the page's h1 carries the message.
  */
 export function KanjiOrbit() {
   return (
-    <figure className="@container relative mx-auto aspect-[780/460] w-full max-w-[1080px]">
+    <div className="@container relative mx-auto aspect-[780/460] w-full max-w-[1080px]">
       <OrbitLayer isFront={false} />
       {SPARKLES.map((sparkle) => (
         <span
@@ -135,26 +135,23 @@ export function KanjiOrbit() {
           <Sparkle className="size-full" color={sparkle.color} />
         </span>
       ))}
-      <p
+      <div
         lang="ja"
         aria-hidden="true"
-        className="kanji-sticker absolute inset-0 grid place-items-center text-[22cqw] leading-none tracking-[0.04em] select-none"
+        className="absolute inset-0 text-[22cqw] leading-none tracking-[0.04em] select-none"
       >
-        見える
-      </p>
+        {['kanji-drop', 'kanji-outline', 'kanji-fill'].map((layer) => (
+          <span key={layer} className={`${layer} absolute inset-0 grid place-items-center`}>
+            見える
+          </span>
+        ))}
+      </div>
       <OrbitLayer isFront />
       <div className="max-sm:hidden" aria-hidden="true">
         {SATELLITES.map((satellite, index) => (
           <SatelliteNode key={satellite.op} satellite={satellite} order={index} />
         ))}
       </div>
-      <figcaption className="absolute inset-x-0 bottom-[6%] text-center text-sm text-slate">
-        <span lang="ja" className="sr-only">
-          見える{' '}
-        </span>
-        <span className="mr-1.5 font-display font-medium text-sumi">mieru</span>
-        일본어로 ‘보인다’
-      </figcaption>
-    </figure>
+    </div>
   );
 }
