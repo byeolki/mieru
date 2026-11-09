@@ -12,6 +12,7 @@ import { registerExploreRoutes } from './features/explore/routes.js';
 import { registerIssueRoutes } from './features/issues/routes.js';
 import { registerSharingRoutes } from './features/sharing/routes.js';
 import { registerStarRoutes } from './features/stars/routes.js';
+import { registerDesignRoutes } from './features/designs/routes.js';
 import { registerUploadRoutes } from './features/uploads/tus.js';
 import { registerWeightRoutes } from './features/weights/routes.js';
 import { registerUserRoutes } from './features/users/routes.js';
@@ -107,6 +108,7 @@ export async function buildApp({
   registerExploreRoutes(app, { db, clock });
   registerModerationRoutes(app, { ...routeDeps, requireModelAccess });
   registerWeightRoutes(app, { config, db, requireModelAccess });
+  registerDesignRoutes(app, { db, clock });
   await registerStaticSpa(app, { config, db });
 
   return app;

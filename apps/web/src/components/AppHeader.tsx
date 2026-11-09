@@ -196,6 +196,9 @@ export function AppHeader() {
               <NavLink to="/stars" className={(state) => clsx(NAV_LINK(state), 'max-sm:hidden')}>
                 스타
               </NavLink>
+              <NavLink to="/designs" className={(state) => clsx(NAV_LINK(state), 'max-sm:hidden')}>
+                설계
+              </NavLink>
             </>
           )}
         </nav>

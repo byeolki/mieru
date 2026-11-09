@@ -127,6 +127,31 @@ export const router = createBrowserRouter([
         ],
       },
       { path: '/s/:token', element: <LinkEntryPage /> },
+      {
+        path: '/designs',
+        lazy: async () => {
+          const { DesignsPage } = await import('./features/design/DesignsPage.js');
+          return {
+            element: (
+              <RequireAuth>
+                <DesignsPage />
+              </RequireAuth>
+            ),
+          };
+        },
+      },
+      {
+        path: '/designs/new',
+        lazy: async () => ({
+          Component: (await import('./features/design/DesignEditor.js')).NewDesignPage,
+        }),
+      },
+      {
+        path: '/designs/:designId',
+        lazy: async () => ({
+          Component: (await import('./features/design/DesignEditor.js')).DesignPage,
+        }),
+      },
       { path: '/explore', element: <ExplorePage /> },
       { path: '/u/:username', element: <ProfilePage /> },
       {
