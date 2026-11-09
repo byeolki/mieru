@@ -13,6 +13,13 @@ const LABELS: Record<ThemePreference, string> = {
   dark: '다크',
 };
 
+/** The same names with the right particle for "…로 바꾸기". */
+const TARGET_LABELS: Record<ThemePreference, string> = {
+  system: '시스템 설정으로',
+  light: '라이트로',
+  dark: '다크로',
+};
+
 const ICONS: Record<ThemePreference, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
 
 /** Cycles system → light → dark; the label says what is on now and what a click does. */
@@ -24,7 +31,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setThemePreference(next)}
-      aria-label={`테마: ${LABELS[preference]}. 눌러서 ${LABELS[next]}로 바꾸기`}
+      aria-label={`테마: ${LABELS[preference]}. 눌러서 ${TARGET_LABELS[next]} 바꾸기`}
       title={`테마: ${LABELS[preference]}`}
       className="grid size-9 place-items-center rounded-full text-slate hover:bg-haze hover:text-sumi"
     >

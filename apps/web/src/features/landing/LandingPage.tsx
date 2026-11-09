@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { ModelListItem } from '@mieru/shared';
+import type { ModelListItem, OpFamily, StripSegment } from '@mieru/shared';
 import { AppHeader } from '../../components/AppHeader.js';
 import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS } from '../../design/op-palette.js';
@@ -12,7 +12,6 @@ import { formatParams } from '../../lib/format.js';
 import { exploreKeys, getExplore } from '../explore/api.js';
 import { FORMAT_LABELS } from '../models/labels.js';
 import { KanjiOrbit } from './KanjiOrbit.js';
-import { RESNET_STRIP, TRANSFORMER_STRIP, UNET_STRIP } from './sample-strips.js';
 import { TiltedOrbit } from './TiltedOrbit.js';
 
 const CONTAINER = 'mx-auto w-full max-w-[1280px] px-5 md:px-10';
@@ -114,6 +113,10 @@ function CardBody({ model, isExample }: { model: CardModel; isExample: boolean }
   );
 }
 
+/** Op mixes grouped by family, so each reads as a few clear arcs on a small ring. */
+const strip = (...weights: [OpFamily, number][]): StripSegment[] =>
+  weights.map(([family, weight]) => ({ family, weight }));
+
 /** Shown while nothing is public yet, so the section still explains itself; never linked. */
 const EXAMPLE_MODELS: CardModel[] = [
   {
@@ -123,25 +126,44 @@ const EXAMPLE_MODELS: CardModel[] = [
     format: 'onnx',
     starCount: 0,
     totalParams: 14_400_000,
-    strip: TRANSFORMER_STRIP,
+    strip: strip(
+      ['compute', 34],
+      ['attention', 22],
+      ['normalization', 14],
+      ['activation', 10],
+      ['shape', 14],
+      ['other', 6],
+    ),
   },
   {
     ownerName: 'kai',
-    name: 'resnet-mini-cifar10',
+    name: 'resnet-cifar10',
     description: '분기 두 개가 Add로 합쳐지는 작은 잔차 CNN',
     format: 'onnx',
     starCount: 0,
     totalParams: 272_000,
-    strip: RESNET_STRIP,
+    strip: strip(
+      ['compute', 44],
+      ['normalization', 22],
+      ['activation', 18],
+      ['shape', 12],
+      ['other', 4],
+    ),
   },
   {
     ownerName: 'ren',
-    name: 'unet-small-seg',
+    name: 'unet-seg',
     description: '인코더와 디코더가 건너뛰기 연결로 이어진 분할 모델',
     format: 'safetensors',
     starCount: 0,
     totalParams: 7_800_000,
-    strip: UNET_STRIP,
+    strip: strip(
+      ['compute', 40],
+      ['normalization', 18],
+      ['activation', 16],
+      ['shape', 22],
+      ['other', 4],
+    ),
   },
 ];
 
