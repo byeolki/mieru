@@ -12,11 +12,27 @@ export const IMAGENET_STD = [0.229, 0.224, 0.225] as const;
 export type Normalization = 'none' | 'imagenet';
 
 /** Images are NCHW tensors with 1 or 3 channels; everything else is fed as plain numbers. */
+const CHANNEL_DIM = /chan/i;
+const IMAGE_INPUT_NAME = /pixel|image|img/i;
+
+/**
+ * NCHW tensors with 1 or 3 channels are images. Optimum and transformers exports leave every
+ * dim symbolic (`[batch_size, num_channels, height, width]`), so a channel-named dim or an
+ * image-like input name counts too.
+ */
 export function inputKindOf(tensor: TensorInfo): InputKind {
   const shape = tensor.shape;
-  if (shape?.length === 4 && (shape[1] === 1 || shape[1] === 3)) return 'image';
-  return 'numbers';
+  if (shape?.length !== 4) return 'numbers';
+  const channels = shape[1];
+  if (channels === 1 || channels === 3) return 'image';
+  const isSymbolic = typeof channels === 'string' || channels === null;
+  if (!isSymbolic) return 'numbers';
+  const looksLikeChannels = typeof channels === 'string' && CHANNEL_DIM.test(channels);
+  return looksLikeChannels || IMAGE_INPUT_NAME.test(tensor.name) ? 'image' : 'numbers';
 }
+
+/** Symbolic channel count for image inputs: RGB. */
+const DEFAULT_IMAGE_CHANNELS = 3;
 
 /** Length used for dynamic sequence dims, long enough for a few tokens without being slow. */
 const DEFAULT_SEQUENCE_LENGTH = 8;
@@ -56,6 +72,7 @@ function namedDimDefault(name: string, context: DimContext): number {
  */
 export function defaultDim(dim: Dim, context: DimContext): number {
   if (typeof dim === 'number' && dim > 0) return dim;
+  if (context.isImage && context.axis === 1) return DEFAULT_IMAGE_CHANNELS;
   if (context.isImage && context.axis >= 2) return DEFAULT_IMAGE_SIDE;
   if (typeof dim !== 'string') return namedDimDefault('', context);
   return dim.split('+').reduce((total, term) => total + namedDimDefault(term, context), 0);

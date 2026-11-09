@@ -154,3 +154,22 @@ describe('seededValues', () => {
     expect(values.every((value) => value >= -1 && value <= 1)).toBe(true);
   });
 });
+
+describe('fully symbolic image inputs', () => {
+  const pixelValues = {
+    name: 'pixel_values',
+    dtype: 'float32',
+    shape: ['batch_size', 'num_channels', 'height', 'width'],
+  };
+
+  it('treats a channel-named dim as an RGB image', () => {
+    expect(inputKindOf(pixelValues)).toBe('image');
+    expect(concreteShape(pixelValues)).toEqual([1, 3, 224, 224]);
+  });
+
+  it('keeps other symbolic rank-4 inputs as numbers', () => {
+    expect(inputKindOf({ name: 'hidden', dtype: 'float32', shape: ['b', 'h', 's', 'd'] })).toBe(
+      'numbers',
+    );
+  });
+});
