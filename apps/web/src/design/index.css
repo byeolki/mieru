@@ -1,9 +1,16 @@
 @import 'tailwindcss';
 @import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 @import '@fontsource-variable/unbounded';
-@import '@fontsource/orbit/korean-400.css';
-@import '@fontsource/orbit/latin-400.css';
+@import '@fontsource/jua/korean-400.css';
+@import '@fontsource/jua/latin-400.css';
 @import '@fontsource-variable/jetbrains-mono';
+
+@font-face {
+  font-family: 'Mieru Kanji';
+  font-display: swap;
+  src: url('./fonts/dela-gothic-one-mieru.woff2') format('woff2');
+  unicode-range: U+3048, U+308B, U+898B;
+}
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
@@ -13,8 +20,10 @@
   --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
   /* Latin titles and numbers. Unbounded has no Hangul, which falls back to Pretendard. */
   --font-display: 'Unbounded Variable', 'Pretendard Variable', sans-serif;
-  /* Korean headings and tabs; one weight only. */
-  --font-heading: 'Orbit', 'Pretendard Variable', sans-serif;
+  /* Korean headings and tabs: round and heavy, one weight only. */
+  --font-heading: 'Jua', 'Pretendard Variable', sans-serif;
+  /* Only the three glyphs of 見える, subset from Dela Gothic One. */
+  --font-kanji: 'Mieru Kanji', 'Pretendard Variable', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
   --color-paper: #f3ecfa;
@@ -127,11 +136,6 @@
     min-height: 100dvh;
   }
 
-  /* Orbit's built-in word spacing is wide for Korean; tighten it wherever it's used. */
-  .font-heading {
-    word-spacing: -0.2em;
-  }
-
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
@@ -147,6 +151,15 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* 見える drawn like the logo sticker: white fill, pink outline, lilac drop. */
+@utility kanji-sticker {
+  font-family: var(--font-kanji);
+  color: var(--color-surface);
+  -webkit-text-stroke: 0.04em var(--color-mieru-pink);
+  paint-order: stroke fill;
+  text-shadow: 0 0.065em 0 var(--color-lilac);
 }
 
 @utility tabular {
@@ -280,63 +293,8 @@
   }
 }
 
-/* Clears the middle for the headline and fades out toward the product window below. */
-@utility glyph-field-mask {
-  mask-image:
-    radial-gradient(ellipse 66% 56% at 50% 42%, transparent 34%, #000 80%),
-    linear-gradient(to bottom, #000 55%, transparent 100%);
-  mask-composite: intersect;
-}
-
-/* Hero variant: the field stays on the right, behind the product window, and off the copy. */
-@utility glyph-field-mask-side {
-  mask-image:
-    linear-gradient(90deg, transparent 30%, #000 70%),
-    linear-gradient(to bottom, #000 60%, transparent 100%);
-  mask-composite: intersect;
-}
-
-/* One light band crosses the glyph field: the name 見える means "can be seen". The band is a
-   narrow window moving right while the pink copy inside moves left by the same distance, so the
-   glyphs stay aligned with the base layer. Only transforms animate, so it never repaints. */
-@keyframes glyph-window {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(400%);
-  }
-}
-
-@keyframes glyph-window-content {
-  from {
-    transform: translateX(25%);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-@utility glyph-window {
-  width: 25%;
-  mask-image: linear-gradient(90deg, transparent, #000 50%, transparent);
-  animation: glyph-window 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
-@utility glyph-window-content {
-  width: 400%;
-  animation: glyph-window-content 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
-/* Landing hero: the structure unfolds once on load. The strip fills, nodes drop in top to
-   bottom, edges draw toward each node, and the inspector arrives last. `--i` is a node's
-   position in the sequence. Only transform, opacity and stroke offsets animate. */
-@keyframes hero-strip-in {
-  from {
-    transform: scaleX(0);
-  }
-}
-
+/* Landing hero: the graph nodes riding the orbit drop in once, one after another. `--i` is a
+   node's position in the sequence. */
 @keyframes hero-node-in {
   from {
     opacity: 0;
@@ -344,37 +302,7 @@
   }
 }
 
-@keyframes hero-edge-in {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes hero-inspector-in {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-}
-
-@utility hero-strip-in {
-  animation: hero-strip-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
-}
-
 @utility hero-node-in {
   animation: hero-node-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms + 450ms);
-}
-
-@utility hero-edge-in {
-  stroke-dasharray: 1;
-  animation: hero-edge-in 320ms ease-out both;
-  animation-delay: calc(var(--i, 0) * 70ms + 380ms);
-}
-
-@utility hero-inspector-in {
-  animation: hero-inspector-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms both;
+  animation-delay: calc(var(--i, 0) * 90ms + 250ms);
 }

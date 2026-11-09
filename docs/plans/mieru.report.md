@@ -178,6 +178,11 @@ collapsed sidebar is a 64px icon rail instead of the mockup's ~100px.
   op mix with the parameter count) and a one-row header on the other tabs; pill tabs.
 - Graph: pill nodes with a family ring, selected node in blush with the sticker outline, canvas
   and inspector as rounded panels.
+- Landing (mockup L1 v2): the hero is 見える with the op-mix ring orbiting through it and graph
+  nodes on the outer orbit; trending cards with small rings; four features shown as product
+  fragments. The interactive product window was removed, and the smoke test now checks the hero
+  caption instead. Headings switched from Orbit to Jua. 見える uses a 948-byte subset of Dela
+  Gothic One (OFL, license next to the font file) instead of the 944 KB Japanese file.
 - Tests: unit 144 passed; e2e 18 passed (headless). `theme.spec.ts` now expects the new paper
   colors. Integration tests were not rerun because the server did not change.
 
