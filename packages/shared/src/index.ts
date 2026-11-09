@@ -8,3 +8,4 @@ export * from './parsed-model.js';
 export * from './roles.js';
 export * from './sharing.js';
 export * from './versions.js';
+export * from './weights.js';

@@ -1,5 +1,6 @@
 import { Check, ChevronRight, Copy, MessageSquarePlus, PanelRightClose } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import type {
   AttrValue,
   ModelSummary,
@@ -48,12 +49,22 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function TensorRow({ tensor }: { tensor: TensorInfo }) {
+function TensorRow({ tensor, href }: { tensor: TensorInfo; href?: string }) {
   return (
     <li className="flex items-baseline justify-between gap-3 py-1">
-      <span className="truncate font-mono text-xs" title={tensor.name}>
-        {tensor.name}
-      </span>
+      {href ? (
+        <Link
+          to={href}
+          className="truncate font-mono text-xs underline decoration-fog underline-offset-2 hover:text-primary hover:decoration-primary"
+          title={`${tensor.name} 가중치 분포 보기`}
+        >
+          {tensor.name}
+        </Link>
+      ) : (
+        <span className="truncate font-mono text-xs" title={tensor.name}>
+          {tensor.name}
+        </span>
+      )}
       <span className="shrink-0 font-mono text-[11px] text-slate">
         {tensor.dtype ?? '?'} {formatShape(tensor.shape)}
       </span>
@@ -107,6 +118,8 @@ interface InspectorProps {
   onExpandGroup: (path: string) => void;
   onClose: () => void;
   onOpenIssue?: (nodeRef: string) => void;
+  /** Where a weight tensor's histogram lives; parameter names become links when given. */
+  tensorHref?: (name: string) => string;
 }
 
 /** Docked right panel: details of the selected node or group, or the whole-model summary. */
@@ -117,6 +130,7 @@ export function Inspector({
   onExpandGroup,
   onClose,
   onOpenIssue,
+  tensorHref,
 }: InspectorProps) {
   const header = (title: string, subtitle: string, copyValue?: string) => (
     <div className="flex items-start gap-2 px-5 pt-5 pb-4">
@@ -186,7 +200,7 @@ export function Inspector({
           <Section title={`파라미터 · ${node.paramCount.toLocaleString('ko-KR')}`}>
             <ul>
               {node.params.map((tensor) => (
-                <TensorRow key={tensor.name} tensor={tensor} />
+                <TensorRow key={tensor.name} tensor={tensor} href={tensorHref?.(tensor.name)} />
               ))}
             </ul>
           </Section>

@@ -13,6 +13,7 @@ import { registerIssueRoutes } from './features/issues/routes.js';
 import { registerSharingRoutes } from './features/sharing/routes.js';
 import { registerStarRoutes } from './features/stars/routes.js';
 import { registerUploadRoutes } from './features/uploads/tus.js';
+import { registerWeightRoutes } from './features/weights/routes.js';
 import { registerUserRoutes } from './features/users/routes.js';
 import { JobTracker } from './jobs/tracker.js';
 import { registerHealthRoutes } from './observability/health.js';
@@ -105,6 +106,7 @@ export async function buildApp({
   registerStarRoutes(app, { ...routeDeps, requireModelAccess });
   registerExploreRoutes(app, { db, clock });
   registerModerationRoutes(app, { ...routeDeps, requireModelAccess });
+  registerWeightRoutes(app, { config, db, requireModelAccess });
   await registerStaticSpa(app, { config, db });
 
   return app;

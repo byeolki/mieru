@@ -98,6 +98,12 @@ export const router = createBrowserRouter([
             }),
           },
           {
+            path: 'weights',
+            lazy: async () => ({
+              Component: (await import('./features/weights/WeightsTab.js')).WeightsTab,
+            }),
+          },
+          {
             path: 'versions',
             lazy: async () => ({
               Component: (await import('./features/versions/VersionsTab.js')).VersionsTab,

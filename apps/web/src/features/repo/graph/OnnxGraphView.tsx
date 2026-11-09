@@ -46,6 +46,7 @@ interface OnnxGraphViewProps {
   issueCounts?: ReadonlyMap<string, number>;
   /** Version-diff marks by node name; unmarked nodes are unchanged. */
   diffMarks?: ReadonlyMap<string, DiffMark>;
+  tensorHref?: (name: string) => string;
   onOpenIssue?: (nodeRef: string) => void;
   /** Node to select and center on first render (deep links from issues). */
   initialFocusName?: string | null;
@@ -84,6 +85,7 @@ function GraphCanvas({
   summary,
   issueCounts,
   diffMarks,
+  tensorHref,
   onOpenIssue,
   initialFocusName,
 }: OnnxGraphViewProps) {
@@ -434,6 +436,7 @@ function GraphCanvas({
           aria-label="노드 정보"
         >
           <Inspector
+            tensorHref={tensorHref}
             selection={selection}
             payload={payload}
             summary={summary}

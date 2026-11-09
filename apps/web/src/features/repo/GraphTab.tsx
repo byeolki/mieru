@@ -96,6 +96,9 @@ export function GraphTab() {
             payload={payload}
             summary={summary}
             initialFocusName={focusNode}
+            tensorHref={(name) =>
+              `/m/${model.id}/weights?name=${encodeURIComponent(name)}${version ? `&version=${String(version)}` : ''}`
+            }
             issueCounts={counts.data ? new Map(Object.entries(counts.data)) : undefined}
             onOpenIssue={(nodeRef) =>
               void navigate(`/m/${model.id}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)

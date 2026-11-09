@@ -9,6 +9,7 @@ import {
   Flag,
   FileText,
   GitFork,
+  Grid3x3,
   History,
   Globe,
   Link2,
@@ -206,6 +207,9 @@ function RepoHeader({ model }: { model: ModelDetail }) {
               <Play className="size-4" aria-hidden="true" /> 실행
             </NavLink>
           )}
+          <NavLink to={`/m/${model.id}/weights`} className={TAB_CLASS}>
+            <Grid3x3 className="size-4" aria-hidden="true" /> 가중치
+          </NavLink>
           <NavLink to={`/m/${model.id}/stats`} className={TAB_CLASS}>
             <BarChart3 className="size-4" aria-hidden="true" /> 통계
           </NavLink>
