@@ -246,6 +246,7 @@ function GraphCanvas({
           data: {
             tensor: item.tensor,
             direction: item.direction,
+            count: item.count,
             isSelected,
             isDimmed,
             issueCount: 0,

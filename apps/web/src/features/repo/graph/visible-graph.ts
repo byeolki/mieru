@@ -33,7 +33,14 @@ export interface GroupTree {
 export type VisibleItem =
   | { kind: 'node'; id: string; node: OnnxNode }
   | { kind: 'group'; id: string; group: GroupInfo }
-  | { kind: 'io'; id: string; tensor: TensorInfo; direction: 'in' | 'out' };
+  | {
+      kind: 'io';
+      id: string;
+      tensor: TensorInfo;
+      direction: 'in' | 'out';
+      /** How many graph inputs/outputs this item stands for; above 1 it is a folded family. */
+      count: number;
+    };
 
 export interface VisibleEdge {
   id: string;
@@ -218,6 +225,59 @@ export function expandAncestors(
   return next;
 }
 
+/** A numbered family needs at least this many members before it folds into one I/O item. */
+const IO_FOLD_MIN = 4;
+const NUMBERED_NAME = /^(.*?)[._]\d+(?=[._]|$)/;
+
+type IoItem = Extract<VisibleItem, { kind: 'io' }>;
+
+/**
+ * Graph inputs or outputs as canvas items. Numbered families such as `past_key_values.0.key`…
+ * `past_key_values.17.value` (an LLM's KV cache) fold into one item each, so dozens of cache
+ * tensors don't spread the layout across the screen. `aliases` maps every original io id to the
+ * id of the item that shows it.
+ */
+export function foldIo(
+  tensors: readonly TensorInfo[],
+  direction: 'in' | 'out',
+): { items: IoItem[]; aliases: Map<string, string> } {
+  const families = new Map<string, TensorInfo[]>();
+  for (const tensor of tensors) {
+    const prefix = NUMBERED_NAME.exec(tensor.name)?.[1];
+    if (prefix) families.set(prefix, [...(families.get(prefix) ?? []), tensor]);
+  }
+  const items: IoItem[] = [];
+  const aliases = new Map<string, string>();
+  const emitted = new Set<string>();
+  for (const tensor of tensors) {
+    const ownId = `${direction}:${tensor.name}`;
+    const prefix = NUMBERED_NAME.exec(tensor.name)?.[1];
+    const family = prefix ? families.get(prefix) : undefined;
+    if (!prefix || !family || family.length < IO_FOLD_MIN) {
+      items.push({ kind: 'io', id: ownId, tensor, direction, count: 1 });
+      aliases.set(ownId, ownId);
+      continue;
+    }
+    const foldedId = `${direction}:${prefix}.*`;
+    aliases.set(ownId, foldedId);
+    if (emitted.has(foldedId)) continue;
+    emitted.add(foldedId);
+    const dtypes = new Set(family.map((member) => member.dtype));
+    items.push({
+      kind: 'io',
+      id: foldedId,
+      tensor: {
+        name: `${prefix}.*`,
+        dtype: dtypes.size === 1 ? (family[0]?.dtype ?? null) : null,
+        shape: family[0]?.shape ?? null,
+      },
+      direction,
+      count: family.length,
+    });
+  }
+  return { items, aliases };
+}
+
 /** Computes what the canvas shows for the current expansion state. */
 export function buildVisibleGraph(
   payload: OnnxGraphPayload,
@@ -225,12 +285,10 @@ export function buildVisibleGraph(
   expanded: ReadonlySet<string>,
 ): VisibleGraph {
   const nodesById = new Map(payload.nodes.map((node) => [node.id, node]));
-  const items: VisibleItem[] = payload.inputs.map((tensor) => ({
-    kind: 'io' as const,
-    id: `in:${tensor.name}`,
-    tensor,
-    direction: 'in' as const,
-  }));
+  const inputs = foldIo(payload.inputs, 'in');
+  const outputs = foldIo(payload.outputs, 'out');
+  const ioAliases = new Map([...inputs.aliases, ...outputs.aliases]);
+  const items: VisibleItem[] = [...inputs.items];
   const seenGroups = new Set<string>();
   for (const node of payload.nodes) {
     const representative = representativeOf(node.id, tree, expanded);
@@ -242,14 +300,14 @@ export function buildVisibleGraph(
       if (group) items.push({ kind: 'group', id: representative, group });
     }
   }
-  for (const tensor of payload.outputs)
-    items.push({ kind: 'io', id: `out:${tensor.name}`, tensor, direction: 'out' });
+  items.push(...outputs.items);
 
   const isCapped = items.length > HARD_CAP;
   const kept = isCapped ? items.slice(0, HARD_CAP) : items;
   // Edges may only connect items that are actually drawn; the layout engine rejects the rest.
   const visibleIds = new Set(kept.map((item) => item.id));
-  const resolve = (id: string) => (nodesById.has(id) ? representativeOf(id, tree, expanded) : id);
+  const resolve = (id: string) =>
+    nodesById.has(id) ? representativeOf(id, tree, expanded) : (ioAliases.get(id) ?? id);
   const merged = new Map<string, VisibleEdge>();
   for (const edge of payload.edges as readonly OnnxEdge[]) {
     const source = resolve(edge.source);

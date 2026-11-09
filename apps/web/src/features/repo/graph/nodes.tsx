@@ -23,7 +23,12 @@ export type OpNodeData = {
   diffMark: DiffMark | null;
 } & Decoration;
 export type GroupNodeData = { group: GroupInfo; diffCount: number } & Decoration;
-export type IoNodeData = { tensor: TensorInfo; direction: 'in' | 'out' } & Decoration;
+export type IoNodeData = {
+  tensor: TensorInfo;
+  direction: 'in' | 'out';
+  /** Above 1, this node stands for a folded family of inputs or outputs. */
+  count: number;
+} & Decoration;
 
 const handleClass = '!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent';
 
@@ -168,7 +173,10 @@ export const IoNodeView = memo(function IoNodeView({ data }: NodeProps<Node<IoNo
       <span className="text-[11px] font-medium text-slate">
         {data.direction === 'in' ? '입력' : '출력'}
       </span>
-      <span className="truncate font-mono text-[11px]">{data.tensor.name}</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{data.tensor.name}</span>
+      {data.count > 1 && (
+        <span className="tabular shrink-0 font-display text-[10px] text-slate">×{data.count}</span>
+      )}
       {data.direction === 'in' && (
         <Handle type="source" position={Position.Bottom} className={handleClass} />
       )}

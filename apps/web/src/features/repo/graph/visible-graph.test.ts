@@ -7,6 +7,7 @@ import {
   buildVisibleGraph,
   connectedIds,
   expandAncestors,
+  foldIo,
   initialExpanded,
   representativeOf,
 } from './visible-graph.js';
@@ -224,5 +225,28 @@ describe('hard cap', () => {
     expect(visible.isCapped).toBe(true);
     expect(visible.items).toHaveLength(HARD_CAP);
     expect(visible.edges.every((edge) => ids.has(edge.source) && ids.has(edge.target))).toBe(true);
+  });
+});
+
+describe('foldIo', () => {
+  const tensor = (name: string) => ({ name, dtype: 'float32', shape: [1] });
+
+  it('folds a numbered KV-cache family and keeps the rest', () => {
+    const cache = Array.from({ length: 6 }, (_, index) => [
+      tensor(`past_key_values.${String(index)}.key`),
+      tensor(`past_key_values.${String(index)}.value`),
+    ]).flat();
+    const { items, aliases } = foldIo([tensor('input_ids'), ...cache], 'in');
+    expect(items.map((item) => [item.tensor.name, item.count])).toEqual([
+      ['input_ids', 1],
+      ['past_key_values.*', 12],
+    ]);
+    expect(aliases.get('in:past_key_values.3.value')).toBe('in:past_key_values.*');
+    expect(aliases.get('in:input_ids')).toBe('in:input_ids');
+  });
+
+  it('leaves small numbered groups alone', () => {
+    const { items } = foldIo([tensor('x.0'), tensor('x.1')], 'out');
+    expect(items).toHaveLength(2);
   });
 });
