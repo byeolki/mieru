@@ -175,7 +175,9 @@ function LiveTrending() {
     <section aria-labelledby="live-trending">
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <h2 id="live-trending" className="font-heading text-[1.75rem]">
-          {sections.data?.trendingIsFallback ? '스타를 많이 받은 모델' : '이번 주 화제'}
+          {items.length > 0 && sections.data?.trendingIsFallback
+            ? '스타를 많이 받은 모델'
+            : '이번 주 화제'}
         </h2>
         <Link to="/explore" className="text-sm text-slate hover:text-primary">
           모두 보기
