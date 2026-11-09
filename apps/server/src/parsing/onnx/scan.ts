@@ -5,13 +5,24 @@ import { onnxDtype } from '../dtypes.js';
 import { ParseError } from '../errors.js';
 import { LIMITS } from '../limits.js';
 import { ProtoCursor, WIRE_FIXED32, WIRE_LENGTH_DELIMITED, WIRE_VARINT } from '../proto-cursor.js';
+import type { TensorEncoding } from '../tensor-index.js';
 import descriptor from './proto/onnx-proto.json' with { type: 'json' };
 
 const root = protobuf.Root.fromJSON(descriptor);
 const ValueInfoProto = root.lookupType('onnx.ValueInfoProto');
 
 const DATA_LOCATION_EXTERNAL = 1;
-const DATA_FIELDS = new Set([4, 5, 6, 7, 9, 10, 11]);
+const RAW_DATA_FIELD = 9;
+/** TensorProto payload fields and how their elements are stored. */
+const DATA_FIELD_ENCODINGS = new Map<number, TensorEncoding>([
+  [4, 'raw'], // float_data, packed fixed32
+  [5, 'varint'], // int32_data
+  [6, 'raw'], // string_data; never decoded, only located
+  [7, 'varint'], // int64_data
+  [RAW_DATA_FIELD, 'raw'],
+  [10, 'raw'], // double_data, packed fixed64
+  [11, 'varint'], // uint64_data
+]);
 
 const ATTRIBUTE_TYPE = {
   FLOAT: 1,
@@ -26,6 +37,14 @@ const ATTRIBUTE_TYPE = {
   GRAPHS: 10,
 } as const;
 
+/** Where an external tensor's bytes live, from its `external_data` entries. */
+export interface ExternalLocation {
+  location: string;
+  offset: number;
+  /** Absent in the file means "to the end of the tensor", which the builder computes. */
+  length: number | null;
+}
+
 export interface RawTensor {
   name: string;
   dataType: number;
@@ -33,7 +52,16 @@ export interface RawTensor {
   /** Where the tensor payload sits in the file (raw_data or a typed data field). */
   dataOffset: number | null;
   dataLength: number;
+  encoding: TensorEncoding;
   isExternal: boolean;
+  external: ExternalLocation | null;
+}
+
+/** A sparse initializer: only its dense shape and dtype matter for parameter counts. */
+export interface RawSparseTensor {
+  name: string;
+  dataType: number;
+  dims: number[];
 }
 
 export interface RawValueInfo {
@@ -62,6 +90,9 @@ export interface RawModel {
   metadata: Record<string, string>;
   nodes: RawNode[];
   initializers: RawTensor[];
+  sparseInitializers: RawSparseTensor[];
+  /** Weights inside If/Loop/Scan bodies: counted as parameters, not drawn as graph nodes. */
+  subgraphTensors: RawTensor[];
   inputs: RawValueInfo[];
   outputs: RawValueInfo[];
   valueInfo: RawValueInfo[];
@@ -70,6 +101,7 @@ export interface RawModel {
 interface ScanState {
   nodeCount: number;
   tensorCount: number;
+  subgraphTensors: RawTensor[];
 }
 
 async function readName(cursor: ProtoCursor): Promise<string> {
@@ -131,6 +163,65 @@ async function readRepeatedFloat(
   return count > take;
 }
 
+async function readRepeatedInt64(
+  cursor: ProtoCursor,
+  wireType: number,
+  into: (number | string)[],
+  limit: number,
+): Promise<boolean> {
+  if (wireType === WIRE_VARINT) {
+    const value = await cursor.readInt64();
+    if (into.length < limit) into.push(value);
+    return into.length >= limit;
+  }
+  if (wireType !== WIRE_LENGTH_DELIMITED)
+    throw new ParseError('bad_protobuf', 'Bad repeated int encoding');
+  const { start, end } = await cursor.readLengthDelimitedRange();
+  const packed = cursor.child(start, end);
+  let truncated = false;
+  while (!packed.isDone) {
+    const value = await packed.readInt64();
+    if (into.length < limit) into.push(value);
+    else truncated = true;
+  }
+  return truncated;
+}
+
+async function scanStringEntry(
+  cursor: ProtoCursor,
+  maxValueBytes: number,
+): Promise<[string, string]> {
+  let key = '';
+  let value = '';
+  while (!cursor.isDone) {
+    const field = await cursor.readFieldHeader();
+    if (field.fieldNumber === 1) key = await cursor.readString(LIMITS.maxNameBytes);
+    else if (field.fieldNumber === 2) value = await cursor.readString(maxValueBytes);
+    else await cursor.skip(field.wireType);
+  }
+  return [key, value];
+}
+
+function parseExternalNumber(text: string, what: string): number {
+  if (!/^\d+$/.test(text)) throw new ParseError('bad_protobuf', `Bad external data ${what}`);
+  const value = Number(text);
+  if (!Number.isSafeInteger(value))
+    throw new ParseError('limits_exceeded', 'External offset too large');
+  return value;
+}
+
+function externalLocationOf(entries: ReadonlyMap<string, string>): ExternalLocation {
+  const location = entries.get('location');
+  if (!location) throw new ParseError('bad_protobuf', 'External tensor without a location');
+  const offset = entries.get('offset');
+  const length = entries.get('length');
+  return {
+    location,
+    offset: offset === undefined ? 0 : parseExternalNumber(offset, 'offset'),
+    length: length === undefined ? null : parseExternalNumber(length, 'length'),
+  };
+}
+
 /** Scans a TensorProto header; payload bytes are located, never read. */
 export async function scanTensor(cursor: ProtoCursor, state: ScanState): Promise<RawTensor> {
   state.tensorCount += 1;
@@ -142,8 +233,11 @@ export async function scanTensor(cursor: ProtoCursor, state: ScanState): Promise
     dims: [],
     dataOffset: null,
     dataLength: 0,
+    encoding: 'raw',
     isExternal: false,
+    external: null,
   };
+  const externalEntries = new Map<string, string>();
   while (!cursor.isDone) {
     const field = await cursor.readFieldHeader();
     if (field.fieldNumber === 1) {
@@ -154,33 +248,82 @@ export async function scanTensor(cursor: ProtoCursor, state: ScanState): Promise
       tensor.dataType = await cursor.readVarint();
     } else if (field.fieldNumber === 8 && field.wireType === WIRE_LENGTH_DELIMITED) {
       tensor.name = await readName(cursor);
-    } else if (field.fieldNumber === 13) {
+    } else if (field.fieldNumber === 13 && field.wireType === WIRE_LENGTH_DELIMITED) {
       tensor.isExternal = true;
-      await cursor.skip(field.wireType);
+      const { start, end } = await cursor.readLengthDelimitedRange();
+      const [key, value] = await scanStringEntry(cursor.child(start, end), LIMITS.maxNameBytes);
+      if (key) externalEntries.set(key, value);
     } else if (field.fieldNumber === 14 && field.wireType === WIRE_VARINT) {
       if ((await cursor.readVarint()) === DATA_LOCATION_EXTERNAL) tensor.isExternal = true;
-    } else if (DATA_FIELDS.has(field.fieldNumber) && field.wireType === WIRE_LENGTH_DELIMITED) {
+    } else if (
+      DATA_FIELD_ENCODINGS.has(field.fieldNumber) &&
+      field.wireType === WIRE_LENGTH_DELIMITED
+    ) {
       const { start, end } = await cursor.readLengthDelimitedRange();
-      if (tensor.dataOffset === null || field.fieldNumber === 9) {
+      if (tensor.dataOffset === null || field.fieldNumber === RAW_DATA_FIELD) {
         tensor.dataOffset = start;
         tensor.dataLength = end - start;
+        tensor.encoding = DATA_FIELD_ENCODINGS.get(field.fieldNumber) ?? 'raw';
       }
     } else {
       await cursor.skip(field.wireType);
     }
   }
+  if (tensor.isExternal) {
+    tensor.external = externalLocationOf(externalEntries);
+    tensor.dataOffset = null;
+    tensor.dataLength = 0;
+    tensor.encoding = 'raw';
+  }
   return tensor;
 }
 
-/** Counts nodes in a nested GraphProto (If/Loop/Scan bodies) without decoding them. */
-async function countGraphNodes(cursor: ProtoCursor): Promise<number> {
-  let count = 0;
+/** Reads a SparseTensorProto's dense shape and dtype; its values and indices are skipped. */
+async function scanSparseTensor(cursor: ProtoCursor, state: ScanState): Promise<RawSparseTensor> {
+  const sparse: RawSparseTensor = { name: '', dataType: 0, dims: [] };
   while (!cursor.isDone) {
     const field = await cursor.readFieldHeader();
-    if (field.fieldNumber === 1) count += 1;
-    await cursor.skip(field.wireType);
+    if (field.fieldNumber === 1 && field.wireType === WIRE_LENGTH_DELIMITED) {
+      const { start, end } = await cursor.readLengthDelimitedRange();
+      const values = await scanTensor(cursor.child(start, end), state);
+      sparse.name = values.name;
+      sparse.dataType = values.dataType;
+    } else if (field.fieldNumber === 3) {
+      await readRepeatedInt(cursor, field.wireType, sparse.dims, LIMITS.maxDims + 1);
+      if (sparse.dims.length > LIMITS.maxDims)
+        throw new ParseError('limits_exceeded', 'Too many dimensions');
+    } else {
+      await cursor.skip(field.wireType);
+    }
   }
-  return count;
+  return sparse;
+}
+
+/**
+ * Walks an If/Loop/Scan body: collects its initializers and Constant tensors (nested bodies
+ * included, through scanNode) and returns its direct node count.
+ */
+async function scanSubgraph(cursor: ProtoCursor, state: ScanState): Promise<number> {
+  let nodeCount = 0;
+  while (!cursor.isDone) {
+    const field = await cursor.readFieldHeader();
+    if (field.wireType !== WIRE_LENGTH_DELIMITED) {
+      await cursor.skip(field.wireType);
+      continue;
+    }
+    const { start, end } = await cursor.readLengthDelimitedRange();
+    const nested = cursor.child(start, end);
+    if (field.fieldNumber === 1) {
+      nodeCount += 1;
+      const node = await scanNode(nested, state);
+      const output = node.outputs[0];
+      if (node.constantTensor && output)
+        state.subgraphTensors.push({ ...node.constantTensor, name: output });
+    } else if (field.fieldNumber === 5) {
+      state.subgraphTensors.push(await scanTensor(nested, state));
+    }
+  }
+  return nodeCount;
 }
 
 function tensorShapeOf(tensor: RawTensor): { dtype: string; shape: number[] } {
@@ -197,12 +340,12 @@ async function scanAttribute(
   let name = '';
   let type = 0;
   let floatValue = 0;
-  let intValue = 0;
+  let intValue: number | string = 0;
   let stringValue = '';
   let tensor: RawTensor | null = null;
   let graphNodes = 0;
   const floats: number[] = [];
-  const ints: number[] = [];
+  const ints: (number | string)[] = [];
   const strings: string[] = [];
   let truncated = false;
 
@@ -219,7 +362,7 @@ async function scanAttribute(
         floatValue = await readFloat32(cursor);
         break;
       case 3:
-        intValue = await cursor.readVarint();
+        intValue = await cursor.readInt64();
         break;
       case 4:
         stringValue = await cursor.readString(LIMITS.maxMetadataValueBytes);
@@ -232,7 +375,7 @@ async function scanAttribute(
       case 6:
       case 11: {
         const { start, end } = await cursor.readLengthDelimitedRange();
-        graphNodes += await countGraphNodes(cursor.child(start, end));
+        graphNodes += await scanSubgraph(cursor.child(start, end), state);
         break;
       }
       case 7:
@@ -242,7 +385,7 @@ async function scanAttribute(
         break;
       case 8:
         truncated =
-          (await readRepeatedInt(cursor, field.wireType, ints, LIMITS.maxAttributeListItems)) ||
+          (await readRepeatedInt64(cursor, field.wireType, ints, LIMITS.maxAttributeListItems)) ||
           truncated;
         break;
       case 9:
@@ -368,18 +511,6 @@ async function scanValueInfo(cursor: ProtoCursor): Promise<RawValueInfo> {
   };
 }
 
-async function scanStringEntry(cursor: ProtoCursor): Promise<[string, string]> {
-  let key = '';
-  let value = '';
-  while (!cursor.isDone) {
-    const field = await cursor.readFieldHeader();
-    if (field.fieldNumber === 1) key = await cursor.readString(LIMITS.maxNameBytes);
-    else if (field.fieldNumber === 2) value = await cursor.readString(LIMITS.maxMetadataValueBytes);
-    else await cursor.skip(field.wireType);
-  }
-  return [key, value];
-}
-
 async function scanOpset(cursor: ProtoCursor): Promise<{ domain: string; version: number }> {
   let domain = '';
   let version = 0;
@@ -417,6 +548,9 @@ async function scanGraph(cursor: ProtoCursor, model: RawModel, state: ScanState)
       case 13:
         model.valueInfo.push(await scanValueInfo(nested));
         break;
+      case 15:
+        model.sparseInitializers.push(await scanSparseTensor(nested, state));
+        break;
       default:
         break;
     }
@@ -429,7 +563,7 @@ async function scanGraph(cursor: ProtoCursor, model: RawModel, state: ScanState)
  */
 export async function scanOnnxModel(source: ByteSource): Promise<RawModel> {
   const cursor = new ProtoCursor(source, 0, source.size);
-  const state: ScanState = { nodeCount: 0, tensorCount: 0 };
+  const state: ScanState = { nodeCount: 0, tensorCount: 0, subgraphTensors: [] };
   const model: RawModel = {
     irVersion: null,
     producerName: '',
@@ -439,6 +573,8 @@ export async function scanOnnxModel(source: ByteSource): Promise<RawModel> {
     metadata: {},
     nodes: [],
     initializers: [],
+    sparseInitializers: [],
+    subgraphTensors: state.subgraphTensors,
     inputs: [],
     outputs: [],
     valueInfo: [],
@@ -476,7 +612,10 @@ export async function scanOnnxModel(source: ByteSource): Promise<RawModel> {
       case 14: {
         const { start, end } = await cursor.readLengthDelimitedRange();
         if (Object.keys(model.metadata).length < LIMITS.maxMetadataEntries) {
-          const [key, value] = await scanStringEntry(cursor.child(start, end));
+          const [key, value] = await scanStringEntry(
+            cursor.child(start, end),
+            LIMITS.maxMetadataValueBytes,
+          );
           if (key) model.metadata[key] = value;
         }
         break;

@@ -18,7 +18,8 @@ import { formatBytes, formatParams, formatRelative } from '../../lib/format.js';
 import { modelKeys } from '../models/api.js';
 import { FAILURE_REASONS } from '../models/labels.js';
 import { useRepo } from '../repo/RepoLayout.js';
-import { useTusUpload } from '../upload/useTusUpload.js';
+import { FILE_SPLIT_ERRORS, splitModelFiles } from '../upload/model-files.js';
+import { useModelUpload } from '../upload/useModelUpload.js';
 import { createVersion, deleteVersion, listVersions, versionKeys } from './api.js';
 
 const ACCEPTED_EXTENSIONS = { onnx: '.onnx', safetensors: '.safetensors' } as const;
@@ -53,10 +54,12 @@ function UsageMeter({ used, limit }: { used: number; limit: number }) {
 function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
   const { t } = useTranslation();
   const { model } = useRepo();
-  const upload = useTusUpload({ targetModelId: model.id });
+  const upload = useModelUpload({ targetModelId: model.id });
   const [note, setNote] = useState('');
+  const [pickError, setPickError] = useState<string | null>(null);
   const create = useMutation({
-    mutationFn: (uploadId: string) => createVersion(model.id, uploadId, note),
+    mutationFn: (files: { uploadId: string; dataUploadIds: string[] }) =>
+      createVersion(model.id, files, note),
     onSuccess: () => {
       upload.clear();
       setNote('');
@@ -74,7 +77,8 @@ function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
         새 버전 올리기
       </h2>
       <p className="mt-1 text-xs text-slate">
-        같은 형식({accept}) 파일만 올릴 수 있어요. 처리가 끝나면 새 버전이 현재 버전이 돼요.
+        같은 형식({accept}) 파일만 올릴 수 있어요. 외부 데이터 파일이 있으면 같이 골라주세요. 처리가
+        끝나면 새 버전이 현재 버전이 돼요.
       </p>
       <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
         <label className="grid gap-1.5 text-sm">
@@ -82,11 +86,16 @@ function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
           {state.phase === 'idle' || state.phase === 'error' ? (
             <input
               type="file"
-              accept={accept}
+              multiple
               aria-label="새 버전 파일"
               onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.start(file);
+                const split = splitModelFiles([...(event.target.files ?? [])]);
+                if (!split.ok) {
+                  setPickError(FILE_SPLIT_ERRORS[split.reason]);
+                  return;
+                }
+                setPickError(null);
+                upload.start(split.model, split.dataFiles);
               }}
               className="text-sm file:mr-3 file:rounded-md file:border file:border-fog file:bg-surface file:px-3 file:py-1.5 file:text-sm"
             />
@@ -116,7 +125,10 @@ function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
         <Button
           disabled={state.phase !== 'done'}
           isLoading={create.isPending}
-          onClick={() => state.phase === 'done' && create.mutate(state.uploadId)}
+          onClick={() =>
+            state.phase === 'done' &&
+            create.mutate({ uploadId: state.uploadId, dataUploadIds: state.dataUploadIds })
+          }
         >
           버전 만들기
         </Button>
@@ -124,6 +136,11 @@ function NewVersionPanel({ onCreated }: { onCreated: () => void }) {
       {state.phase === 'error' && (
         <div className="mt-3">
           <Alert>{state.message}</Alert>
+        </div>
+      )}
+      {pickError && (
+        <div className="mt-3">
+          <Alert>{pickError}</Alert>
         </div>
       )}
       {create.isError && (
@@ -145,7 +162,13 @@ function StatusCell({ version }: { version: VersionListItem }) {
   }
   if (version.status === 'failed') {
     return (
-      <span title={FAILURE_REASONS[version.failureReason ?? ''] ?? undefined}>
+      <span
+        title={
+          [FAILURE_REASONS[version.failureReason ?? ''], version.failureDetail]
+            .filter(Boolean)
+            .join(' · ') || undefined
+        }
+      >
         <Badge tone="danger" icon={<CircleAlert className="size-3" aria-hidden="true" />}>
           분석 실패
         </Badge>

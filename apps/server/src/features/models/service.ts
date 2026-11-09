@@ -24,6 +24,7 @@ import { newId } from '../../ids.js';
 import { releaseUnreferencedBlobs, type BlobLogger } from '../../storage/blobs.js';
 import { resolveModelAccess } from '../sharing/access-service.js';
 import { formatFromFilename } from '../uploads/formats.js';
+import { claimDataUploads } from './data-uploads.js';
 import {
   MODEL_SELECT,
   decodeCursor,
@@ -41,6 +42,7 @@ const PAGE_SIZE_MAX = 50;
 interface UploadRow {
   user_id: string;
   original_name: string;
+  role: 'model' | 'external_data';
   completed_at: Date | null;
   consumed_at: Date | null;
   expires_at: Date;
@@ -60,7 +62,7 @@ export async function createModel(
   return withTransaction(pool, async (connection) => {
     const upload = await selectOne<UploadRow>(
       connection,
-      'SELECT user_id, original_name, completed_at, consumed_at, expires_at FROM uploads WHERE id = ? FOR UPDATE',
+      'SELECT user_id, original_name, role, completed_at, consumed_at, expires_at FROM uploads WHERE id = ? FOR UPDATE',
       [body.uploadId],
     );
     if (upload?.user_id !== userId) throw notFound('Upload not found');
@@ -69,8 +71,12 @@ export async function createModel(
     if (upload.consumed_at) throw conflict('upload_consumed', 'This upload was already used');
     if (upload.expires_at <= now)
       throw conflict('upload_expired', 'The upload expired; upload the file again');
-    if (!formatFromFilename(upload.original_name).ok)
+    const format = formatFromFilename(upload.original_name);
+    if (!format.ok || upload.role !== 'model')
       throw badRequest('unsupported_format', 'Unsupported file format');
+    if (body.dataUploadIds.length > 0 && format.format !== 'onnx') {
+      throw badRequest('external_data_onnx_only', 'Only ONNX models can have external data files');
+    }
 
     const modelId = newId();
     const versionId = newId();
@@ -104,6 +110,13 @@ export async function createModel(
       now,
       body.uploadId,
     ]);
+    await claimDataUploads(connection, {
+      userId,
+      versionId,
+      targetModelId: null,
+      uploadIds: body.dataUploadIds,
+      now,
+    });
     return { modelId, versionId };
   });
 }

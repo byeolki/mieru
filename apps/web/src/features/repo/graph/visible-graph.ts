@@ -240,7 +240,9 @@ export function buildVisibleGraph(
     items.push({ kind: 'io', id: `out:${tensor.name}`, tensor, direction: 'out' });
 
   const isCapped = items.length > HARD_CAP;
-  const visibleIds = new Set(items.map((item) => item.id));
+  const kept = isCapped ? items.slice(0, HARD_CAP) : items;
+  // Edges may only connect items that are actually drawn; the layout engine rejects the rest.
+  const visibleIds = new Set(kept.map((item) => item.id));
   const resolve = (id: string) => (nodesById.has(id) ? representativeOf(id, tree, expanded) : id);
   const merged = new Map<string, VisibleEdge>();
   for (const edge of payload.edges as readonly OnnxEdge[]) {
@@ -253,7 +255,7 @@ export function buildVisibleGraph(
     else merged.set(key, { id: key, source, target, tensor: edge.tensor, weight: 1 });
   }
   return {
-    items: isCapped ? items.slice(0, HARD_CAP) : items,
+    items: kept,
     edges: [...merged.values()],
     isCapped,
   };

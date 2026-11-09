@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
   BarChart3,
@@ -34,7 +34,8 @@ import { ApiError } from '../../lib/api-error.js';
 import { formatBytes, formatParams } from '../../lib/format.js';
 import { rememberModel } from '../../lib/recent-models.js';
 import { NotFoundPage } from '../NotFoundPage.js';
-import { downloadOriginal, getModel, modelKeys } from '../models/api.js';
+import { downloadOriginal, getModel, modelKeys, type DownloadableFile } from '../models/api.js';
+import { DownloadFilesDialog } from './DownloadFilesDialog.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from '../models/labels.js';
 import { ReportDialog } from '../moderation/ReportDialog.js';
 import { TakedownNotice } from '../moderation/TakedownNotice.js';
@@ -172,16 +173,29 @@ function RepoActions({
   onReport: () => void;
 }) {
   const canReport = model.myAccess.role !== 'owner' && !model.takenDown;
+  const [files, setFiles] = useState<DownloadableFile[]>([]);
+  const download = useMutation({
+    mutationFn: () => downloadOriginal(model.id),
+    onSuccess: setFiles,
+  });
   return (
     <div className="flex flex-wrap items-center gap-2">
       {model.myAccess.canDownload && model.currentVersion && (
         <Button
           className="sticker rounded-full"
           icon={<Download className="size-4" />}
-          onClick={() => void downloadOriginal(model.id)}
+          isLoading={download.isPending}
+          onClick={() => download.mutate()}
         >
           다운로드
         </Button>
+      )}
+      {files.length > 0 && model.currentVersion && (
+        <DownloadFilesDialog
+          modelFileName={model.currentVersion.originalName}
+          files={files}
+          onClose={() => setFiles([])}
+        />
       )}
       <StarButton model={model} />
       {model.myAccess.role === 'owner' && (

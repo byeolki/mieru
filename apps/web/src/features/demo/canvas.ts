@@ -39,3 +39,11 @@ export function imagePixels(
   context.drawImage(image, 0, 0, width, height);
   return context.getImageData(0, 0, width, height).data;
 }
+
+/** Loads and decodes an image from a (blob) URL so its pixels can be read. */
+export async function loadImage(url: string): Promise<HTMLImageElement> {
+  const image = new Image();
+  image.src = url;
+  await image.decode();
+  return image;
+}

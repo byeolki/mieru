@@ -1,5 +1,6 @@
 import type { InferenceSession, Tensor } from 'onnxruntime-web';
 import wasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?url';
+import { toDisplayValues, type FeedValues } from './tensor-data.js';
 
 export type Backend = 'webgpu' | 'wasm';
 
@@ -35,18 +36,40 @@ function hasWebGpu(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator;
 }
 
+/** A weights file stored next to the model and referenced from it by `path`. */
+export interface ExternalDataFile {
+  /** Location string the model's initializers use, e.g. `model.onnx.data`. */
+  path: string;
+  url: string;
+}
+
+export interface CreateSessionOptions {
+  externalData?: readonly ExternalDataFile[];
+}
+
 /** Creates a session on WebGPU when the browser has it, otherwise (or if that fails) on WASM. */
-export async function createSession(model: Uint8Array): Promise<LoadedSession> {
+export async function createSession(
+  model: Uint8Array,
+  options: CreateSessionOptions = {},
+): Promise<LoadedSession> {
   const ort = await loadRuntime();
+  // The runtime fetches each URL itself and matches it to initializers by `path`.
+  const externalData = options.externalData?.map(({ path, url }) => ({ path, data: url }));
   if (hasWebGpu()) {
     try {
-      const session = await ort.InferenceSession.create(model, { executionProviders: ['webgpu'] });
+      const session = await ort.InferenceSession.create(model, {
+        executionProviders: ['webgpu'],
+        externalData,
+      });
       return { session, backend: 'webgpu' };
     } catch (error) {
       console.warn('WebGPU session failed; falling back to WASM', error);
     }
   }
-  const session = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] });
+  const session = await ort.InferenceSession.create(model, {
+    executionProviders: ['wasm'],
+    externalData,
+  });
   return { session, backend: 'wasm' };
 }
 
@@ -79,10 +102,10 @@ export async function fetchWithProgress(
   return bytes;
 }
 
-export type FeedValues =
-  { dtype: 'float32'; data: Float32Array } | { dtype: 'int64'; data: BigInt64Array };
-
-/** Runs once and copies every output to plain float arrays the UI can keep after disposal. */
+/**
+ * Runs once and copies every numeric output to plain float arrays the UI can keep after
+ * disposal; string outputs are skipped.
+ */
 export async function runSession(
   loaded: LoadedSession,
   feeds: Record<string, { values: FeedValues; dims: number[] }>,
@@ -97,9 +120,9 @@ export async function runSession(
   const milliseconds = performance.now() - started;
   const outputs = Object.entries(results).flatMap(([name, tensor]) => {
     const data = tensor.data;
-    if (typeof data === 'string' || Array.isArray(data)) return [];
-    const values = Float32Array.from(data as ArrayLike<number>, Number);
+    const values = Array.isArray(data) ? null : toDisplayValues(tensor.type, data);
     tensor.dispose();
+    if (!values) return [];
     return [{ name, dims: [...tensor.dims], values }];
   });
   return { outputs, milliseconds };

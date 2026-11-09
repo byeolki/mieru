@@ -1,7 +1,7 @@
 import { open } from 'node:fs/promises';
 import type { ParsedModel } from '@mieru/shared';
 import { FileByteSource, type ByteSource } from './byte-source.js';
-import { buildOnnxModel } from './onnx/build.js';
+import { buildOnnxModel, type ExternalDataRequirement } from './onnx/build.js';
 import { scanOnnxModel } from './onnx/scan.js';
 import { parseSafetensors } from './safetensors/parse-safetensors.js';
 import type { TensorIndexEntry } from './tensor-index.js';
@@ -11,13 +11,15 @@ export type ModelFormat = 'onnx' | 'safetensors';
 export interface ParseResult {
   parsed: ParsedModel;
   tensorIndex: TensorIndexEntry[];
+  /** External data files the model's tensors point into; always empty for safetensors. */
+  externalData: ExternalDataRequirement[];
 }
 
 export async function parseFromSource(
   source: ByteSource,
   format: ModelFormat,
 ): Promise<ParseResult> {
-  if (format === 'safetensors') return parseSafetensors(source);
+  if (format === 'safetensors') return { ...(await parseSafetensors(source)), externalData: [] };
   return buildOnnxModel(await scanOnnxModel(source), source.size);
 }
 

@@ -91,7 +91,7 @@ export function createTusServer({ config, db, clock }: UploadDeps): Server {
     }),
     relativeLocation: true,
     respectForwardedHeaders: false,
-    maxSize: config.MAX_SAFETENSORS_BYTES,
+    maxSize: Math.max(config.MAX_SAFETENSORS_BYTES, config.MAX_EXTERNAL_DATA_BYTES),
     namingFunction: () => newId(),
     onUploadCreate: async (request, upload: Upload) => {
       const userId = request.headers.get(USER_HEADER);
@@ -99,15 +99,27 @@ export function createTusServer({ config, db, clock }: UploadDeps): Server {
       if (upload.size === undefined)
         throw reject(400, 'length_required', 'Upload-Length is required');
       const filename = sanitizeFilename(upload.metadata?.filename ?? '');
-      const format = formatFromFilename(filename);
-      if (!format.ok) {
-        throw reject(415, 'unsupported_format', 'Only .onnx and .safetensors files are supported', {
-          hint: format.hint,
-        });
-      }
-      if (upload.size > maxBytesFor(format.format, config)) {
-        throw reject(413, 'file_too_large', 'File is larger than the limit for this format', {
-          maxBytes: maxBytesFor(format.format, config),
+      // External data files keep whatever name the exporter gave them (`model.onnx.data`,
+      // `weights.bin`, one file per tensor), so they skip the extension check.
+      const role = upload.metadata?.role === 'external_data' ? 'external_data' : 'model';
+      if (role === 'model') {
+        const format = formatFromFilename(filename);
+        if (!format.ok) {
+          throw reject(
+            415,
+            'unsupported_format',
+            'Only .onnx and .safetensors files are supported',
+            { hint: format.hint },
+          );
+        }
+        if (upload.size > maxBytesFor(format.format, config)) {
+          throw reject(413, 'file_too_large', 'File is larger than the limit for this format', {
+            maxBytes: maxBytesFor(format.format, config),
+          });
+        }
+      } else if (upload.size > config.MAX_EXTERNAL_DATA_BYTES) {
+        throw reject(413, 'file_too_large', 'File is larger than the limit for data files', {
+          maxBytes: config.MAX_EXTERNAL_DATA_BYTES,
         });
       }
       if ((await freeBytes(config.STORAGE_DIR)) < upload.size + config.DISK_RESERVE_BYTES) {
@@ -125,14 +137,15 @@ export function createTusServer({ config, db, clock }: UploadDeps): Server {
       }
       await execute(
         db,
-        `INSERT INTO uploads (id, user_id, original_name, declared_size, target_model_id, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO uploads (id, user_id, original_name, declared_size, target_model_id, role, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           upload.id,
           userId,
           filename,
           upload.size,
           targetModelId,
+          role,
           new Date(now.getTime() + UPLOAD_TTL_MS),
           now,
         ],

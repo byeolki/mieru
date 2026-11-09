@@ -31,6 +31,11 @@ export function VersionState({ model }: { model: ModelDetail }) {
       <p className="mt-2 text-sm leading-6 text-slate">
         {FAILURE_REASONS[latest.failureReason ?? 'internal'] ?? FAILURE_REASONS.internal}
       </p>
+      {latest.failureReason === 'external_data_missing' && latest.failureDetail && (
+        <p className="mt-3 text-sm">
+          필요한 파일: <span className="font-mono">{latest.failureDetail}</span>
+        </p>
+      )}
       <p className="mt-3 font-mono text-xs text-slate">
         {latest.originalName} · {latest.failureReason}
       </p>

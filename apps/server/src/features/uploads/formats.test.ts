@@ -32,6 +32,10 @@ describe('hasExpectedMagic', () => {
   it('checks the ONNX ir_version tag and the safetensors header', () => {
     expect(hasExpectedMagic('onnx', Buffer.from([0x08, 0x09]), 2)).toBe(true);
     expect(hasExpectedMagic('onnx', Buffer.from('hello'), 5)).toBe(false);
+    // Exporters that write producer_name or the graph before ir_version.
+    expect(hasExpectedMagic('onnx', Buffer.from([0x12, 0x07]), 2)).toBe(true);
+    expect(hasExpectedMagic('onnx', Buffer.from([0x3a, 0x01]), 2)).toBe(true);
+    expect(hasExpectedMagic('onnx', Buffer.from([]), 0)).toBe(false);
     const header = Buffer.alloc(16);
     header.writeBigUInt64LE(4n);
     header[8] = 0x7b;

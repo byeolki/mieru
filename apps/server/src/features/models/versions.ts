@@ -4,25 +4,28 @@ import type { Pool } from 'mysql2/promise';
 import {
   PARSER_VERSION,
   parsedModelSchema,
-  type CreateVersionBody,
+  createVersionBodySchema,
   type ModelDiff,
   type VersionListItem,
   type VersionStatus,
 } from '@mieru/shared';
 import { execute, selectOne, selectRows, withTransaction } from '../../db/query.js';
-import { AppError, badRequest, conflict, notFound } from '../../errors.js';
+import { badRequest, conflict, notFound } from '../../errors.js';
 import { newId } from '../../ids.js';
 import type { TensorIndexEntry } from '../../parsing/tensor-index.js';
 import { releaseUnreferencedBlobs, type BlobLogger } from '../../storage/blobs.js';
 import { readGzipJson, sidecarPath } from '../../storage/disk.js';
-import { pathFor } from '../../storage/paths.js';
 import { formatFromFilename } from '../uploads/formats.js';
+import type { z } from 'zod';
+import { claimDataUploads } from './data-uploads.js';
 import { computeModelDiff } from './diff.js';
+import { tensorFilePath, versionFiles, type VersionFiles } from './version-files.js';
 
 interface VersionRow {
   version_number: number;
   status: VersionStatus;
   failure_reason: string | null;
+  failure_detail: string | null;
   original_name: string;
   note: string | null;
   created_at: Date;
@@ -37,8 +40,10 @@ interface VersionRow {
 export async function listVersions(pool: Pool, modelId: string): Promise<VersionListItem[]> {
   const rows = await selectRows<VersionRow>(
     pool,
-    `SELECT v.version_number, v.status, v.failure_reason, v.original_name, v.note, v.created_at,
-            b.size_bytes, b.total_params, u.username AS creator_username,
+    `SELECT v.version_number, v.status, v.failure_reason, v.failure_detail, v.original_name, v.note, v.created_at,
+            b.size_bytes + COALESCE((SELECT SUM(xb.size_bytes) FROM model_files xf JOIN blobs xb ON xb.id = xf.blob_id
+                                      WHERE xf.version_id = v.id AND xf.kind = 'external_data'), 0) AS size_bytes,
+            b.total_params, u.username AS creator_username,
             u.display_name AS creator_display_name, (m.current_version_id = v.id) AS is_current
        FROM model_versions v
        JOIN models m ON m.id = v.model_id
@@ -53,6 +58,7 @@ export async function listVersions(pool: Pool, modelId: string): Promise<Version
     number: row.version_number,
     status: row.status,
     failureReason: row.failure_reason,
+    failureDetail: row.failure_detail,
     originalName: row.original_name,
     note: row.note,
     sizeBytes: row.size_bytes === null ? null : Number(row.size_bytes),
@@ -81,9 +87,12 @@ export async function repositoryBytes(pool: Pool, modelId: string): Promise<numb
   return Number(row?.total ?? 0);
 }
 
+type CreateVersionBody = z.output<typeof createVersionBodySchema>;
+
 interface UploadRow {
   user_id: string;
   original_name: string;
+  role: 'model' | 'external_data';
   completed_at: Date | null;
   consumed_at: Date | null;
   expires_at: Date;
@@ -114,7 +123,7 @@ export async function createVersion(
     if (!model) throw notFound('Model not found');
     const upload = await selectOne<UploadRow>(
       connection,
-      `SELECT user_id, original_name, completed_at, consumed_at, expires_at, target_model_id
+      `SELECT user_id, original_name, role, completed_at, consumed_at, expires_at, target_model_id
          FROM uploads WHERE id = ? FOR UPDATE`,
       [body.uploadId],
     );
@@ -127,7 +136,11 @@ export async function createVersion(
     if (upload.expires_at <= now)
       throw conflict('upload_expired', 'The upload expired; upload the file again');
     const format = formatFromFilename(upload.original_name);
-    if (!format.ok) throw badRequest('unsupported_format', 'Unsupported file format');
+    if (!format.ok || upload.role !== 'model')
+      throw badRequest('unsupported_format', 'Unsupported file format');
+    if (body.dataUploadIds.length > 0 && format.format !== 'onnx') {
+      throw badRequest('external_data_onnx_only', 'Only ONNX models can have external data files');
+    }
     if (model.format && model.format !== format.format) {
       throw badRequest('format_mismatch', `New versions must also be ${model.format} files`);
     }
@@ -156,6 +169,13 @@ export async function createVersion(
       now,
       body.uploadId,
     ]);
+    await claimDataUploads(connection, {
+      userId,
+      versionId,
+      targetModelId: modelId,
+      uploadIds: body.dataUploadIds,
+      now,
+    });
     await execute(connection, 'UPDATE models SET updated_at = ? WHERE id = ?', [now, modelId]);
     return versionId;
   });
@@ -208,69 +228,57 @@ export async function deleteVersion(
   await releaseUnreferencedBlobs(pool, storageDir, blobIds, log);
 }
 
-interface StoredSide {
-  number: number;
-  blobId: string;
-  storageKey: string;
+/** Identifies a version's stored bytes: the model blob plus its external data blobs. */
+function filesKey(files: VersionFiles): string {
+  const data = [...files.externalData.values()].map((blob) => blob.blobId).sort();
+  return [files.blobId, ...data].join('+');
 }
 
-async function storedSide(pool: Pool, modelId: string, versionNumber: number): Promise<StoredSide> {
-  const row = await selectOne<{
-    status: VersionStatus;
-    blob_id: string | null;
-    storage_key: string | null;
-  }>(
-    pool,
-    `SELECT v.status, b.id AS blob_id, b.storage_key
-       FROM model_versions v
-       LEFT JOIN model_files f ON f.version_id = v.id AND f.kind = 'model'
-       LEFT JOIN blobs b ON b.id = f.blob_id
-      WHERE v.model_id = ? AND v.version_number = ?`,
-    [modelId, versionNumber],
-  );
-  if (!row) throw notFound(`Version ${String(versionNumber)} not found`);
-  if (row.status !== 'ready' || !row.blob_id || !row.storage_key) {
-    throw new AppError(409, 'not_ready', 'This version is still being processed', {
-      retryAfterSec: 2,
-    });
-  }
-  return { number: versionNumber, blobId: row.blob_id, storageKey: row.storage_key };
-}
-
-/** SHA-256 of each tensor's bytes, read by offset so the rest of the file is never loaded. */
+/**
+ * SHA-256 of each tensor's bytes, read by offset so the rest of the file is never loaded.
+ * Tensors in external data are read from their own file.
+ */
 async function hashTensors(
-  filePath: string,
+  storageDir: string,
+  files: VersionFiles,
   entries: readonly TensorIndexEntry[],
 ): Promise<Map<string, string>> {
-  const handle = await open(filePath, 'r');
+  const byPath = new Map<string, TensorIndexEntry[]>();
+  for (const entry of entries) {
+    const filePath = tensorFilePath(storageDir, files, entry);
+    byPath.set(filePath, [...(byPath.get(filePath) ?? []), entry]);
+  }
   const hashes = new Map<string, string>();
   const chunk = Buffer.alloc(1024 * 1024);
-  try {
-    for (const entry of entries) {
-      const hash = createHash('sha256');
-      let position = entry.offset;
-      let remaining = entry.length;
-      while (remaining > 0) {
-        const { bytesRead } = await handle.read(
-          chunk,
-          0,
-          Math.min(chunk.length, remaining),
-          position,
-        );
-        if (bytesRead === 0) break;
-        hash.update(chunk.subarray(0, bytesRead));
-        position += bytesRead;
-        remaining -= bytesRead;
+  for (const [filePath, fileEntries] of byPath) {
+    const handle = await open(filePath, 'r');
+    try {
+      for (const entry of fileEntries) {
+        const hash = createHash('sha256');
+        let position = entry.offset;
+        let remaining = entry.length;
+        while (remaining > 0) {
+          const { bytesRead } = await handle.read(
+            chunk,
+            0,
+            Math.min(chunk.length, remaining),
+            position,
+          );
+          if (bytesRead === 0) break;
+          hash.update(chunk.subarray(0, bytesRead));
+          position += bytesRead;
+          remaining -= bytesRead;
+        }
+        hashes.set(entry.name, hash.digest('hex'));
       }
-      hashes.set(entry.name, hash.digest('hex'));
+    } finally {
+      await handle.close();
     }
-  } finally {
-    await handle.close();
   }
   return hashes;
 }
 
-async function loadSide(storageDir: string, side: StoredSide) {
+async function loadSide(storageDir: string, side: VersionFiles) {
   const parsed = parsedModelSchema.parse(
     await readGzipJson(sidecarPath(storageDir, side.storageKey, 'graph', PARSER_VERSION)),
   );
@@ -304,10 +312,10 @@ export async function diffVersions(
   toNumber: number,
 ): Promise<ModelDiff> {
   const [from, to] = await Promise.all([
-    storedSide(pool, modelId, fromNumber),
-    storedSide(pool, modelId, toNumber),
+    versionFiles(pool, modelId, fromNumber),
+    versionFiles(pool, modelId, toNumber),
   ]);
-  const key = `${from.blobId}:${to.blobId}`;
+  const key = `${filesKey(from)}:${filesKey(to)}`;
   const cached = diffCache.get(key);
   if (cached) return { from: fromNumber, to: toNumber, ...cached };
 
@@ -321,13 +329,14 @@ export async function diffVersions(
     return other?.dtype === entry.dtype && other.length === entry.length;
   });
   const sharedNames = new Set(shared.map((entry) => entry.name));
-  const sameFile = from.blobId === to.blobId;
+  const sameFile = filesKey(from) === filesKey(to);
   const [fromHashes, toHashes] = sameFile
     ? [new Map<string, string>(), new Map<string, string>()]
     : await Promise.all([
-        hashTensors(pathFor(storageDir, 'blobs', from.storageKey), shared),
+        hashTensors(storageDir, from, shared),
         hashTensors(
-          pathFor(storageDir, 'blobs', to.storageKey),
+          storageDir,
+          to,
           toData.index.filter((entry) => sharedNames.has(entry.name)),
         ),
       ]);

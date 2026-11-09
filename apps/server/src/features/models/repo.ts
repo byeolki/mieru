@@ -31,7 +31,8 @@ export interface ModelRow {
   version_status: VersionStatus | null;
   version_original_name: string | null;
   blob_format: ModelFormat | null;
-  blob_size: number | null;
+  // SUM() comes back as a DECIMAL string.
+  blob_size: number | string | null;
   blob_params: number | null;
   blob_summary: ModelSummary | null;
 }
@@ -46,7 +47,9 @@ export const MODEL_SELECT = `
          m.taken_down_at, m.taken_down_reason, m.current_version_id, m.updated_at,
          o.username AS owner_username, o.display_name AS owner_display_name,
          dv.status AS version_status, dv.original_name AS version_original_name,
-         b.format AS blob_format, b.size_bytes AS blob_size, b.total_params AS blob_params, b.summary AS blob_summary
+         b.format AS blob_format,
+         b.size_bytes + COALESCE((SELECT SUM(xb.size_bytes) FROM model_files xf JOIN blobs xb ON xb.id = xf.blob_id
+                                   WHERE xf.version_id = dv.id AND xf.kind = 'external_data'), 0) AS blob_size, b.total_params AS blob_params, b.summary AS blob_summary
     FROM models m
     JOIN users o ON o.id = m.owner_id
     LEFT JOIN model_versions dv ON dv.id = COALESCE(
@@ -67,7 +70,7 @@ export function toListItem(row: ModelRow, myRole: Role | null): ModelListItem {
     owner: { username: row.owner_username, displayName: row.owner_display_name },
     myRole,
     status: row.version_status,
-    sizeBytes: row.blob_size,
+    sizeBytes: row.blob_size === null ? null : Number(row.blob_size),
     totalParams: row.blob_params,
     visibility: row.visibility,
     publicAllowDownload: row.public_allow_download === 1,
@@ -83,6 +86,7 @@ interface VersionRow {
   version_number: number;
   status: VersionStatus;
   failure_reason: string | null;
+  failure_detail: string | null;
   original_name: string;
   created_at: Date;
   sha256: Buffer | null;
@@ -95,6 +99,7 @@ export function toVersionSummary(row: VersionRow): VersionSummary {
     number: row.version_number,
     status: row.status,
     failureReason: row.failure_reason,
+    failureDetail: row.failure_detail,
     originalName: row.original_name,
     sha256: row.sha256 ? row.sha256.toString('hex') : null,
     summary: row.summary,
@@ -112,7 +117,7 @@ export async function findVersions(
   const params: SqlParam[] = where === 'all' ? [modelId] : [modelId, ...where.ids];
   const rows = await selectRows<VersionRow>(
     db,
-    `SELECT v.id, v.version_number, v.status, v.failure_reason, v.original_name, v.created_at,
+    `SELECT v.id, v.version_number, v.status, v.failure_reason, v.failure_detail, v.original_name, v.created_at,
             b.sha256, b.summary
        FROM model_versions v
        LEFT JOIN model_files f ON f.version_id = v.id AND f.kind = 'model'

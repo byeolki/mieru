@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Bump when the parser output changes shape or meaning; old sidecars are re-parsed lazily. */
-export const PARSER_VERSION = 2;
+export const PARSER_VERSION = 3;
 
 export const OP_FAMILIES = [
   'compute',
@@ -40,11 +40,14 @@ export const modelSummarySchema = z.object({
 });
 export type ModelSummary = z.infer<typeof modelSummarySchema>;
 
+/** An int64 attribute value: a number when it is a safe integer, else its exact decimal string. */
+export const int64ValueSchema = z.union([z.number(), z.string().regex(/^-?\d+$/)]);
+
 export const attrValueSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('int'), value: z.number() }),
+  z.object({ kind: z.literal('int'), value: int64ValueSchema }),
   z.object({ kind: z.literal('float'), value: z.number() }),
   z.object({ kind: z.literal('string'), value: z.string() }),
-  z.object({ kind: z.literal('ints'), value: z.array(z.number()), truncated: z.boolean() }),
+  z.object({ kind: z.literal('ints'), value: z.array(int64ValueSchema), truncated: z.boolean() }),
   z.object({ kind: z.literal('floats'), value: z.array(z.number()), truncated: z.boolean() }),
   z.object({ kind: z.literal('strings'), value: z.array(z.string()), truncated: z.boolean() }),
   z.object({ kind: z.literal('tensor'), dtype: z.string(), shape: z.array(z.number()) }),

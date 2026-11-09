@@ -7,12 +7,16 @@ import {
   type TensorListItem,
   type TensorStats,
 } from '@mieru/shared';
-import { selectOne } from '../../db/query.js';
 import { AppError, notFound } from '../../errors.js';
 import type { TensorIndexEntry } from '../../parsing/tensor-index.js';
 import { readGzipJson, sidecarPath } from '../../storage/disk.js';
-import { pathFor } from '../../storage/paths.js';
-import { decoderFor, type ElementDecoder } from './decode.js';
+import {
+  externalDataName,
+  tensorFilePath,
+  versionFiles,
+  type VersionFiles,
+} from '../models/version-files.js';
+import { codecFor, resynchronized, type TensorCodec } from './decode.js';
 import { Histogram, StatsAccumulator } from './stats.js';
 
 const READ_CHUNK_BYTES = 1024 * 1024;
@@ -22,44 +26,12 @@ const SAMPLE_WINDOWS = 64;
 const MAX_FILTERS = 64;
 const MAX_KERNEL_SIDE = 11;
 const RGB_CHANNELS = 3;
+/** Bounds the values held in memory for a filter grid when input channels are very wide. */
+const MAX_FILTER_ELEMENTS = FULL_SCAN_LIMIT;
 
-interface VersionBlob {
-  blobId: string;
-  storageKey: string;
-}
-
-async function versionBlob(
-  pool: Pool,
-  modelId: string,
-  version: number | null,
-): Promise<VersionBlob> {
-  const filter = version === null ? 'v.id = m.current_version_id' : 'v.version_number = ?';
-  const row = await selectOne<{
-    status: string;
-    blob_id: string | null;
-    storage_key: string | null;
-  }>(
-    pool,
-    `SELECT v.status, b.id AS blob_id, b.storage_key
-       FROM models m
-       JOIN model_versions v ON v.model_id = m.id AND ${filter}
-       LEFT JOIN model_files f ON f.version_id = v.id AND f.kind = 'model'
-       LEFT JOIN blobs b ON b.id = f.blob_id
-      WHERE m.id = ?`,
-    version === null ? [modelId] : [version, modelId],
-  );
-  if (!row) throw notFound('Version not found');
-  if (row.status !== 'ready' || !row.blob_id || !row.storage_key) {
-    throw new AppError(409, 'not_ready', 'This version is still being processed', {
-      retryAfterSec: 2,
-    });
-  }
-  return { blobId: row.blob_id, storageKey: row.storage_key };
-}
-
-async function tensorIndex(storageDir: string, blob: VersionBlob): Promise<TensorIndexEntry[]> {
+async function tensorIndex(storageDir: string, files: VersionFiles): Promise<TensorIndexEntry[]> {
   return (await readGzipJson(
-    sidecarPath(storageDir, blob.storageKey, 'tensors', PARSER_VERSION),
+    sidecarPath(storageDir, files.storageKey, 'tensors', PARSER_VERSION),
   )) as TensorIndexEntry[];
 }
 
@@ -71,7 +43,7 @@ export async function listTensors(
   modelId: string,
   version: number | null,
 ): Promise<TensorListItem[]> {
-  const index = await tensorIndex(storageDir, await versionBlob(pool, modelId, version));
+  const index = await tensorIndex(storageDir, await versionFiles(pool, modelId, version));
   return index.map((entry) => ({
     name: entry.name,
     dtype: entry.dtype,
@@ -81,37 +53,104 @@ export async function listTensors(
   }));
 }
 
-/** Calls `visit` for each element in `[start, end)` byte range, reading in chunks. */
+/** A byte range to decode and how many elements to take from it. */
+interface ScanWindow {
+  start: number;
+  end: number;
+  maxElements: number;
+  /** Set when `start` may fall inside a varint, so decoding must skip to the next one. */
+  startsMidVarint: boolean;
+}
+
+/** Calls `visit` for up to `window.maxElements` elements of the window, reading in chunks. */
 async function forEachElement(
   handle: FileHandle,
-  decoder: ElementDecoder,
-  range: { start: number; end: number },
+  codec: TensorCodec,
+  window: ScanWindow,
   visit: (value: number) => void,
 ): Promise<void> {
-  const step = decoder.bytesPerElement;
-  const chunkBytes = Math.max(step, READ_CHUNK_BYTES - (READ_CHUNK_BYTES % step));
-  const buffer = Buffer.alloc(chunkBytes);
-  for (let position = range.start; position < range.end; position += chunkBytes) {
-    const length = Math.min(chunkBytes, range.end - position);
+  const reader = window.startsMidVarint
+    ? resynchronized(codec.createReader())
+    : codec.createReader();
+  let remaining = window.maxElements;
+  // Cuts off int4 padding nibbles and anything decoded past the window's quota.
+  const emit = (value: number) => {
+    if (remaining <= 0) return;
+    remaining--;
+    visit(value);
+  };
+  const buffer = Buffer.alloc(Math.min(READ_CHUNK_BYTES, Math.max(1, window.end - window.start)));
+  for (let position = window.start; position < window.end && remaining > 0;) {
+    const length = Math.min(buffer.length, window.end - position);
     const { bytesRead } = await handle.read(buffer, 0, length, position);
-    for (let offset = 0; offset + step <= bytesRead; offset += step)
-      visit(decoder.read(buffer, offset));
+    if (bytesRead === 0)
+      throw new Error(`Blob ended at byte ${position}, before the tensor's bytes did`);
+    reader.push(buffer.subarray(0, bytesRead), emit);
+    position += bytesRead;
   }
 }
 
-/** Byte ranges to scan: the whole tensor, or evenly spaced windows for very large ones. */
-function scanRanges(entry: TensorIndexEntry, decoder: ElementDecoder) {
-  const elements = entry.length / decoder.bytesPerElement;
+/** Windows to scan: the whole tensor, or evenly spaced windows for very large ones. */
+function scanWindows(
+  entry: TensorIndexEntry,
+  codec: TensorCodec,
+): { sampled: boolean; windows: ScanWindow[] } {
+  const elements = elementCount(entry.shape);
   const end = entry.offset + entry.length;
-  if (elements <= FULL_SCAN_LIMIT)
-    return { sampled: false, ranges: [{ start: entry.offset, end }] };
-  const windowBytes = Math.floor(FULL_SCAN_LIMIT / SAMPLE_WINDOWS) * decoder.bytesPerElement;
+  if (elements <= FULL_SCAN_LIMIT) {
+    return {
+      sampled: false,
+      windows: [{ start: entry.offset, end, maxElements: elements, startsMidVarint: false }],
+    };
+  }
+  const windowElements = Math.floor(FULL_SCAN_LIMIT / SAMPLE_WINDOWS);
+  const indices = Array.from({ length: SAMPLE_WINDOWS }, (_, index) => index);
+  if (codec.kind === 'packed') {
+    const { unitBytes, unitElements } = codec;
+    const windowUnits = Math.floor(windowElements / unitElements);
+    const strideUnits = Math.floor(Math.ceil(elements / unitElements) / SAMPLE_WINDOWS);
+    const windows = indices.map((index) => {
+      const startUnit = index * strideUnits;
+      const start = entry.offset + startUnit * unitBytes;
+      return {
+        start,
+        end: Math.min(start + windowUnits * unitBytes, end),
+        maxElements: Math.min(windowUnits * unitElements, elements - startUnit * unitElements),
+        startsMidVarint: false,
+      };
+    });
+    return { sampled: true, windows };
+  }
+  const windowBytes = Math.ceil((windowElements * entry.length) / elements);
   const stride = Math.floor(entry.length / SAMPLE_WINDOWS);
-  const ranges = Array.from({ length: SAMPLE_WINDOWS }, (_, index) => {
-    const start = entry.offset + index * stride - ((index * stride) % decoder.bytesPerElement);
-    return { start, end: Math.min(start + windowBytes, end) };
+  const windows = indices.map((index) => {
+    // Later windows start one byte early so that, after resynchronizing, a window whose
+    // nominal start is already a varint boundary keeps its first element.
+    const start = index === 0 ? entry.offset : entry.offset + index * stride - 1;
+    return {
+      start,
+      end: Math.min(start + windowBytes, end),
+      maxElements: windowElements,
+      startsMidVarint: index !== 0,
+    };
   });
-  return { sampled: true, ranges };
+  return { sampled: true, windows };
+}
+
+/** The window holding the first `count` elements of a tensor. */
+function leadingWindow(entry: TensorIndexEntry, codec: TensorCodec, count: number): ScanWindow {
+  const end = entry.offset + entry.length;
+  // Varint widths aren't known ahead, so read from the start until `count` elements are seen.
+  const bytes =
+    codec.kind === 'packed'
+      ? Math.ceil(count / codec.unitElements) * codec.unitBytes
+      : entry.length;
+  return {
+    start: entry.offset,
+    end: Math.min(entry.offset + bytes, end),
+    maxElements: count,
+    startsMidVarint: false,
+  };
 }
 
 function findEntry(index: readonly TensorIndexEntry[], name: string): TensorIndexEntry {
@@ -120,16 +159,25 @@ function findEntry(index: readonly TensorIndexEntry[], name: string): TensorInde
   return entry;
 }
 
-function requireDecoder(entry: TensorIndexEntry): ElementDecoder {
-  const decoder = decoderFor(entry.dtype);
-  if (!decoder) {
+function requireCodec(entry: TensorIndexEntry): TensorCodec {
+  const codec = codecFor(entry.dtype, entry.encoding);
+  if (!codec) {
     throw new AppError(422, 'unsupported_dtype', `${entry.dtype} tensors can't be summarized yet`);
   }
-  return decoder;
+  return codec;
+}
+
+/** Id of the blob holding the tensor's bytes: the model file or one of its external data files. */
+function dataBlobId(files: VersionFiles, entry: TensorIndexEntry): string {
+  if (entry.location === null) return files.blobId;
+  const data = files.externalData.get(externalDataName(entry.location));
+  if (!data) throw notFound('External data file not found');
+  return data.blobId;
 }
 
 const CACHE_SIZE = 256;
-// Blobs are immutable, so a tensor's stats never change; cache recent ones by blob and name.
+// Blobs are immutable, so a tensor's stats never change. The model blob pins the tensor's
+// offsets and the data blob its bytes; versions sharing one can differ in the other.
 const statsCache = new Map<string, TensorStats>();
 
 /**
@@ -144,23 +192,23 @@ export async function tensorStats(
   name: string,
   version: number | null,
 ): Promise<TensorStats> {
-  const blob = await versionBlob(pool, modelId, version);
-  const cacheKey = `${blob.blobId}:${name}`;
+  const files = await versionFiles(pool, modelId, version);
+  const entry = findEntry(await tensorIndex(storageDir, files), name);
+  const cacheKey = `${files.blobId}:${dataBlobId(files, entry)}:${name}`;
   const cached = statsCache.get(cacheKey);
   if (cached) return cached;
 
-  const entry = findEntry(await tensorIndex(storageDir, blob), name);
-  const decoder = requireDecoder(entry);
-  const { sampled, ranges } = scanRanges(entry, decoder);
-  const handle = await open(pathFor(storageDir, 'blobs', blob.storageKey), 'r');
+  const codec = requireCodec(entry);
+  const { sampled, windows } = scanWindows(entry, codec);
+  const handle = await open(tensorFilePath(storageDir, files, entry), 'r');
   try {
     const accumulator = new StatsAccumulator();
-    for (const range of ranges)
-      await forEachElement(handle, decoder, range, (value) => accumulator.add(value));
+    for (const window of windows)
+      await forEachElement(handle, codec, window, (value) => accumulator.add(value));
     const summary = accumulator.summary();
     const histogram = new Histogram(summary.min, summary.max, HISTOGRAM_BINS);
-    for (const range of ranges)
-      await forEachElement(handle, decoder, range, (value) => histogram.add(value));
+    for (const window of windows)
+      await forEachElement(handle, codec, window, (value) => histogram.add(value));
     const stats: TensorStats = {
       name: entry.name,
       dtype: entry.dtype,
@@ -189,8 +237,8 @@ export async function tensorFilters(
   name: string,
   version: number | null,
 ): Promise<TensorFilters> {
-  const blob = await versionBlob(pool, modelId, version);
-  const entry = findEntry(await tensorIndex(storageDir, blob), name);
+  const files = await versionFiles(pool, modelId, version);
+  const entry = findEntry(await tensorIndex(storageDir, files), name);
   const [outChannels = 0, inChannels = 0, kernelHeight = 0, kernelWidth = 0] = entry.shape;
   if (entry.shape.length !== 4 || kernelHeight > MAX_KERNEL_SIDE || kernelWidth > MAX_KERNEL_SIDE) {
     throw new AppError(
@@ -199,19 +247,20 @@ export async function tensorFilters(
       'Only 4-D convolution weights with small kernels have filters',
     );
   }
-  const decoder = requireDecoder(entry);
-  const shown = Math.min(outChannels, MAX_FILTERS);
+  const codec = requireCodec(entry);
   const plane = kernelHeight * kernelWidth;
   const perFilter = inChannels * plane;
+  const shown = Math.min(
+    outChannels,
+    MAX_FILTERS,
+    Math.max(1, Math.floor(MAX_FILTER_ELEMENTS / Math.max(1, perFilter))),
+  );
   const values: number[] = [];
-  const handle = await open(pathFor(storageDir, 'blobs', blob.storageKey), 'r');
+  const handle = await open(tensorFilePath(storageDir, files, entry), 'r');
   try {
     // Output channels are the outermost dim, so the first filters are one contiguous range.
-    await forEachElement(
-      handle,
-      decoder,
-      { start: entry.offset, end: entry.offset + shown * perFilter * decoder.bytesPerElement },
-      (value) => values.push(value),
+    await forEachElement(handle, codec, leadingWindow(entry, codec, shown * perFilter), (value) =>
+      values.push(value),
     );
   } finally {
     await handle.close();

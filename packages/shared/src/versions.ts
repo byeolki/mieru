@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { userRefSchema, versionStatusSchema } from './models.js';
+import { dataUploadIdsSchema, userRefSchema, versionStatusSchema } from './models.js';
 
 export const versionListItemSchema = z.object({
   number: z.number(),
   status: versionStatusSchema,
   failureReason: z.string().nullable(),
+  failureDetail: z.string().nullable().default(null),
   originalName: z.string(),
   note: z.string().nullable(),
   sizeBytes: z.number().nullable(),
@@ -25,9 +26,10 @@ export const versionListResponseSchema = z.object({
 export const VERSION_NOTE_MAX = 500;
 export const createVersionBodySchema = z.object({
   uploadId: z.uuid(),
+  dataUploadIds: dataUploadIdsSchema,
   note: z.string().trim().max(VERSION_NOTE_MAX).optional(),
 });
-export type CreateVersionBody = z.infer<typeof createVersionBodySchema>;
+export type CreateVersionBody = z.input<typeof createVersionBodySchema>;
 
 export const diffStatusSchema = z.enum(['added', 'removed', 'changed', 'unchanged']);
 export type DiffStatus = z.infer<typeof diffStatusSchema>;

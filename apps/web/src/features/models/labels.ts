@@ -20,6 +20,8 @@ export const FAILURE_REASONS: Record<string, string> = {
   limits_exceeded: '노드나 텐서가 너무 많아서 분석할 수 없어요.',
   external_data_unsupported:
     '외부 데이터 파일(.data)을 쓰는 ONNX 모델은 아직 지원하지 않아요. 하나의 파일로 내보내주세요.',
+  external_data_missing:
+    '모델이 가리키는 외부 데이터 파일이 없거나 중간에 잘려 있어요. .onnx와 데이터 파일을 같이 골라서 다시 올려주세요.',
   timeout: '분석이 너무 오래 걸려서 멈췄어요.',
   internal: '분석하다가 문제가 생겼어요. 다시 올려주세요.',
 };

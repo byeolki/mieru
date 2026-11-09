@@ -39,8 +39,18 @@ export const userRefSchema = z.object({
 });
 export type UserRef = z.infer<typeof userRefSchema>;
 
+/**
+ * Most external data files one ONNX model may bring. Some exporters write one file per tensor,
+ * so this is far above the usual single `.data` file.
+ */
+export const MAX_EXTERNAL_DATA_FILES = 1024;
+
+/** Uploads holding the external data files the `.onnx` upload's tensors point into. */
+export const dataUploadIdsSchema = z.array(z.uuid()).max(MAX_EXTERNAL_DATA_FILES).default([]);
+
 export const createModelBodySchema = z.object({
   uploadId: z.uuid(),
+  dataUploadIds: dataUploadIdsSchema,
   name: z.string().trim().min(1).max(MODEL_NAME_MAX),
   description: z.string().trim().max(MODEL_DESCRIPTION_MAX).optional(),
   readme: readmeSchema.optional(),
@@ -92,6 +102,8 @@ export const versionSummarySchema = z.object({
   number: z.number(),
   status: versionStatusSchema,
   failureReason: z.string().nullable(),
+  /** Extra context for the reason, e.g. the names of missing external data files. */
+  failureDetail: z.string().nullable().default(null),
   originalName: z.string(),
   sha256: z.string().nullable(),
   summary: modelSummarySchema.nullable(),
@@ -127,7 +139,22 @@ export const fileTicketBodySchema = z.object({
   kind: z.enum(['model', 'labels']).default('model'),
   version: z.number().int().positive().optional(),
 });
-export const fileTicketResponseSchema = z.object({ url: z.string(), expiresAt: z.string() });
+/** One external data file of a model, downloadable with the same ticket as the model. */
+export const externalDataFileSchema = z.object({
+  name: z.string(),
+  /** The path the model's tensors use for this file; runtimes match external files by it. */
+  location: z.string(),
+  sizeBytes: z.number(),
+  url: z.string(),
+});
+export type ExternalDataFile = z.infer<typeof externalDataFileSchema>;
+
+export const fileTicketResponseSchema = z.object({
+  url: z.string(),
+  expiresAt: z.string(),
+  /** Files an ONNX model's tensors live in; they must sit next to the model file to load it. */
+  externalData: z.array(externalDataFileSchema).default([]),
+});
 
 /** Class names for a model's output indices, used by the in-browser demo. */
 export const LABELS_MAX = 50_000;

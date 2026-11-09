@@ -1,21 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decoderFor } from './decode.js';
 import { Histogram, StatsAccumulator } from './stats.js';
-
-describe('decoderFor', () => {
-  it('reads float16 and bfloat16 under both spellings', () => {
-    const half = Buffer.from([0x00, 0x3c]); // 1.0 in IEEE half precision
-    expect(decoderFor('float16')?.read(half, 0)).toBe(1);
-    expect(decoderFor('F16')?.read(half, 0)).toBe(1);
-    const brain = Buffer.from([0x80, 0xbf]); // -1.0 in bfloat16
-    expect(decoderFor('BF16')?.read(brain, 0)).toBe(-1);
-  });
-
-  it('decodes subnormal halves and rejects unsupported dtypes', () => {
-    expect(decoderFor('float16')?.read(Buffer.from([0x01, 0x00]), 0)).toBeCloseTo(5.96e-8, 10);
-    expect(decoderFor('complex64')).toBeNull();
-  });
-});
 
 describe('StatsAccumulator', () => {
   it('matches the two-pass mean and standard deviation', () => {

@@ -21,7 +21,7 @@ import {
 import type { Clock } from '../../clock.js';
 import type { AppConfig } from '../../config.js';
 import type { DbPool } from '../../db/pool.js';
-import { selectOne } from '../../db/query.js';
+import { selectOne, selectRows } from '../../db/query.js';
 import { AppError, notFound, unauthorized } from '../../errors.js';
 import { currentUser, requireUser } from '../../plugins/auth.js';
 import {
@@ -29,7 +29,8 @@ import {
   principalOf,
   type ModelGateFactory,
 } from '../../plugins/model-access.js';
-import { sidecarPath } from '../../storage/disk.js';
+import { readGzipJson, sidecarPath } from '../../storage/disk.js';
+import type { TensorIndexEntry } from '../../parsing/tensor-index.js';
 import { pathFor } from '../../storage/paths.js';
 import { sendStoredFile } from './files.js';
 import type { ProcessingQueue } from './processing.js';
@@ -51,6 +52,7 @@ import {
   repositoryBytes,
 } from './versions.js';
 import { createTicket, verifyTicket } from './tickets.js';
+import { externalDataName } from './version-files.js';
 import { recordView, viewerHash } from '../explore/views.js';
 
 export interface ModelRouteDeps {
@@ -69,6 +71,24 @@ interface StoredVersion {
   blob_id: string | null;
   storage_key: string | null;
   original_name: string | null;
+}
+
+/**
+ * The `location` strings the model's tensors use for each external data file, keyed by file
+ * name. Runtimes match external files by that exact string (often `./model.onnx.data`).
+ */
+async function externalLocations(
+  storageDir: string,
+  storageKey: string,
+): Promise<Map<string, string>> {
+  const locations = new Map<string, string>();
+  const index = (await readGzipJson(
+    sidecarPath(storageDir, storageKey, 'tensors', PARSER_VERSION),
+  )) as TensorIndexEntry[];
+  for (const entry of index) {
+    if (entry.location !== null) locations.set(externalDataName(entry.location), entry.location);
+  }
+  return locations;
 }
 
 async function findStoredVersion(
@@ -393,9 +413,29 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
         config.TICKET_SECRET,
         clock(),
       );
+      const url = `/api/models/${request.params.id}/file?ticket=${token}`;
+      const externalData =
+        request.body.kind === 'model'
+          ? await selectRows<{ original_name: string; size_bytes: number | string }>(
+              db,
+              `SELECT f.original_name, b.size_bytes FROM model_files f JOIN blobs b ON b.id = f.blob_id
+                WHERE f.version_id = ? AND f.kind = 'external_data' ORDER BY f.original_name`,
+              [stored.version_id],
+            )
+          : [];
+      const locations =
+        externalData.length > 0
+          ? await externalLocations(config.STORAGE_DIR, stored.storage_key)
+          : new Map<string, string>();
       return {
-        url: `/api/models/${request.params.id}/file?ticket=${token}`,
+        url,
         expiresAt: expiresAt.toISOString(),
+        externalData: externalData.map((file) => ({
+          name: file.original_name,
+          location: locations.get(file.original_name) ?? file.original_name,
+          sizeBytes: Number(file.size_bytes),
+          url: `${url}&name=${encodeURIComponent(file.original_name)}`,
+        })),
       };
     },
   );
@@ -419,17 +459,29 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
         },
         requireModelAccess('viewer', { download: true }),
       ],
-      schema: { params: idParams, querystring: z.object({ ticket: z.string().max(2048) }) },
+      schema: {
+        params: idParams,
+        querystring: z.object({
+          ticket: z.string().max(2048),
+          // An external data file of the ticket's model version, by name.
+          name: z.string().min(1).max(255).optional(),
+        }),
+      },
     },
     async (request, reply) => {
       const verified = verifyTicket(request.query.ticket, config.TICKET_SECRET, clock());
       if (!verified)
         throw unauthorized('invalid_ticket', 'Download link expired; request a new one');
+      const { name } = request.query;
+      if (name !== undefined && verified.kind !== 'model') throw notFound('File not found');
       const stored = await selectOne<{ storage_key: string; original_name: string }>(
         db,
-        `SELECT b.storage_key, f.original_name FROM model_files f JOIN blobs b ON b.id = f.blob_id
-          WHERE f.version_id = ? AND f.kind = ?`,
-        [verified.versionId, verified.kind],
+        name === undefined
+          ? `SELECT b.storage_key, f.original_name FROM model_files f JOIN blobs b ON b.id = f.blob_id
+              WHERE f.version_id = ? AND f.kind = ?`
+          : `SELECT b.storage_key, f.original_name FROM model_files f JOIN blobs b ON b.id = f.blob_id
+              WHERE f.version_id = ? AND f.kind = 'external_data' AND f.original_name = ?`,
+        name === undefined ? [verified.versionId, verified.kind] : [verified.versionId, name],
       );
       if (!stored) throw notFound('File not found');
       return sendStoredFile(

@@ -180,6 +180,8 @@ export async function parseSafetensors(source: ByteSource): Promise<SafetensorsB
       shape: tensor.shape,
       offset: dataStart + tensor.begin,
       length: bytes,
+      encoding: 'raw',
+      location: null,
     });
     stripItems.push({
       family: tensorFamily(tensor.name, tensor.shape.length),

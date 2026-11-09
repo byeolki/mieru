@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cpu, ImageUp, Play, Shuffle, Zap } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import clsx from 'clsx';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { hasRoleAtLeast, type OnnxGraphPayload, type TensorInfo } from '@mieru/shared';
 import { Badge } from '../../components/Badge.js';
@@ -14,8 +15,8 @@ import { formatBytes, formatShape } from '../../lib/format.js';
 import { getGraph, modelKeys } from '../models/api.js';
 import { useRepo } from '../repo/RepoLayout.js';
 import { publishActivations, type ActivationPreview } from './activation-store.js';
-import { demoKeys, getLabels, getModelFileUrl, saveLabels } from './api.js';
-import { channelPreviewUrl, drawChannel, imagePixels } from './canvas.js';
+import { demoKeys, getExternalDataFiles, getLabels, getModelFileUrl, saveLabels } from './api.js';
+import { channelPreviewUrl, drawChannel, imagePixels, loadImage } from './canvas.js';
 import {
   CHANNELS_PER_LAYER,
   activationGrid,
@@ -25,9 +26,13 @@ import {
 } from './feature-maps.js';
 import {
   concreteShape,
+  defaultValues,
   elementCount,
+  formatDims,
+  formatValues,
   inputKindOf,
   parseNumbers,
+  parseShape,
   rgbaToChw,
   seededValues,
   type Normalization,
@@ -39,14 +44,20 @@ import {
   createSession,
   fetchWithProgress,
   runSession,
-  type FeedValues,
+  type ExternalDataFile,
   type LoadedSession,
   type RunOutput,
 } from './runner.js';
+import {
+  feedDtypeOf,
+  isFloatDtype,
+  toFeedValues,
+  type FeedDtype,
+  type FeedValues,
+} from './tensor-data.js';
 
 const TOP_K = 5;
 const VALUE_PREVIEW_COUNT = 12;
-const SUPPORTED_DTYPES = new Set(['float32', 'int64', null]);
 
 const BACKEND_LABELS = { webgpu: 'WebGPU', wasm: 'WASM' } as const;
 
@@ -72,54 +83,134 @@ function Panel({
 
 /* ---------- input ---------- */
 
+/** A graph input the demo knows how to build a tensor for. */
+interface FeedableInput {
+  tensor: TensorInfo;
+  dtype: FeedDtype;
+  /** Distinct per input so two unnamed inputs do not get identical random values. */
+  seed: number;
+}
+
 interface InputState {
+  shapeText: string;
   numbers: string;
+  /** Once the user has typed values, shape edits stop regenerating them. */
+  isNumbersEdited: boolean;
   imageUrl: string | null;
   normalization: Normalization;
 }
 
-function buildFeed(
-  tensor: TensorInfo,
-  state: InputState,
-  image: HTMLImageElement | null,
-): { values: FeedValues; dims: number[] } | string {
-  const dims = concreteShape(tensor);
-  const count = elementCount(dims);
-  if (inputKindOf(tensor) === 'image' && image) {
+interface Feed {
+  values: FeedValues;
+  dims: number[];
+}
+
+function defaultNumbers(input: FeedableInput, dims: readonly number[]): string {
+  return formatValues(
+    defaultValues(input.tensor.name, dims, input.seed),
+    !isFloatDtype(input.dtype),
+  );
+}
+
+function initialInputState(input: FeedableInput): InputState {
+  const dims = concreteShape(input.tensor);
+  return {
+    shapeText: formatDims(dims),
+    numbers: defaultNumbers(input, dims),
+    isNumbersEdited: false,
+    imageUrl: null,
+    normalization: 'imagenet',
+  };
+}
+
+const PIXEL_MAX = 255;
+
+async function buildFeed(input: FeedableInput, state: InputState): Promise<Feed | string> {
+  const dims = parseShape(state.shapeText, input.tensor.shape);
+  if (typeof dims === 'string') return dims;
+  if (inputKindOf(input.tensor) === 'image' && state.imageUrl) {
     const [, channels = 3, height = 1, width = 1] = dims;
-    const pixels = imagePixels(image, width, height);
-    const data = rgbaToChw(pixels, width, height, channels === 1 ? 1 : 3, state.normalization);
-    return { values: { dtype: 'float32', data }, dims };
+    const pixels = imagePixels(await loadImage(state.imageUrl), width, height);
+    const channelCount = channels === 1 ? 1 : 3;
+    // Integer image inputs (usually uint8) expect raw 0..255 pixels, not normalized floats.
+    const values = isFloatDtype(input.dtype)
+      ? rgbaToChw(pixels, width, height, channelCount, state.normalization)
+      : rgbaToChw(pixels, width, height, channelCount, 'none').map((value) => value * PIXEL_MAX);
+    return { values: toFeedValues(values, input.dtype), dims };
   }
+  const count = elementCount(dims);
   const values = parseNumbers(state.numbers);
   if (!values) return '숫자가 아닌 값이 있어요. 쉼표나 공백으로 구분해 주세요.';
   if (values.length !== count) {
     return `${formatShape(dims)} 모양이라 숫자 ${String(count)}개가 필요해요. 지금은 ${String(values.length)}개예요.`;
   }
-  if (tensor.dtype === 'int64') {
-    return {
-      values: {
-        dtype: 'int64',
-        data: BigInt64Array.from(values, (value) => BigInt(Math.round(value))),
-      },
-      dims,
-    };
-  }
-  return { values: { dtype: 'float32', data: Float32Array.from(values) }, dims };
+  return { values: toFeedValues(values, input.dtype), dims };
+}
+
+const hasDynamicDims = (tensor: TensorInfo) =>
+  tensor.shape === null || tensor.shape.some((dim) => typeof dim !== 'number' || dim <= 0);
+
+function ShapeField({
+  input,
+  state,
+  onChange,
+}: {
+  input: FeedableInput;
+  state: InputState;
+  onChange: (next: InputState) => void;
+}) {
+  const errorId = useId();
+  const parsed = parseShape(state.shapeText, input.tensor.shape);
+  const error = typeof parsed === 'string' ? parsed : null;
+  const changeShape = (shapeText: string) => {
+    const dims = parseShape(shapeText, input.tensor.shape);
+    const shouldRegenerate = !state.isNumbersEdited && typeof dims !== 'string';
+    onChange({
+      ...state,
+      shapeText,
+      numbers: shouldRegenerate ? defaultNumbers(input, dims) : state.numbers,
+    });
+  };
+  return (
+    <div className="grid gap-1">
+      <label className="flex items-center justify-between gap-3 text-sm">
+        모양
+        <input
+          type="text"
+          value={state.shapeText}
+          onChange={(event) => changeShape(event.target.value)}
+          aria-label={`${input.tensor.name} 모양`}
+          aria-invalid={error !== null}
+          aria-describedby={error ? errorId : undefined}
+          spellCheck={false}
+          className={clsx(
+            'h-8 w-40 rounded-md border bg-surface px-2 font-mono text-xs focus:outline-none',
+            error ? 'border-danger' : 'border-fog focus:border-primary',
+          )}
+        />
+      </label>
+      {error && (
+        <p id={errorId} className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function InputPanel({
-  tensor,
+  input,
   state,
   onChange,
-  imageRef,
 }: {
-  tensor: TensorInfo;
+  input: FeedableInput;
   state: InputState;
   onChange: (next: InputState) => void;
-  imageRef: React.RefObject<HTMLImageElement | null>;
 }) {
-  const dims = concreteShape(tensor);
+  const { tensor, dtype } = input;
+  const parsed = parseShape(state.shapeText, tensor.shape);
+  const dims = typeof parsed === 'string' ? null : parsed;
+  const previewDims = dims ?? concreteShape(tensor);
   const isImage = inputKindOf(tensor) === 'image';
   return (
     <div className="grid gap-3">
@@ -128,12 +219,15 @@ function InputPanel({
         <span className="font-mono">{formatShape(tensor.shape)}</span>
         {tensor.dtype && <Badge>{tensor.dtype}</Badge>}
       </p>
+      {tensor.dtype === null && (
+        <p className="text-xs text-slate">타입 정보가 없어서 float32로 넣어요.</p>
+      )}
+      {hasDynamicDims(tensor) && <ShapeField input={input} state={state} onChange={onChange} />}
       {isImage && (
         <>
           <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-fog bg-paper px-4 py-6 text-center text-sm text-slate hover:border-lilac">
             {state.imageUrl ? (
               <img
-                ref={imageRef}
                 src={state.imageUrl}
                 alt="입력 이미지"
                 className="max-h-40 rounded-md object-contain"
@@ -142,8 +236,8 @@ function InputPanel({
               <ImageUp className="size-6" aria-hidden="true" />
             )}
             <span>
-              {state.imageUrl ? '다른 이미지 고르기' : '이미지를 고르면'} {String(dims[3])}×
-              {String(dims[2])}로 맞춰서 넣어요
+              {state.imageUrl ? '다른 이미지 고르기' : '이미지를 고르면'} {String(previewDims[3])}×
+              {String(previewDims[2])}로 맞춰서 넣어요
             </span>
             <input
               type="file"
@@ -157,19 +251,21 @@ function InputPanel({
               }}
             />
           </label>
-          <label className="flex items-center justify-between gap-3 text-sm">
-            정규화
-            <select
-              value={state.normalization}
-              onChange={(event) =>
-                onChange({ ...state, normalization: event.target.value as Normalization })
-              }
-              className="h-8 rounded-md border border-fog bg-surface px-2 text-sm"
-            >
-              <option value="imagenet">ImageNet 평균·표준편차</option>
-              <option value="none">0~1 그대로</option>
-            </select>
-          </label>
+          {isFloatDtype(dtype) && (
+            <label className="flex items-center justify-between gap-3 text-sm">
+              정규화
+              <select
+                value={state.normalization}
+                onChange={(event) =>
+                  onChange({ ...state, normalization: event.target.value as Normalization })
+                }
+                className="h-8 rounded-md border border-fog bg-surface px-2 text-sm"
+              >
+                <option value="imagenet">ImageNet 평균·표준편차</option>
+                <option value="none">0~1 그대로</option>
+              </select>
+            </label>
+          )}
           {!state.imageUrl && (
             <p className="text-xs text-slate">이미지가 없으면 아래 숫자 값으로 실행해요.</p>
           )}
@@ -178,15 +274,17 @@ function InputPanel({
       {(!isImage || !state.imageUrl) && (
         <label className="grid gap-1.5 text-sm">
           <span className="flex items-center justify-between">
-            값 {String(elementCount(dims))}개
+            {dims ? `값 ${String(elementCount(dims))}개` : '값'}
             <button
               type="button"
               onClick={() =>
                 onChange({
                   ...state,
-                  numbers: seededValues(elementCount(dims), Date.now() % 100_000)
-                    .map((value) => value.toFixed(3))
-                    .join(', '),
+                  numbers: formatValues(
+                    seededValues(elementCount(previewDims), Date.now() % 100_000),
+                    !isFloatDtype(dtype),
+                  ),
+                  isNumbersEdited: true,
                 })
               }
               className="flex items-center gap-1 text-xs text-slate hover:text-primary"
@@ -196,7 +294,10 @@ function InputPanel({
           </span>
           <textarea
             value={state.numbers}
-            onChange={(event) => onChange({ ...state, numbers: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...state, numbers: event.target.value, isNumbersEdited: true })
+            }
+            aria-label={`${tensor.name} 값`}
             rows={isImage ? 3 : 5}
             spellCheck={false}
             className="resize-y rounded-md border border-fog bg-surface px-3 py-2 font-mono text-xs leading-5 focus:border-primary focus:outline-none"
@@ -407,7 +508,7 @@ type Stage =
   | { kind: 'idle' }
   | { kind: 'downloading'; loaded: number; total: number | null }
   | { kind: 'preparing' }
-  | { kind: 'ready'; loaded: LoadedSession }
+  | { kind: 'ready'; loaded: LoadedSession; hasFeatureMaps: boolean }
   | { kind: 'failed'; message: string };
 
 function previewsFrom(outputs: RunOutput[]): Map<string, ActivationPreview> {
@@ -423,21 +524,79 @@ function previewsFrom(outputs: RunOutput[]): Map<string, ActivationPreview> {
   return previews;
 }
 
-function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
+/**
+ * Creates a session that also exposes `intermediates` as outputs. Some models reject the extra
+ * outputs (the runtime cannot always infer their types), so on failure it retries once with the
+ * original bytes; an error from that retry propagates.
+ */
+async function createDemoSession(
+  bytes: Uint8Array,
+  intermediates: readonly Intermediate[],
+  externalData: readonly ExternalDataFile[],
+): Promise<{ loaded: LoadedSession; hasFeatureMaps: boolean }> {
+  if (intermediates.length === 0) {
+    return { loaded: await createSession(bytes, { externalData }), hasFeatureMaps: false };
+  }
+  const patched = appendGraphOutputs(
+    bytes,
+    intermediates.map((item) => item.output),
+  );
+  try {
+    return { loaded: await createSession(patched, { externalData }), hasFeatureMaps: true };
+  } catch (error) {
+    console.warn('Session with intermediate outputs failed; retrying without them', error);
+    return { loaded: await createSession(bytes, { externalData }), hasFeatureMaps: false };
+  }
+}
+
+type InputPlan =
+  { kind: 'ready'; inputs: FeedableInput[] } | { kind: 'unsupported'; tensor: TensorInfo };
+
+function planInputs(tensors: readonly TensorInfo[]): InputPlan {
+  const inputs: FeedableInput[] = [];
+  for (const [index, tensor] of tensors.entries()) {
+    const dtype = feedDtypeOf(tensor.dtype);
+    if (!dtype) return { kind: 'unsupported', tensor };
+    inputs.push({ tensor, dtype, seed: index + 1 });
+  }
+  return { kind: 'ready', inputs };
+}
+
+function DemoWorkspace({
+  graph,
+  downloadBytes,
+}: {
+  graph: OnnxGraphPayload;
+  downloadBytes: number | null;
+}) {
+  const plan = useMemo(() => planInputs(graph.inputs), [graph]);
+  if (plan.kind === 'unsupported') {
+    return (
+      <EmptyState
+        title="아직 지원하지 않는 입력 타입이에요"
+        body={`${plan.tensor.name}의 타입이 ${plan.tensor.dtype ?? '알 수 없음'}이에요. 지금은 float(16·32·64), int(8·32·64), uint8, bool 입력만 실행할 수 있어요.`}
+      />
+    );
+  }
+  if (plan.inputs.length === 0) return <EmptyState title="입력이 없는 그래프라 실행할 수 없어요" />;
+  return <DemoSession graph={graph} inputs={plan.inputs} downloadBytes={downloadBytes} />;
+}
+
+function DemoSession({
+  graph,
+  inputs,
+  downloadBytes,
+}: {
+  graph: OnnxGraphPayload;
+  inputs: FeedableInput[];
+  downloadBytes: number | null;
+}) {
   const { model } = useRepo();
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
-  const primaryInput = graph.inputs[0];
   const intermediates = useMemo(() => pickIntermediates(graph), [graph]);
-  const [inputState, setInputState] = useState<InputState>(() => ({
-    numbers: primaryInput
-      ? seededValues(elementCount(concreteShape(primaryInput)))
-          .map((value) => value.toFixed(3))
-          .join(', ')
-      : '',
-    imageUrl: null,
-    normalization: 'imagenet',
-  }));
-  const imageRef = useRef<HTMLImageElement>(null);
+  const [entries, setEntries] = useState(() =>
+    inputs.map((input) => ({ input, state: initialInputState(input) })),
+  );
   const labels = useQuery({
     queryKey: demoKeys.labels(model.id),
     queryFn: () => getLabels(model.id),
@@ -455,43 +614,43 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
   const load = async () => {
     try {
       setStage({ kind: 'downloading', loaded: 0, total: model.sizeBytes });
-      const url = await getModelFileUrl(model.id);
+      // Fetched now rather than with the size check: the URLs are short-lived tickets.
+      const [url, externalData] = await Promise.all([
+        getModelFileUrl(model.id),
+        getExternalDataFiles(model.id),
+      ]);
       const bytes = await fetchWithProgress(url, (loaded, total) =>
         setStage({ kind: 'downloading', loaded, total }),
       );
       setStage({ kind: 'preparing' });
-      const patched = appendGraphOutputs(
-        bytes,
-        intermediates.map((item) => item.output),
-      );
-      setStage({ kind: 'ready', loaded: await createSession(patched) });
+      const created = await createDemoSession(bytes, intermediates, externalData);
+      setStage({ kind: 'ready', ...created });
     } catch (error) {
       setStage({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
     }
   };
 
+  const updateInput = (name: string, next: InputState) =>
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.input.tensor.name === name ? { ...entry, state: next } : entry,
+      ),
+    );
+
   const run = async () => {
-    if (stage.kind !== 'ready' || !primaryInput) return;
+    if (stage.kind !== 'ready') return;
     setRunError(null);
-    const feeds: Record<string, { values: FeedValues; dims: number[] }> = {};
-    for (const [index, tensor] of graph.inputs.entries()) {
-      const state =
-        index === 0
-          ? inputState
-          : {
-              ...inputState,
-              imageUrl: null,
-              numbers: seededValues(elementCount(concreteShape(tensor))).join(','),
-            };
-      const feed = buildFeed(tensor, state, index === 0 ? imageRef.current : null);
-      if (typeof feed === 'string') {
-        setRunError(feed);
-        return;
-      }
-      feeds[tensor.name] = feed;
-    }
     setIsRunning(true);
     try {
+      const feeds: Record<string, Feed> = {};
+      for (const { input, state } of entries) {
+        const feed = await buildFeed(input, state);
+        if (typeof feed === 'string') {
+          setRunError(entries.length > 1 ? `${input.tensor.name}: ${feed}` : feed);
+          return;
+        }
+        feeds[input.tensor.name] = feed;
+      }
       const next = await runSession(stage.loaded, feeds);
       setResult(next);
       publishActivations(model.id, previewsFrom(next.outputs));
@@ -501,17 +660,6 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
       setIsRunning(false);
     }
   };
-
-  const unsupported = graph.inputs.find((tensor) => !SUPPORTED_DTYPES.has(tensor.dtype));
-  if (!primaryInput) return <EmptyState title="입력이 없는 그래프라 실행할 수 없어요" />;
-  if (unsupported) {
-    return (
-      <EmptyState
-        title="아직 지원하지 않는 입력 타입이에요"
-        body={`${unsupported.name}의 타입이 ${unsupported.dtype ?? '알 수 없음'}이에요. 지금은 float32와 int64 입력만 실행할 수 있어요.`}
-      />
-    );
-  }
 
   const outputsByName = new Map(result?.outputs.map((output) => [output.name, output]));
   const graphOutputs = graph.outputs.flatMap((tensor) => {
@@ -542,21 +690,24 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
               )
             }
           >
-            <InputPanel
-              tensor={primaryInput}
-              state={inputState}
-              onChange={setInputState}
-              imageRef={imageRef}
-            />
-            {graph.inputs.length > 1 && (
-              <p className="mt-3 text-xs text-slate">
-                나머지 입력 {String(graph.inputs.length - 1)}개는 무작위 값으로 채워요.
-              </p>
-            )}
+            <div className="grid gap-4">
+              {entries.map(({ input, state }, index) => (
+                <div
+                  key={input.tensor.name}
+                  className={index > 0 ? 'border-t border-fog pt-4' : undefined}
+                >
+                  <InputPanel
+                    input={input}
+                    state={state}
+                    onChange={(next) => updateInput(input.tensor.name, next)}
+                  />
+                </div>
+              ))}
+            </div>
             <div className="mt-4">
               {stage.kind === 'idle' || stage.kind === 'failed' ? (
                 <Button className="w-full" onClick={() => void load()}>
-                  모델 불러오기 ({formatBytes(model.sizeBytes)})
+                  모델 불러오기 ({formatBytes(downloadBytes)})
                 </Button>
               ) : stage.kind === 'ready' ? (
                 <Button
@@ -590,6 +741,11 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
                     <span>실행 준비 중…</span>
                   )}
                 </div>
+              )}
+              {stage.kind === 'ready' && !stage.hasFeatureMaps && intermediates.length > 0 && (
+                <p className="mt-3 text-xs text-slate">
+                  레이어별 feature map은 이 모델에서 볼 수 없어요.
+                </p>
               )}
               {stage.kind === 'failed' && (
                 <div className="mt-3">
@@ -642,7 +798,7 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
         </Panel>
       </div>
 
-      {result && intermediates.length > 0 && (
+      {result && stage.kind === 'ready' && stage.hasFeatureMaps && (
         <section aria-labelledby="feature-maps">
           <div className="mb-3 flex items-baseline justify-between gap-4">
             <h2 id="feature-maps" className="font-semibold">
@@ -669,12 +825,20 @@ function DemoWorkspace({ graph }: { graph: OnnxGraphPayload }) {
 export function DemoTab() {
   const { model } = useRepo();
   const version = model.currentVersion;
+  const isRunnable = version !== null && model.format === 'onnx' && model.myAccess.canDownload;
   const graph = useQuery({
     queryKey: modelKeys.graph(model.id, null),
     queryFn: () => getGraph(model.id, null),
     enabled: version !== null && model.format === 'onnx',
     staleTime: Number.POSITIVE_INFINITY,
   });
+  const externalData = useQuery({
+    queryKey: demoKeys.externalData(model.id),
+    queryFn: () => getExternalDataFiles(model.id),
+    enabled: isRunnable,
+  });
+  const externalBytes = (externalData.data ?? []).reduce((sum, file) => sum + file.sizeBytes, 0);
+  const downloadBytes = model.sizeBytes === null ? null : model.sizeBytes + externalBytes;
   let content: ReactNode;
   if (model.format !== 'onnx') {
     content = <EmptyState title="ONNX 모델만 브라우저에서 실행할 수 있어요" />;
@@ -685,14 +849,21 @@ export function DemoTab() {
         body="데모는 원본 파일을 이 브라우저로 받아서 실행해요. 저장소 주인이 다운로드를 허용하면 쓸 수 있어요."
       />
     );
-  } else if (model.sizeBytes !== null && model.sizeBytes > DEMO_MAX_BYTES) {
+  } else if (externalData.isError) {
+    content = (
+      <ErrorState
+        message="모델의 외부 가중치 파일 목록을 불러오지 못했어요."
+        onRetry={() => void externalData.refetch()}
+      />
+    );
+  } else if ((model.sizeBytes ?? 0) + externalBytes > DEMO_MAX_BYTES) {
     content = (
       <EmptyState
         title="브라우저에서 돌리기엔 큰 모델이에요"
-        body={`${formatBytes(DEMO_MAX_BYTES)}보다 작은 모델만 실행할 수 있어요.`}
+        body={`외부 가중치까지 합쳐 ${formatBytes(DEMO_MAX_BYTES)}보다 작은 모델만 실행할 수 있어요.`}
       />
     );
-  } else if (graph.isPending) {
+  } else if (graph.isPending || (isRunnable && externalData.isPending)) {
     content = <Loading />;
   } else if (graph.isError) {
     content = (
@@ -701,7 +872,7 @@ export function DemoTab() {
   } else if (graph.data.payload.kind !== 'onnx-graph') {
     content = <EmptyState title="ONNX 모델만 브라우저에서 실행할 수 있어요" />;
   } else {
-    content = <DemoWorkspace graph={graph.data.payload} />;
+    content = <DemoWorkspace graph={graph.data.payload} downloadBytes={downloadBytes} />;
   }
   return <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">{content}</div>;
 }

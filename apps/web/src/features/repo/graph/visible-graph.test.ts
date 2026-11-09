@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { OnnxGraphPayload, OnnxNode } from '@mieru/shared';
 import {
+  HARD_CAP,
   MAX_VISIBLE,
   buildGroupTree,
   buildVisibleGraph,
@@ -193,5 +194,19 @@ describe('single-node groups', () => {
     const collapsed = new Set(['', 'model']);
     expect(representativeOf('a', tree, collapsed)).toBe('a');
     expect(representativeOf('b', tree, collapsed)).toBe('g:model/pair');
+  });
+});
+
+describe('hard cap', () => {
+  it('only keeps edges between drawn items when a graph is cut at the cap', () => {
+    const nodes = Array.from({ length: HARD_CAP + 20 }, (_, index) => node(`n${index}`, []));
+    const payload = chainPayload(nodes);
+    const tree = buildGroupTree(nodes);
+    const everything = new Set(tree.groups.keys());
+    const visible = buildVisibleGraph(payload, tree, everything);
+    const ids = new Set(visible.items.map((item) => item.id));
+    expect(visible.isCapped).toBe(true);
+    expect(visible.items).toHaveLength(HARD_CAP);
+    expect(visible.edges.every((edge) => ids.has(edge.source) && ids.has(edge.target))).toBe(true);
   });
 });

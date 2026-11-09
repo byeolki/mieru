@@ -107,6 +107,7 @@ function GraphCanvas({
   );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [layout, setLayout] = useState<{ for: unknown; positions: Positions } | null>(null);
+  const [layoutFailedFor, setLayoutFailedFor] = useState<unknown>(null);
   const [showMinimap, setShowMinimap] = useState(payload.nodes.length <= 1000);
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [query, setQuery] = useState('');
@@ -119,15 +120,22 @@ function GraphCanvas({
 
   useEffect(() => {
     let isCurrent = true;
-    void layoutGraph(visible.items, visible.edges).then((positions) => {
-      if (isCurrent) setLayout({ for: visible, positions });
-    });
+    layoutGraph(visible.items, visible.edges).then(
+      (positions) => {
+        if (isCurrent) setLayout({ for: visible, positions });
+      },
+      (error: unknown) => {
+        console.error('Graph layout failed', error);
+        if (isCurrent) setLayoutFailedFor(visible);
+      },
+    );
     return () => {
       isCurrent = false;
     };
   }, [visible]);
   const positions = layout?.positions ?? null;
-  const isLayingOut = layout?.for !== visible;
+  const hasLayoutFailed = layoutFailedFor === visible;
+  const isLayingOut = layout?.for !== visible && !hasLayoutFailed;
 
   useEffect(() => {
     if (!positions) return;
@@ -376,7 +384,7 @@ function GraphCanvas({
           )}
         </div>
 
-        {(isLayingOut || visible.isCapped) && (
+        {(isLayingOut || hasLayoutFailed || visible.isCapped) && (
           <div
             className="absolute top-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-fog bg-surface/95 px-3.5 py-1.5 text-xs shadow-(--shadow-soft)"
             role="status"
@@ -384,6 +392,10 @@ function GraphCanvas({
             {isLayingOut ? (
               <span className="flex items-center gap-2 text-slate">
                 <Spinner className="size-3.5" /> 배치하는 중…
+              </span>
+            ) : hasLayoutFailed ? (
+              <span className="text-danger">
+                그래프를 배치하지 못했어요. 펼친 블록을 접고 다시 시도해주세요.
               </span>
             ) : (
               '노드가 너무 많아 일부만 보여요. 더 작은 블록을 펼쳐보세요.'

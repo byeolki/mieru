@@ -11,10 +11,14 @@ export const versionKeys = {
 export const listVersions = (modelId: string) =>
   apiRequest(`/api/models/${modelId}/versions`, versionListResponseSchema);
 
-export const createVersion = (modelId: string, uploadId: string, note: string) =>
+export const createVersion = (
+  modelId: string,
+  upload: { uploadId: string; dataUploadIds: string[] },
+  note: string,
+) =>
   apiRequest(`/api/models/${modelId}/versions`, versionListResponseSchema, {
     method: 'POST',
-    body: { uploadId, note: note.trim() || undefined },
+    body: { ...upload, note: note.trim() || undefined },
   });
 
 export const deleteVersion = (modelId: string, number: number) =>

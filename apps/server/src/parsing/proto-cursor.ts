@@ -76,6 +76,20 @@ export class ProtoCursor {
     return Number(signed);
   }
 
+  /**
+   * Reads an int64 value exactly: a number when it is a safe JS integer, otherwise its decimal
+   * string. Exporters use INT64_MAX/MIN as "to the end" sentinels (Slice `ends`), so these
+   * values are common and must not fail the parse.
+   */
+  async readInt64(): Promise<number | string> {
+    const value = await this.readVarintBig();
+    const signed = BigInt.asIntN(64, value);
+    if (signed > BigInt(Number.MAX_SAFE_INTEGER) || signed < BigInt(Number.MIN_SAFE_INTEGER)) {
+      return signed.toString();
+    }
+    return Number(signed);
+  }
+
   async readFieldHeader(): Promise<FieldHeader> {
     const tag = await this.readVarint();
     const fieldNumber = Math.floor(tag / 8);

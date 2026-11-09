@@ -30,9 +30,19 @@ export function sanitizeFilename(filename: string): string {
   return (cleaned || 'model').slice(0, 255);
 }
 
+/**
+ * First tag bytes of every ModelProto field with its proper wire type: ir_version, producer
+ * name/version, domain, model_version, doc_string, graph, opset_import and metadata_props fit in
+ * one byte; training_info (20), configuration (21) and functions (25) start with 0xa2/0xaa/0xca.
+ * ONNX has no magic number and exporters don't all write ir_version first.
+ */
+const MODEL_PROTO_FIRST_BYTES = new Set([
+  0x08, 0x12, 0x1a, 0x22, 0x28, 0x32, 0x3a, 0x42, 0x72, 0xa2, 0xaa, 0xca,
+]);
+
 /** Cheap first-bytes check before queueing a parse (the parser does the full validation). */
 export function hasExpectedMagic(format: ModelFormat, head: Buffer, fileSize: number): boolean {
-  if (format === 'onnx') return head[0] === 0x08;
+  if (format === 'onnx') return MODEL_PROTO_FIRST_BYTES.has(head[0] ?? -1);
   if (head.length < 9) return false;
   const headerLength = Number(head.readBigUInt64LE(0));
   return (

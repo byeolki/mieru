@@ -3,7 +3,10 @@ import { mkdir, open, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  EXTERNAL_DATA_NAME,
   NESTED_SAFETENSORS,
+  externalDataOnnx,
+  realWorldQuirksOnnx,
   safetensorsBuffer,
   syntheticTransformerOnnx,
   tinyCnnOnnx,
@@ -50,5 +53,9 @@ await writeFixture(
 await writeFixture('tiny-mlp.onnx', tinyMlpOnnx());
 await writeFixture('synthetic-transformer-10k.onnx', syntheticTransformerOnnx(770));
 await writeFixture('nested.safetensors', safetensorsBuffer(NESTED_SAFETENSORS, { format: 'pt' }));
+const external = externalDataOnnx();
+await writeFixture('external.onnx', external.model);
+await writeFixture(EXTERNAL_DATA_NAME, external.data);
+await writeFixture('quirks.onnx', realWorldQuirksOnnx());
 await writeFixture('garbage.onnx', Buffer.from('this is not a protobuf file at all, just text'));
 await writeLargeSafetensors('large-sparse.safetensors');

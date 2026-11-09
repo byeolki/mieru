@@ -6,9 +6,12 @@ import { parsedModelSchema } from '@mieru/shared';
 import {
   NESTED_SAFETENSORS,
   NESTED_SAFETENSORS_PARAMS,
+  EXTERNAL_DATA_NAME,
+  QUIRKS_PARAMS,
   TINY_CNN_PARAMS,
   externalDataOnnx,
   largeOnnxLayout,
+  realWorldQuirksOnnx,
   safetensorsBuffer,
   safetensorsWithHeader,
   seededRandom,
@@ -97,8 +100,53 @@ describe('ONNX parser', () => {
     await expect(result).rejects.toBeInstanceOf(ParseError);
   });
 
-  it('rejects models with external data', async () => {
-    await expectParseError(externalDataOnnx(), 'onnx', 'external_data_unsupported');
+  it('maps external tensors to their data file, offset and length', async () => {
+    const { parsed, tensorIndex, externalData } = await parseBuffer(
+      externalDataOnnx().model,
+      'onnx',
+    );
+    expect(parsed.summary.totalParams).toBe(8);
+    expect(tensorIndex).toEqual([
+      expect.objectContaining({
+        name: 'w1',
+        offset: 0,
+        length: 16,
+        location: `./${EXTERNAL_DATA_NAME}`,
+      }),
+      expect.objectContaining({
+        name: 'w2',
+        offset: 16,
+        length: 16,
+        location: `./${EXTERNAL_DATA_NAME}`,
+      }),
+    ]);
+    expect(externalData).toEqual([{ location: `./${EXTERNAL_DATA_NAME}`, requiredBytes: 32 }]);
+  });
+
+  it('accepts INT64_MAX attributes, subgraph weights, sparse and varint tensors', async () => {
+    const { parsed, tensorIndex } = await parseBuffer(realWorldQuirksOnnx(), 'onnx');
+    expect(parsedModelSchema.safeParse(parsed).success).toBe(true);
+    const { summary, payload } = parsed;
+    if (payload.kind !== 'onnx-graph') throw new Error('expected an ONNX graph');
+    expect(summary.totalParams).toBe(QUIRKS_PARAMS);
+
+    const slice = payload.nodes.find((node) => node.opType === 'Slice');
+    expect(slice?.attributes.ends).toEqual({
+      kind: 'ints',
+      value: ['9223372036854775807'],
+      truncated: false,
+    });
+    const branch = payload.nodes.find((node) => node.opType === 'If');
+    expect(branch?.attributes.then_branch).toEqual({ kind: 'graph', nodeCount: 2 });
+
+    const names = tensorIndex.map((entry) => entry.name).sort();
+    expect(names).toEqual(['q', 'then_c', 'then_w', 'w']);
+    expect(tensorIndex.find((entry) => entry.name === 'q')).toMatchObject({
+      dtype: 'int8',
+      encoding: 'varint',
+      location: null,
+    });
+    expect(tensorIndex.find((entry) => entry.name === 'w')?.encoding).toBe('raw');
   });
 
   it('never throws anything but ParseError on corrupted bytes (seeded fuzz)', async () => {

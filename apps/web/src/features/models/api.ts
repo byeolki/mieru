@@ -55,16 +55,42 @@ export function saveReadme(id: string, markdown: string, baseUpdatedAt: string |
   });
 }
 
-/** Asks for a short-lived download URL, then lets the browser download it natively. */
-export async function downloadOriginal(id: string) {
-  const { url } = await apiRequest(`/api/models/${id}/file-ticket`, fileTicketResponseSchema, {
-    method: 'POST',
-    body: {},
-  });
+function startDownload(url: string) {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.rel = 'noopener';
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
+}
+
+/**
+ * Asks for a short-lived download URL and lets the browser download it natively. Returns the
+ * model's external data files instead of downloading when it has any, so the caller can list
+ * them: they must be saved next to the `.onnx` for it to load.
+ */
+export async function downloadOriginal(id: string): Promise<DownloadableFile[]> {
+  const ticket = await apiRequest(`/api/models/${id}/file-ticket`, fileTicketResponseSchema, {
+    method: 'POST',
+    body: {},
+  });
+  if (ticket.externalData.length === 0) {
+    startDownload(ticket.url);
+    return [];
+  }
+  return [
+    { name: null, url: ticket.url, sizeBytes: null },
+    ...ticket.externalData.map((file) => ({
+      name: file.name,
+      url: file.url,
+      sizeBytes: file.sizeBytes,
+    })),
+  ];
+}
+
+/** One file of a model download; `name` null is the model file itself. */
+export interface DownloadableFile {
+  name: string | null;
+  url: string;
+  sizeBytes: number | null;
 }

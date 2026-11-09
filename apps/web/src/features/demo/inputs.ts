@@ -1,4 +1,4 @@
-import type { TensorInfo } from '@mieru/shared';
+import type { Dim, TensorInfo } from '@mieru/shared';
 
 export type InputKind = 'image' | 'numbers';
 
@@ -18,17 +18,80 @@ export function inputKindOf(tensor: TensorInfo): InputKind {
   return 'numbers';
 }
 
+/** Length used for dynamic sequence dims, long enough for a few tokens without being slow. */
+const DEFAULT_SEQUENCE_LENGTH = 8;
+
+// KV-cache inputs start empty on the first decoding step; onnxruntime accepts 0-sized dims.
+const DEFAULT_PAST_LENGTH = 0;
+
+const PAST_DIM = /past/;
+const BATCH_DIM = /batch/;
+const SEQUENCE_DIM = /seq|len|token/;
+// Exporters often leave sequence axes unnamed on text inputs.
+const TOKEN_INPUT = /input_ids|attention_mask|token_type_ids|position_ids/;
+
+interface DimContext {
+  inputName: string;
+  axis: number;
+  isImage: boolean;
+}
+
+function namedDimDefault(name: string, context: DimContext): number {
+  const lower = name.trim().toLowerCase();
+  if (/^\d+$/.test(lower)) return Number(lower);
+  if (PAST_DIM.test(lower)) return DEFAULT_PAST_LENGTH;
+  if (BATCH_DIM.test(lower)) return 1;
+  if (SEQUENCE_DIM.test(lower)) return DEFAULT_SEQUENCE_LENGTH;
+  if (lower === '' && context.axis >= 1 && TOKEN_INPUT.test(context.inputName.toLowerCase())) {
+    return DEFAULT_SEQUENCE_LENGTH;
+  }
+  return 1;
+}
+
 /**
- * Turns a declared shape into concrete dims: the batch is 1, image height and width default to
- * `DEFAULT_IMAGE_SIDE`, and any other unknown dim becomes 1.
+ * A concrete size for one declared dim. Fixed dims keep their value; image height and width
+ * become `DEFAULT_IMAGE_SIDE`; symbolic names are read by convention (batch → 1, sequence or
+ * length → `DEFAULT_SEQUENCE_LENGTH`, past (KV cache) → 0). Sums such as
+ * `past_sequence_length + 1` add up their terms. Anything else becomes 1.
  */
+export function defaultDim(dim: Dim, context: DimContext): number {
+  if (typeof dim === 'number' && dim > 0) return dim;
+  if (context.isImage && context.axis >= 2) return DEFAULT_IMAGE_SIDE;
+  if (typeof dim !== 'string') return namedDimDefault('', context);
+  return dim.split('+').reduce((total, term) => total + namedDimDefault(term, context), 0);
+}
+
+/** Turns a declared shape into concrete dims with `defaultDim`; an unknown shape becomes `[1]`. */
 export function concreteShape(tensor: TensorInfo): number[] {
-  const kind = inputKindOf(tensor);
-  return (tensor.shape ?? [1]).map((dim, index) => {
-    if (typeof dim === 'number' && dim > 0) return dim;
-    if (kind === 'image' && index >= 2) return DEFAULT_IMAGE_SIDE;
-    return 1;
-  });
+  const isImage = inputKindOf(tensor) === 'image';
+  return (tensor.shape ?? [1]).map((dim, axis) =>
+    defaultDim(dim, { inputName: tensor.name, axis, isImage }),
+  );
+}
+
+export const formatDims = (dims: readonly number[]) => dims.join(', ');
+
+/**
+ * Parses a user-edited shape such as `1, 8`. Returns an error message when a token is not a
+ * non-negative integer, the rank differs from the declared one, or a fixed dim was changed.
+ */
+export function parseShape(text: string, declared: readonly Dim[] | null): number[] | string {
+  const tokens = text.split(/[\s,]+/).filter(Boolean);
+  const dims = tokens.map(Number);
+  if (tokens.length === 0 || !dims.every((dim) => Number.isSafeInteger(dim) && dim >= 0)) {
+    return '모양은 0 이상의 정수를 쉼표로 구분해서 적어 주세요.';
+  }
+  if (!declared) return dims;
+  if (dims.length !== declared.length) {
+    return `이 입력은 ${declared.length}차원이라 숫자 ${declared.length}개가 필요해요.`;
+  }
+  const changedAxis = declared.findIndex(
+    (dim, axis) => typeof dim === 'number' && dim > 0 && dims[axis] !== dim,
+  );
+  if (changedAxis >= 0) {
+    return `${changedAxis + 1}번째 차원은 ${String(declared[changedAxis])}로 고정돼 있어요.`;
+  }
+  return dims;
 }
 
 export function elementCount(shape: readonly number[]): number {
@@ -75,4 +138,57 @@ export function seededValues(count: number, seed = 1): number[] {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
     return (state / 0xffffffff) * 2 - 1;
   });
+}
+
+const BERT_CLS_ID = 101;
+const BERT_SEP_ID = 102;
+
+/** `[CLS] 1 2 … [SEP]` with BERT ids, a plausible sentence for most text encoders. */
+function tokenRow(length: number): number[] {
+  return Array.from({ length }, (_, position) => {
+    if (position === 0) return BERT_CLS_ID;
+    if (position === length - 1) return BERT_SEP_ID;
+    return position;
+  });
+}
+
+/** Repeats `row(lastDim)` across every leading axis. */
+function alongLastAxis(dims: readonly number[], row: (length: number) => number[]): number[] {
+  const lastDim = dims.at(-1) ?? 1;
+  const rows = lastDim === 0 ? 0 : elementCount(dims) / lastDim;
+  return Array.from({ length: rows }, () => row(lastDim)).flat();
+}
+
+/**
+ * Starting values for an input, chosen from its name so text models get sensible feeds:
+ * masks are all 1, token types 0, position ids count up along the last axis and input ids
+ * form a short BERT-style sentence. Anything else gets `seededValues(count, seed)`.
+ */
+export function defaultValues(name: string, dims: readonly number[], seed: number): number[] {
+  const lower = name.toLowerCase();
+  const count = elementCount(dims);
+  if (lower.includes('mask')) return new Array<number>(count).fill(1);
+  if (lower.includes('token_type_ids') || lower.includes('segment')) {
+    return new Array<number>(count).fill(0);
+  }
+  if (lower.includes('position_ids')) {
+    return alongLastAxis(dims, (length) => Array.from({ length }, (_, position) => position));
+  }
+  if (lower.includes('input_ids')) return alongLastAxis(dims, tokenRow);
+  return seededValues(count, seed);
+}
+
+const FRACTION_DIGITS = 3;
+
+/** Formats values for the editor; integer inputs show whole numbers since they are rounded anyway. */
+export function formatValues(values: readonly number[], isInteger: boolean): string {
+  return values
+    .map((value) =>
+      isInteger
+        ? String(Math.round(value))
+        : Number.isInteger(value)
+          ? String(value)
+          : value.toFixed(FRACTION_DIGITS),
+    )
+    .join(', ');
 }

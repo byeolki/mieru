@@ -7,6 +7,7 @@ export const PARSE_FAILURE_CODES = [
   'unsupported_dtype',
   'limits_exceeded',
   'external_data_unsupported',
+  'external_data_missing',
   'timeout',
   'internal',
 ] as const;

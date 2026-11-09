@@ -7,17 +7,23 @@ import {
   type TensorInfo,
 } from '@mieru/shared';
 import { elementCount, onnxDtype } from '../dtypes.js';
-import { ParseError } from '../errors.js';
 import { opFamily } from '../families.js';
 import { buildStrip } from '../strip.js';
 import type { TensorIndexEntry } from '../tensor-index.js';
-import type { RawModel, RawTensor } from './scan.js';
+import type { RawModel, RawSparseTensor, RawTensor } from './scan.js';
 
 const DEFAULT_DOMAINS = new Set(['', 'ai.onnx']);
+
+/** An external data file the model needs, and how many bytes of it the tensors reach into. */
+export interface ExternalDataRequirement {
+  location: string;
+  requiredBytes: number;
+}
 
 export interface OnnxBuildResult {
   parsed: ParsedModel;
   tensorIndex: TensorIndexEntry[];
+  externalData: ExternalDataRequirement[];
 }
 
 /**
@@ -30,14 +36,43 @@ export function groupPathOf(name: string): string[] {
   return [];
 }
 
-function tensorParams(tensor: RawTensor): number {
+function tensorParams(tensor: RawTensor | RawSparseTensor): number {
   return elementCount(tensor.dims);
 }
 
-function tensorBytes(tensor: RawTensor): number {
+/** Dense size from dtype and shape; null for strings and unknown dtypes. */
+function denseBytes(tensor: RawTensor | RawSparseTensor): number | null {
   const info = onnxDtype(tensor.dataType);
-  if (!info || info.bits === 0) return tensor.dataLength;
+  if (!info || info.bits === 0) return null;
   return Math.ceil((tensorParams(tensor) * info.bits) / 8);
+}
+
+function tensorBytes(tensor: RawTensor): number {
+  return denseBytes(tensor) ?? tensor.external?.length ?? tensor.dataLength;
+}
+
+/** Where the tensor's bytes are, or null when they can't be located (e.g. unpacked fields). */
+function indexEntryOf(tensor: RawTensor, dtype: string): TensorIndexEntry | null {
+  const base = { name: tensor.name, dtype, shape: tensor.dims };
+  if (tensor.external) {
+    const length = tensor.external.length ?? denseBytes(tensor);
+    if (length === null) return null;
+    return {
+      ...base,
+      offset: tensor.external.offset,
+      length,
+      encoding: 'raw',
+      location: tensor.external.location,
+    };
+  }
+  if (tensor.dataOffset === null) return null;
+  return {
+    ...base,
+    offset: tensor.dataOffset,
+    length: tensor.dataLength,
+    encoding: tensor.encoding,
+    location: null,
+  };
 }
 
 function infoOfTensor(tensor: RawTensor): TensorInfo {
@@ -46,14 +81,6 @@ function infoOfTensor(tensor: RawTensor): TensorInfo {
 
 /** Builds the graph payload, summary and tensor index from a scanned ONNX model. */
 export function buildOnnxModel(raw: RawModel, fileSizeBytes: number): OnnxBuildResult {
-  const externalTensor = raw.initializers.find((tensor) => tensor.isExternal);
-  if (externalTensor) {
-    throw new ParseError(
-      'external_data_unsupported',
-      'Models with external data files are not supported',
-    );
-  }
-
   const weights = new Map<string, RawTensor>();
   for (const tensor of raw.initializers) weights.set(tensor.name, tensor);
   for (const node of raw.nodes) {
@@ -111,26 +138,40 @@ export function buildOnnxModel(raw: RawModel, fileSizeBytes: number): OnnxBuildR
       edges.push({ id: `e${edges.length}`, source, target: `out:${output.name}`, tensor: output });
   }
 
+  // Weights in If/Loop/Scan bodies count toward totals and the weights tab, but never shadow a
+  // top-level tensor of the same name.
+  const allTensors = new Map(weights);
+  for (const tensor of raw.subgraphTensors) {
+    if (!allTensors.has(tensor.name)) allTensors.set(tensor.name, tensor);
+  }
+
   const dtypeBreakdown: Record<string, { params: number; bytes: number }> = {};
   const tensorIndex: TensorIndexEntry[] = [];
+  const externalEnds = new Map<string, number>();
   let totalParams = 0;
-  for (const tensor of weights.values()) {
-    const params = tensorParams(tensor);
-    const bytes = tensorBytes(tensor);
-    const dtype = onnxDtype(tensor.dataType)?.name ?? 'unknown';
+  const addToBreakdown = (dtype: string, params: number, bytes: number) => {
     totalParams += params;
     const entry = (dtypeBreakdown[dtype] ??= { params: 0, bytes: 0 });
     entry.params += params;
     entry.bytes += bytes;
-    if (tensor.dataOffset !== null) {
-      tensorIndex.push({
-        name: tensor.name,
-        dtype,
-        shape: tensor.dims,
-        offset: tensor.dataOffset,
-        length: tensor.dataLength,
-      });
+  };
+  for (const tensor of allTensors.values()) {
+    const dtype = onnxDtype(tensor.dataType)?.name ?? 'unknown';
+    addToBreakdown(dtype, tensorParams(tensor), tensorBytes(tensor));
+    const indexEntry = indexEntryOf(tensor, dtype);
+    if (!indexEntry) continue;
+    tensorIndex.push(indexEntry);
+    if (indexEntry.location !== null) {
+      const end = indexEntry.offset + indexEntry.length;
+      externalEnds.set(
+        indexEntry.location,
+        Math.max(externalEnds.get(indexEntry.location) ?? 0, end),
+      );
     }
+  }
+  for (const sparse of raw.sparseInitializers) {
+    const dtype = onnxDtype(sparse.dataType)?.name ?? 'unknown';
+    addToBreakdown(dtype, tensorParams(sparse), denseBytes(sparse) ?? 0);
   }
 
   const defaultOpset = raw.opsets.find((opset) => DEFAULT_DOMAINS.has(opset.domain));
@@ -142,7 +183,7 @@ export function buildOnnxModel(raw: RawModel, fileSizeBytes: number): OnnxBuildR
         format: 'onnx',
         fileSizeBytes,
         totalParams,
-        tensorCount: weights.size,
+        tensorCount: allTensors.size + raw.sparseInitializers.length,
         nodeCount: nodes.length,
         ...(defaultOpset ? { opsetVersion: defaultOpset.version } : {}),
         ...(producer ? { producer } : {}),
@@ -159,5 +200,9 @@ export function buildOnnxModel(raw: RawModel, fileSizeBytes: number): OnnxBuildR
       },
     },
     tensorIndex,
+    externalData: [...externalEnds].map(([location, requiredBytes]) => ({
+      location,
+      requiredBytes,
+    })),
   };
 }

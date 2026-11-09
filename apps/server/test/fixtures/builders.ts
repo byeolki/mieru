@@ -10,6 +10,7 @@ const ATTR_INT = 2;
 const ATTR_INTS = 7;
 const ATTR_FLOAT = 1;
 const ATTR_TENSOR = 4;
+const ATTR_GRAPH = 5;
 
 /** Deterministic PRNG (mulberry32) so fixture bytes and hashes are stable across runs. */
 export function seededRandom(seed: number): () => number {
@@ -288,22 +289,107 @@ export function syntheticTransformerOnnx(layers: number): Buffer {
   });
 }
 
-/** An ONNX model whose initializer points at an external data file. */
-export function externalDataOnnx(): Buffer {
-  return encodeModel({
+export const EXTERNAL_DATA_NAME = 'model.onnx.data';
+
+/**
+ * An ONNX model whose two weights live in an external data file, as `torch.onnx.export` writes
+ * models over 2 GB. The data file holds `w1` at offset 0 and `w2` at offset 16, 16 bytes each.
+ */
+export function externalDataOnnx(): { model: Buffer; data: Buffer } {
+  const random = seededRandom(7);
+  const data = Buffer.concat([
+    floatTensor('w1', [2, 2], random).rawData,
+    floatTensor('w2', [2, 2], random).rawData,
+  ]);
+  const external = (name: string, offset: number) => ({
+    name,
+    dims: [2, 2],
+    dataType: FLOAT,
+    dataLocation: 1,
+    externalData: [
+      // A directory part, which some exporters write, is matched by base name.
+      { key: 'location', value: `./${EXTERNAL_DATA_NAME}` },
+      { key: 'offset', value: String(offset) },
+      { key: 'length', value: '16' },
+    ],
+  });
+  const model = encodeModel({
     name: 'external',
     input: [valueInfo('x', [1, 2])],
-    output: [valueInfo('y', [1, 2])],
-    initializer: [
+    output: [valueInfo('z', [1, 2])],
+    initializer: [external('w1', 0), external('w2', 16)],
+    node: [
+      { name: 'mm1', opType: 'MatMul', input: ['x', 'w1'], output: ['y'] },
+      { name: 'mm2', opType: 'MatMul', input: ['y', 'w2'], output: ['z'] },
+    ],
+  });
+  return { model, data };
+}
+
+const INT8 = 3;
+const INT64_MAX = '9223372036854775807';
+
+/** Parameters in `realWorldQuirksOnnx`: w (4) + then_w (3) + then_c (2) + sparse (16) + q (4). */
+export const QUIRKS_PARAMS = 4 + 3 + 2 + 16 + 4;
+
+/**
+ * Features real exports use that toy models don't: an INT64_MAX attribute (opset 9 Slice
+ * `ends`), an If whose branch holds its own initializer and Constant, a sparse initializer, and
+ * an int8 tensor stored as `int32_data` varints instead of raw bytes.
+ */
+export function realWorldQuirksOnnx(): Buffer {
+  const random = seededRandom(3);
+  const thenBranch = {
+    name: 'then',
+    output: [valueInfo('then_out', [3])],
+    initializer: [floatTensor('then_w', [3], random)],
+    node: [
       {
-        name: 'w',
-        dims: [2, 2],
-        dataType: FLOAT,
-        dataLocation: 1,
-        externalData: [{ key: 'location', value: 'weights.bin' }],
+        name: 'then_const',
+        opType: 'Constant',
+        output: ['then_c'],
+        attribute: [{ name: 'value', type: ATTR_TENSOR, t: floatTensor('then_c', [2], random) }],
+      },
+      { name: 'then_add', opType: 'Add', input: ['then_w', 'then_w'], output: ['then_out'] },
+    ],
+  };
+  return encodeModel({
+    name: 'quirks',
+    input: [valueInfo('x', ['batch', 4]), valueInfo('flag', [])],
+    output: [valueInfo('sliced', ['batch', 4]), valueInfo('branch', [3])],
+    initializer: [
+      floatTensor('w', [4], random),
+      { name: 'q', dims: [4], dataType: INT8, int32Data: [-1, 2, -3, 4] },
+    ],
+    sparseInitializer: [
+      {
+        values: { name: 'sparse', dims: [3], dataType: FLOAT, floatData: [1, 2, 3] },
+        indices: { name: 'sparse_indices', dims: [3], dataType: INT64, int64Data: [0, 5, 15] },
+        dims: [4, 4],
       },
     ],
-    node: [{ name: 'mm', opType: 'MatMul', input: ['x', 'w'], output: ['y'] }],
+    node: [
+      { name: 'scale', opType: 'Mul', input: ['x', 'w'], output: ['scaled'] },
+      { name: 'quant', opType: 'Add', input: ['scaled', 'q'], output: ['shifted'] },
+      {
+        name: 'slice',
+        opType: 'Slice',
+        input: ['shifted'],
+        output: ['sliced'],
+        attribute: [
+          { name: 'starts', type: ATTR_INTS, ints: [0] },
+          { name: 'ends', type: ATTR_INTS, ints: [INT64_MAX] },
+          { name: 'axes', type: ATTR_INTS, ints: [1] },
+        ],
+      },
+      {
+        name: 'branch',
+        opType: 'If',
+        input: ['flag'],
+        output: ['branch'],
+        attribute: [{ name: 'then_branch', type: ATTR_GRAPH, g: thenBranch }],
+      },
+    ],
   });
 }
 

@@ -16,10 +16,10 @@ import { errorMessage } from '../../lib/error-message.js';
 import { formatBytes } from '../../lib/format.js';
 import { createModel } from '../models/api.js';
 import { AppShell, PageHeader } from '../shell/AppShell.js';
-import { useTusUpload, type UploadState } from './useTusUpload.js';
+import { FILE_SPLIT_ERRORS, splitModelFiles } from './model-files.js';
+import { useModelUpload, type UploadState } from './useModelUpload.js';
 import { useTranslation } from 'react-i18next';
 
-const ACCEPTED = '.onnx,.safetensors';
 const LICENSES = [
   ['', '선택 안 함'],
   ['apache-2.0', 'Apache 2.0'],
@@ -59,7 +59,8 @@ const VISIBILITY_OPTIONS: { value: Visibility; title: string; body: string; icon
 ];
 
 const UPLOAD_ERRORS: Record<string, string> = {
-  file_too_large: '파일이 너무 커요. ONNX는 2GB, safetensors는 10GB까지 올릴 수 있어요.',
+  file_too_large:
+    '파일이 너무 커요. ONNX는 2GB, safetensors와 외부 데이터 파일은 10GB까지 올릴 수 있어요.',
   unsupported_format:
     '.onnx나 .safetensors 파일만 올릴 수 있어요. PyTorch(.pt) 모델은 ONNX로 변환해서 올려주세요.',
   server_storage_low: '지금은 서버 저장 공간이 부족해요. 잠시 뒤에 다시 시도해주세요.',
@@ -70,14 +71,14 @@ function readmeTemplate(name: string) {
   return `# ${name || '모델 이름'}\n\n한 줄로 이 모델을 소개해주세요.\n\n## 용도\n\n## 학습 데이터\n\n## 평가\n\n## 제한 사항\n`;
 }
 
-function Dropzone({ onFile }: { onFile: (file: File) => void }) {
+function Dropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOver, setIsOver] = useState(false);
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setIsOver(false);
-    const file = event.dataTransfer.files[0];
-    if (file) onFile(file);
+    const files = [...event.dataTransfer.files];
+    if (files.length > 0) onFiles(files);
   };
   return (
     <div
@@ -97,18 +98,22 @@ function Dropzone({ onFile }: { onFile: (file: File) => void }) {
       </div>
       <p className="mt-4 font-semibold">모델 파일을 여기에 끌어다 놓으세요</p>
       <p className="mt-1 text-sm text-slate">.onnx (최대 2GB) · .safetensors (최대 10GB)</p>
+      <p className="mt-1 text-xs text-slate">
+        ONNX 옆에 <span className="font-mono">.data</span> 같은 외부 데이터 파일이 있으면 같이
+        골라주세요.
+      </p>
       <Button variant="secondary" className="mt-5" onClick={() => inputRef.current?.click()}>
         파일 고르기
       </Button>
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED}
+        multiple
         className="sr-only"
         aria-label="모델 파일"
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onFile(file);
+          const files = [...(event.target.files ?? [])];
+          if (files.length > 0) onFiles(files);
           event.target.value = '';
         }}
       />
@@ -118,24 +123,27 @@ function Dropzone({ onFile }: { onFile: (file: File) => void }) {
 
 function UploadProgress({
   file,
+  dataFiles,
   state,
   onPause,
   onResume,
   onCancel,
 }: {
   file: File;
+  dataFiles: readonly File[];
   state: UploadState;
   onPause: () => void;
   onResume: () => void;
   onCancel: () => void;
 }) {
+  const totalBytes = dataFiles.reduce((sum, data) => sum + data.size, file.size);
   const sent =
     state.phase === 'uploading' || state.phase === 'paused'
       ? state.sent
       : state.phase === 'done'
         ? state.total
         : 0;
-  const percent = Math.round((sent / Math.max(file.size, 1)) * 100);
+  const percent = Math.round((sent / Math.max(totalBytes, 1)) * 100);
   return (
     <div className="rounded-(--radius-panel) border border-fog bg-surface p-5 shadow-(--shadow-soft)">
       <div className="flex items-center gap-3">
@@ -147,12 +155,18 @@ function UploadProgress({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{file.name}</p>
+          <p className="truncate font-medium">
+            {file.name}
+            {dataFiles.length > 0 && (
+              <span className="font-normal text-slate"> + 외부 데이터 {dataFiles.length}개</span>
+            )}
+          </p>
           <p className="tabular text-xs text-slate">
             {state.phase === 'done'
-              ? `${formatBytes(file.size)} · 업로드 완료`
-              : `${formatBytes(sent)} / ${formatBytes(file.size)} · ${percent}%`}
+              ? `${formatBytes(totalBytes)} · 업로드 완료`
+              : `${formatBytes(sent)} / ${formatBytes(totalBytes)} · ${percent}%`}
             {state.phase === 'paused' && ' · 일시정지됨'}
+            {state.phase === 'uploading' && dataFiles.length > 0 && ` · ${state.currentFile}`}
           </p>
         </div>
         {state.phase === 'uploading' && (
@@ -210,8 +224,9 @@ export function NewModelPage() {
   const readmeId = useId();
   const licenseId = useId();
   const readmeFileRef = useRef<HTMLInputElement>(null);
-  const upload = useTusUpload();
-  const [file, setFile] = useState<File | null>(null);
+  const upload = useModelUpload();
+  const [files, setFiles] = useState<{ model: File; dataFiles: File[] } | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [license, setLicense] = useState('');
@@ -224,6 +239,7 @@ export function NewModelPage() {
       if (upload.state.phase !== 'done') throw new Error('Upload not finished');
       return createModel({
         uploadId: upload.state.uploadId,
+        dataUploadIds: upload.state.dataUploadIds,
         name: name.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(readme.trim() ? { readme } : {}),
@@ -235,10 +251,16 @@ export function NewModelPage() {
     onSuccess: (model) => navigate(`/m/${model.id}`),
   });
 
-  const pickFile = (picked: File) => {
-    setFile(picked);
-    if (!name) setName(picked.name.replace(/\.(onnx|safetensors)$/i, ''));
-    upload.start(picked);
+  const pickFiles = (picked: File[]) => {
+    const split = splitModelFiles(picked);
+    if (!split.ok) {
+      setPickError(FILE_SPLIT_ERRORS[split.reason]);
+      return;
+    }
+    setPickError(null);
+    setFiles({ model: split.model, dataFiles: split.dataFiles });
+    if (!name) setName(split.model.name.replace(/\.(onnx|safetensors)$/i, ''));
+    upload.start(split.model, split.dataFiles);
   };
 
   const readmeTooLarge = utf8ByteLength(readme) > README_MAX_BYTES;
@@ -255,19 +277,25 @@ export function NewModelPage() {
         }}
       >
         <Section step={1} title="파일">
-          {file ? (
+          {files ? (
             <UploadProgress
-              file={file}
+              file={files.model}
+              dataFiles={files.dataFiles}
               state={upload.state}
               onPause={upload.pause}
               onResume={upload.resume}
               onCancel={() => {
                 upload.reset();
-                setFile(null);
+                setFiles(null);
               }}
             />
           ) : (
-            <Dropzone onFile={pickFile} />
+            <Dropzone onFiles={pickFiles} />
+          )}
+          {pickError && (
+            <div className="mt-3">
+              <Alert>{pickError}</Alert>
+            </div>
           )}
           {upload.state.phase === 'error' && (
             <div className="mt-3">

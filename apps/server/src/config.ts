@@ -32,6 +32,7 @@ const configSchema = z.object({
   MAX_ONNX_BYTES: byteSize(2 * GIB),
   MAX_SAFETENSORS_BYTES: byteSize(10 * GIB),
   MAX_REPO_BYTES: byteSize(10 * GIB),
+  MAX_EXTERNAL_DATA_BYTES: byteSize(10 * GIB),
   DISK_RESERVE_BYTES: byteSize(50 * GIB),
 });
 
