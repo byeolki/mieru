@@ -57,9 +57,6 @@ export function SignupPage() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <p className="rounded-(--radius-control) bg-haze px-3.5 py-3 text-xs leading-5 text-slate">
-          {t('auth.noRecovery')}
-        </p>
         <Button
           type="submit"
           size="lg"

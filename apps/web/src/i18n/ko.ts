@@ -24,8 +24,6 @@ export const ko = {
     email: '이메일',
     password: '비밀번호',
     passwordHint: '10자 이상. 문장처럼 길게 만들면 기억하기도 쉬워요.',
-    noRecovery:
-      'mieru는 비밀번호를 찾아줄 수 없어요. 잊어버리면 계정에 다시 들어올 수 없으니 꼭 기억해두세요.',
     loginAction: '로그인',
     signupAction: '계정 만들기',
     toSignup: '처음이세요?',
