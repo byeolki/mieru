@@ -218,6 +218,18 @@ Requested in chat: production holds seeded demo content so the site looks lived 
 **Tests**
 - Unit 250, integration 135 and e2e 22 pass (headless).
 
+## Larger demo seed (2026-11-13)
+
+Requested in chat: more demo data, made the same way as the first seed.
+
+- **Accounts:** 15 more fictional accounts, 20 in total. Their usernames were checked to be unused on Hugging Face.
+- **Models:** 30 more public models, 38 in total: 24 ONNX and 6 safetensors re-uploaded from Hugging Face. Only models whose original license is clearly Apache-2.0, MIT or BSD-3-Clause were taken. Each README names its source repository and license.
+- **Activity:** 285 stars and 39 issues with replies, from the seed accounts only.
+- **Timestamps:** `spread.sql` spreads creation, star and issue times over the last weeks and adds anonymous daily views (5,022 rows). It touches only rows of `@seed.mieru.invalid` accounts.
+- **Rate limits:** the seed acts from the server's internal network with one made-up `X-Forwarded-For` per account, so the public per-IP limits for sign-up, stars and issues don't block it. The app trusts one proxy hop.
+- **Backup:** the production database was dumped before the seed to `/data/projects/mieru/backups/preseed2-*.sql.gz`.
+- **Removal:** run `seed-remove.mjs` in `/data/projects/mieru/seed2` (accounts in `accounts2.json`), the same way as for the first seed.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
