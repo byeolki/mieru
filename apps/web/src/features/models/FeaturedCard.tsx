@@ -5,6 +5,7 @@ import { Sparkle } from '../../design/Sparkle.js';
 import { OP_COLORS } from '../../design/op-palette.js';
 import { formatParams } from '../../lib/format.js';
 import { FORMAT_LABELS } from './labels.js';
+import { modelPath } from '../../lib/model-path.js';
 
 /** The strip drawn as a tall cover, so each featured model reads as its own architecture. */
 function StripCover({ item }: { item: ModelListItem }) {
@@ -29,7 +30,7 @@ export function FeaturedCard({ item, rank }: { item: ModelListItem; rank: number
   return (
     <li>
       <Link
-        to={`/m/${item.id}`}
+        to={modelPath(item)}
         className="group flex h-full flex-col rounded-(--radius-panel) border border-fog bg-surface p-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
       >
         <StripCover item={item} />

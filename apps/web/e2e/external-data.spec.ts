@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { FIXTURES, signUpViaApi } from './helpers.js';
+import { FIXTURES, signUpViaApi, REPO_URL } from './helpers.js';
 
 test('uploads an ONNX model with its external data file and downloads both', async ({ page }) => {
   await page.goto('/');
@@ -12,7 +12,7 @@ test('uploads an ONNX model with its external data file and downloads both', asy
   await expect(page.getByText('외부 데이터 1개')).toBeVisible();
   await page.getByText('업로드 완료').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '모델 만들기' }).click();
-  await page.waitForURL(/\/m\/[0-9a-f-]{36}$/);
+  await page.waitForURL(REPO_URL);
 
   await page.getByRole('link', { name: /가중치/ }).click();
   await expect(page.getByText('w2').first()).toBeVisible({ timeout: 30_000 });

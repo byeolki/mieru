@@ -12,6 +12,7 @@ import { formatRelative } from '../../lib/format.js';
 import { useRepo } from '../repo/RepoLayout.js';
 import { issueKeys, listIssues } from './api.js';
 import { KIND_LABELS, KindLabel, NodeChip, StateIcon } from './labels.js';
+import { modelPath } from '../../lib/model-path.js';
 
 export function IssuesTab() {
   const { model } = useRepo();
@@ -64,12 +65,12 @@ export function IssuesTab() {
         </select>
         <div className="ml-auto">
           {status === 'signed-in' ? (
-            <ButtonLink to={`/m/${model.id}/issues/new`} icon={<Plus className="size-4" />}>
+            <ButtonLink to={`${modelPath(model)}/issues/new`} icon={<Plus className="size-4" />}>
               이슈 열기
             </ButtonLink>
           ) : (
             <ButtonLink
-              to={`/login?next=${encodeURIComponent(`/m/${model.id}/issues/new`)}`}
+              to={`/login?next=${encodeURIComponent(`${modelPath(model)}/issues/new`)}`}
               variant="secondary"
             >
               로그인하고 이슈 열기
@@ -103,7 +104,7 @@ export function IssuesTab() {
           {issues.data.items.map((issue) => (
             <li key={issue.number}>
               <Link
-                to={`/m/${model.id}/issues/${issue.number}`}
+                to={`${modelPath(model)}/issues/${issue.number}`}
                 className="flex items-start gap-3 px-5 py-3.5 hover:bg-haze/40"
               >
                 <StateIcon state={issue.state} className="mt-0.5 size-4 shrink-0" />

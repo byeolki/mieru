@@ -32,9 +32,16 @@ import { Loading } from '../../design/ui/Loading.js';
 import { CopyStatus, useCopy } from '../../lib/use-copy.js';
 import { ApiError } from '../../lib/api-error.js';
 import { formatBytes, formatParams } from '../../lib/format.js';
+import { modelPath } from '../../lib/model-path.js';
 import { rememberModel } from '../../lib/recent-models.js';
 import { NotFoundPage } from '../NotFoundPage.js';
-import { downloadOriginal, getModel, modelKeys, type DownloadableFile } from '../models/api.js';
+import {
+  downloadOriginal,
+  getModel,
+  modelKeys,
+  resolveModel,
+  type DownloadableFile,
+} from '../models/api.js';
 import { DownloadFilesDialog } from './DownloadFilesDialog.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from '../models/labels.js';
 import { ReportDialog } from '../moderation/ReportDialog.js';
@@ -129,10 +136,10 @@ function RepoTabs({ model }: { model: ModelDetail }) {
       className="flex max-w-full gap-1 overflow-x-auto rounded-full bg-haze p-1.5"
       aria-label="저장소 탭"
     >
-      <NavLink to={`/m/${model.id}`} end className={TAB_CLASS}>
+      <NavLink to={modelPath(model)} end className={TAB_CLASS}>
         <FileText className="size-4" aria-hidden="true" /> 개요
       </NavLink>
-      <NavLink to={`/m/${model.id}/graph`} className={TAB_CLASS}>
+      <NavLink to={`${modelPath(model)}/graph`} className={TAB_CLASS}>
         {isOnnx ? (
           <Network className="size-4" aria-hidden="true" />
         ) : (
@@ -141,21 +148,21 @@ function RepoTabs({ model }: { model: ModelDetail }) {
         {isOnnx ? '그래프' : '모듈 트리'}
       </NavLink>
       {isOnnx && (
-        <NavLink to={`/m/${model.id}/demo`} className={TAB_CLASS}>
+        <NavLink to={`${modelPath(model)}/demo`} className={TAB_CLASS}>
           <Play className="size-4" aria-hidden="true" /> 실행
         </NavLink>
       )}
-      <NavLink to={`/m/${model.id}/weights`} className={TAB_CLASS}>
+      <NavLink to={`${modelPath(model)}/weights`} className={TAB_CLASS}>
         <Grid3x3 className="size-4" aria-hidden="true" /> 가중치
       </NavLink>
-      <NavLink to={`/m/${model.id}/stats`} className={TAB_CLASS}>
+      <NavLink to={`${modelPath(model)}/stats`} className={TAB_CLASS}>
         <BarChart3 className="size-4" aria-hidden="true" /> 통계
       </NavLink>
-      <NavLink to={`/m/${model.id}/versions`} className={TAB_CLASS}>
+      <NavLink to={`${modelPath(model)}/versions`} className={TAB_CLASS}>
         <History className="size-4" aria-hidden="true" /> 버전
         {model.latestVersion && model.latestVersion.number > 1 && count(model.latestVersion.number)}
       </NavLink>
-      <NavLink to={`/m/${model.id}/issues`} className={TAB_CLASS}>
+      <NavLink to={`${modelPath(model)}/issues`} className={TAB_CLASS}>
         <CircleDot className="size-4" aria-hidden="true" /> 이슈
         {model.openIssueCount > 0 && count(model.openIssueCount)}
       </NavLink>
@@ -342,14 +349,21 @@ function dominantFamily(strip: readonly StripSegment[]) {
 }
 
 export function RepoLayout() {
-  const { modelId = '' } = useParams();
+  const { username = '', slug = '' } = useParams();
   // Only the graph needs a fixed-height canvas; other tabs scroll with the page so the
   // content never gets squeezed out at high zoom or in landscape on phones.
-  const isGraph = useMatch('/m/:modelId/graph') !== null;
-  const isOverview = useMatch({ path: '/m/:modelId', end: true }) !== null;
+  const isGraph = useMatch('/:username/:slug/graph') !== null;
+  const isOverview = useMatch({ path: '/:username/:slug', end: true }) !== null;
+  const resolved = useQuery({
+    queryKey: modelKeys.resolve(username, slug),
+    queryFn: () => resolveModel(username, slug),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const modelId = resolved.data?.id ?? '';
   const query = useQuery({
     queryKey: modelKeys.detail(modelId),
     queryFn: () => getModel(modelId),
+    enabled: modelId !== '',
     refetchInterval: (current) =>
       current.state.data?.latestVersion?.status === 'processing' ? 2000 : false,
   });
@@ -359,10 +373,25 @@ export function RepoLayout() {
     rememberModel({
       id: loaded.id,
       name: loaded.name,
+      slug: loaded.slug,
       ownerUsername: loaded.owner.username,
       family: dominantFamily(loaded.strip),
     });
   }, [loaded]);
+  if (resolved.isError) {
+    if (resolved.error instanceof ApiError && resolved.error.status === 404)
+      return <NotFoundPage />;
+    return (
+      <AppFrame>
+        <div className="px-4 md:px-10">
+          <ErrorState
+            message="저장소를 불러오지 못했어요."
+            onRetry={() => void resolved.refetch()}
+          />
+        </div>
+      </AppFrame>
+    );
+  }
   if (query.isPending) {
     return (
       <AppFrame>

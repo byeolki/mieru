@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createRepositoryViaUi, signUpViaApi, uniqueEmail } from './helpers.js';
+import { createRepositoryViaUi, signUpViaApi, uniqueEmail, REPO_URL } from './helpers.js';
 
 test('share with a person by username, without download', async ({ page, browser }) => {
   await page.goto('/');
@@ -50,7 +50,7 @@ test('an editor link opened while signed out only allows viewing; revoking it cl
   const anonymous = await browser.newContext();
   const visitor = await anonymous.newPage();
   await visitor.goto(new URL(linkUrl).pathname);
-  await expect(visitor).toHaveURL(/\/m\/[0-9a-f-]{36}$/);
+  await expect(visitor).toHaveURL(REPO_URL);
   await expect(visitor.getByRole('heading', { name: 'tiny-cnn' })).toBeVisible();
   await expect(visitor.getByRole('button', { name: '다운로드' })).toHaveCount(0);
   await expect(visitor.getByRole('link', { name: '로그인' })).toBeVisible();

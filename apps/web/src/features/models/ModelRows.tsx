@@ -9,6 +9,7 @@ import { Sparkle } from '../../design/Sparkle.js';
 import { Spinner } from '../../design/ui/Spinner.js';
 import { formatBytes, formatParams, formatRelative } from '../../lib/format.js';
 import { FORMAT_LABELS, VISIBILITY_LABELS } from './labels.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const VISIBILITY_ICONS: Record<Visibility, ReactNode> = {
   private: <Lock className="size-3" aria-hidden="true" />,
@@ -52,7 +53,7 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
   return (
     <li>
       <Link
-        to={`/m/${item.id}`}
+        to={modelPath(item)}
         className="group block rounded-(--radius-panel) border border-fog bg-surface px-4 pt-3.5 pb-3 transition-[border-color,box-shadow] hover:border-lilac/70 hover:shadow-(--shadow-soft)"
       >
         <div className="flex min-w-0 items-center gap-2">

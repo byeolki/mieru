@@ -20,6 +20,7 @@ import { StateIcon } from '../issues/labels.js';
 import { listModels, modelKeys } from '../models/api.js';
 import { ModelRows } from '../models/ModelRows.js';
 import { AppShell, PageHeader } from '../shell/AppShell.js';
+import { modelPath, modelPathOf } from '../../lib/model-path.js';
 
 function EmptyOwned() {
   const { t } = useTranslation();
@@ -104,7 +105,10 @@ function RecentActivity() {
     <ul className="grid gap-3">
       {activity.data.items.slice(0, 5).map(({ model, issue, unread }) => (
         <li key={`${model.id}-${String(issue.number)}`}>
-          <Link to={`/m/${model.id}/issues/${String(issue.number)}`} className="group flex gap-2.5">
+          <Link
+            to={`${modelPathOf(model.ownerUsername, model.slug)}/issues/${String(issue.number)}`}
+            className="group flex gap-2.5"
+          >
             <StateIcon state={issue.state} className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0">
               <span
@@ -136,7 +140,7 @@ function TrendingPicks() {
     <ul className="grid gap-3.5">
       {picks.map((item) => (
         <li key={item.id}>
-          <Link to={`/m/${item.id}`} className="group block">
+          <Link to={modelPath(item)} className="group block">
             <span className="flex items-center gap-2">
               <Avatar
                 username={item.owner.username}

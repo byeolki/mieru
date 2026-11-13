@@ -3,6 +3,7 @@ import {
   fileTicketResponseSchema,
   modelDetailSchema,
   modelListResponseSchema,
+  modelResolveResponseSchema,
   parsedModelSchema,
   readmeResponseSchema,
   type CreateModelBody,
@@ -13,12 +14,19 @@ import { apiRequest } from '../../lib/api-client.js';
 export const modelKeys = {
   list: (scope: 'owned' | 'shared') => ['models', 'list', scope] as const,
   detail: (id: string) => ['models', id] as const,
+  resolve: (owner: string, slug: string) => ['models', 'resolve', owner, slug] as const,
   graph: (id: string, version: number | null) => ['models', id, 'graph', version] as const,
   readme: (id: string) => ['models', id, 'readme'] as const,
 };
 
 export function listModels(scope: 'owned' | 'shared') {
   return apiRequest(`/api/models?scope=${scope}&limit=50`, modelListResponseSchema);
+}
+
+/** The id behind a readable /{owner}/{slug} URL; 404 when it doesn't exist or isn't visible. */
+export function resolveModel(owner: string, slug: string) {
+  const query = new URLSearchParams({ owner, slug });
+  return apiRequest(`/api/models/resolve?${query.toString()}`, modelResolveResponseSchema);
 }
 
 export function getModel(id: string) {

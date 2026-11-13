@@ -13,6 +13,7 @@ import { exploreKeys, getExplore } from '../explore/api.js';
 import { FORMAT_LABELS } from '../models/labels.js';
 import { KanjiOrbit } from './KanjiOrbit.js';
 import { TiltedOrbit } from './TiltedOrbit.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const CONTAINER = 'mx-auto w-full max-w-[1280px] px-5 md:px-10';
 const PILL = 'rounded-full px-6';
@@ -184,7 +185,7 @@ function LiveTrending() {
           : items.map((item) => (
               <li key={item.id}>
                 <Link
-                  to={`/m/${item.id}`}
+                  to={modelPath(item)}
                   className={`${CARD_CLASSES} group transition-colors hover:bg-haze-deep`}
                 >
                   <CardBody model={{ ...item, ownerName: item.owner.username }} />

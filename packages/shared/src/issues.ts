@@ -74,7 +74,12 @@ export const issueListResponseSchema = z.object({
 });
 
 export const activityItemSchema = z.object({
-  model: z.object({ id: z.string(), name: z.string(), ownerUsername: z.string() }),
+  model: z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    ownerUsername: z.string(),
+  }),
   issue: issueListItemSchema,
   unread: z.boolean(),
 });

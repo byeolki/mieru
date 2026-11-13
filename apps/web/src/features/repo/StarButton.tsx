@@ -6,6 +6,7 @@ import { Sparkle } from '../../design/Sparkle.js';
 import { useAuth } from '../../lib/auth-store.js';
 import { issueKeys, setStar } from '../issues/api.js';
 import { modelKeys } from '../models/api.js';
+import { modelPath } from '../../lib/model-path.js';
 
 /** Split "스타 | 128" button; the sparkle pops once when you star. */
 export function StarButton({ model }: { model: ModelDetail }) {
@@ -29,7 +30,7 @@ export function StarButton({ model }: { model: ModelDetail }) {
       aria-pressed={model.starredByMe}
       onClick={() => {
         if (status !== 'signed-in') {
-          void navigate(`/login?next=${encodeURIComponent(`/m/${model.id}`)}`);
+          void navigate(`/login?next=${encodeURIComponent(modelPath(model))}`);
           return;
         }
         toggle.mutate();

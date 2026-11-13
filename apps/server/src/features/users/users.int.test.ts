@@ -1,3 +1,4 @@
+import { modelSlugFromName } from '@mieru/shared';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { execute, selectOne } from '../../db/query.js';
@@ -131,8 +132,8 @@ async function insertModel(ownerId: string, name: string): Promise<string> {
   const id = randomUUID();
   await execute(
     context.db,
-    'INSERT INTO models (id, owner_id, name, visibility) VALUES (?, ?, ?, ?)',
-    [id, ownerId, name, 'public'],
+    'INSERT INTO models (id, owner_id, name, slug, visibility) VALUES (?, ?, ?, ?, ?)',
+    [id, ownerId, name, modelSlugFromName(name), 'public'],
   );
   return id;
 }

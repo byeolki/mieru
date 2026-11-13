@@ -33,17 +33,27 @@ function formatParams(count: number | null): string | null {
 }
 
 /** Only public, live repositories get named previews; everything else stays generic. */
-async function findPublicModel(db: DbPool, id: string): Promise<PublicModelRow | null> {
-  if (!UUID.test(id)) return null;
-  return selectOne<PublicModelRow>(
-    db,
-    `SELECT m.id, m.name, m.description, o.username AS owner, b.total_params, b.summary
+const PUBLIC_MODEL_SELECT = `SELECT m.id, m.name, m.description, o.username AS owner, b.total_params, b.summary
        FROM models m JOIN users o ON o.id = m.owner_id
        LEFT JOIN model_files f ON f.version_id = m.current_version_id AND f.kind = 'model'
        LEFT JOIN blobs b ON b.id = f.blob_id
-      WHERE m.id = ? AND m.visibility = 'public' AND m.taken_down_at IS NULL`,
-    [id],
-  );
+      WHERE m.visibility = 'public' AND m.taken_down_at IS NULL`;
+
+async function findPublicModel(db: DbPool, id: string): Promise<PublicModelRow | null> {
+  if (!UUID.test(id)) return null;
+  return selectOne<PublicModelRow>(db, `${PUBLIC_MODEL_SELECT} AND m.id = ?`, [id]);
+}
+
+/** Readable repository URL: /{username}/{slug}[/tab…]. */
+const REPO_PATH = /^\/([a-z0-9][a-z0-9_-]{2,29})\/([a-z0-9._-]+)(?:\/|$)/;
+
+async function findPublicModelByPath(db: DbPool, url: string): Promise<PublicModelRow | null> {
+  const match = REPO_PATH.exec(url);
+  if (!match) return null;
+  return selectOne<PublicModelRow>(db, `${PUBLIC_MODEL_SELECT} AND o.username = ? AND m.slug = ?`, [
+    match[1] ?? '',
+    match[2] ?? '',
+  ]);
 }
 
 /**
@@ -99,16 +109,16 @@ export async function registerStaticSpa(
     }
     let meta = { ...generic, url: `${origin}${url}` };
     const modelId = /^\/m\/([^/]+)/.exec(url)?.[1];
-    if (modelId) {
-      const model = await findPublicModel(deps.db, modelId);
-      if (model) {
-        meta = {
-          title: `${model.name} · @${model.owner} | mieru`,
-          description: model.description ?? `${model.owner}님의 모델을 그래프로 살펴보세요.`,
-          image: `${origin}/og/m/${model.id}.png`,
-          url: meta.url,
-        };
-      }
+    const model = modelId
+      ? await findPublicModel(deps.db, modelId)
+      : await findPublicModelByPath(deps.db, url);
+    if (model) {
+      meta = {
+        title: `${model.name} · @${model.owner} | mieru`,
+        description: model.description ?? `${model.owner}님의 모델을 그래프로 살펴보세요.`,
+        image: `${origin}/og/m/${model.id}.png`,
+        url: meta.url,
+      };
     }
     return reply
       .header('cache-control', 'no-cache')

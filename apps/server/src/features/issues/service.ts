@@ -442,6 +442,7 @@ export async function deleteReply(
 
 interface ActivityRow extends IssueRow {
   model_name: string;
+  model_slug: string;
   owner_username: string;
   last_read_at: Date | null;
   last_actor_id: string | null;
@@ -461,7 +462,7 @@ export async function activityFeed(
             i.locked_at, i.author_id, a.username AS author_username, a.display_name AS author_display_name,
             NULL AS closer_username, NULL AS closer_display_name,
             i.reply_count, i.last_activity_at, i.deleted_at, i.created_at,
-            m.name AS model_name, o.username AS owner_username, rd.last_read_at,
+            m.name AS model_name, m.slug AS model_slug, o.username AS owner_username, rd.last_read_at,
             COALESCE((SELECT r.author_id FROM issue_replies r WHERE r.issue_id = i.id AND r.deleted_at IS NULL
                        ORDER BY r.created_at DESC, r.id DESC LIMIT 1), i.author_id) AS last_actor_id
        FROM issues i
@@ -480,7 +481,12 @@ export async function activityFeed(
     [userId, userId, userId, userId, userId, limitParam(ACTIVITY_LIMIT)],
   );
   const items = rows.map((row) => ({
-    model: { id: row.model_id, name: row.model_name, ownerUsername: row.owner_username },
+    model: {
+      id: row.model_id,
+      name: row.model_name,
+      slug: row.model_slug,
+      ownerUsername: row.owner_username,
+    },
     issue: toListItem(row),
     unread:
       row.last_actor_id !== userId &&

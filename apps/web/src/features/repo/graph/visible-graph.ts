@@ -9,7 +9,9 @@ export const HARD_CAP = 1500;
 const CHUNK_SIZE = 50;
 /** Flat graphs (no name hierarchy) are only cut into blocks above this many nodes. */
 const CHUNK_THRESHOLD = 300;
-const ROOT = '';
+/** Path of the implicit group that holds the whole graph. */
+export const ROOT_GROUP = '';
+const ROOT = ROOT_GROUP;
 
 export interface GroupInfo {
   path: string;

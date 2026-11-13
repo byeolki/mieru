@@ -299,8 +299,14 @@ describe('lists agree with the resolver (matrix)', () => {
           ids.push(id);
           await execute(
             context.db,
-            'INSERT INTO models (id, owner_id, name, visibility) VALUES (?, ?, ?, ?)',
-            [id, carol.id, `${visibility}-${String(shareBob)}-${String(visitLink)}`, visibility],
+            'INSERT INTO models (id, owner_id, name, slug, visibility) VALUES (?, ?, ?, ?, ?)',
+            [
+              id,
+              carol.id,
+              `${visibility}-${String(shareBob)}-${String(visitLink)}`,
+              `${visibility}-${String(shareBob)}-${String(visitLink)}`,
+              visibility,
+            ],
           );
           if (shareBob)
             await execute(

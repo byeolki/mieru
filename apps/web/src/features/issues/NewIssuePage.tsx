@@ -15,6 +15,7 @@ import { errorMessage } from '../../lib/error-message.js';
 import { useRepo } from '../repo/RepoLayout.js';
 import { createIssue, issueKeys } from './api.js';
 import { KIND_LABELS, NodeChip } from './labels.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const KIND_HINTS: Record<IssueKind, string> = {
   bug: '잘못된 동작이나 깨진 부분',
@@ -39,12 +40,15 @@ export function NewIssuePage() {
     onSuccess: (issue) => {
       void queryClient.invalidateQueries({ queryKey: issueKeys.all(model.id) });
       void queryClient.invalidateQueries({ queryKey: issueKeys.nodeCounts(model.id) });
-      void navigate(`/m/${model.id}/issues/${issue.number}`, { replace: true });
+      void navigate(`${modelPath(model)}/issues/${issue.number}`, { replace: true });
     },
   });
   if (status === 'signed-out')
     return (
-      <Navigate to={`/login?next=${encodeURIComponent(`/m/${model.id}/issues/new`)}`} replace />
+      <Navigate
+        to={`/login?next=${encodeURIComponent(`${modelPath(model)}/issues/new`)}`}
+        replace
+      />
     );
 
   const failure =

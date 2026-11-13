@@ -66,6 +66,17 @@ describe('SPA serving and share previews', () => {
     expect(publicPage.body).toContain(`/og/m/${shown.id}.png`);
     const privatePage = await context.app.inject({ method: 'GET', url: `/m/${hidden.id}` });
     expect(privatePage.body).not.toContain('secret-model');
+    const readable = await context.app.inject({
+      method: 'GET',
+      url: `/${owner.username}/shown-model/graph`,
+    });
+    expect(readable.body).toContain('<meta property="og:title" content="shown-model');
+    const readablePrivate = await context.app.inject({
+      method: 'GET',
+      url: `/${owner.username}/secret-model`,
+    });
+    // og:url echoes the requested path; the name must not appear in the title.
+    expect(readablePrivate.body).not.toContain('og:title" content="secret-model');
     const image = await context.app.inject({ method: 'GET', url: `/og/m/${shown.id}.png` });
     expect(image.headers['content-type']).toBe('image/png');
     expect(image.rawPayload.subarray(1, 4).toString()).toBe('PNG');

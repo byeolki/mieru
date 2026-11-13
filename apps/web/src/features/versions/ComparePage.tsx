@@ -13,6 +13,7 @@ import { OnnxGraphView } from '../repo/graph/OnnxGraphView.js';
 import type { DiffMark } from '../repo/graph/nodes.js';
 import { useRepo } from '../repo/RepoLayout.js';
 import { getDiff, listVersions, versionKeys } from './api.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const STATUS_STYLE: Record<
   Exclude<DiffStatus, 'unchanged'>,
@@ -265,7 +266,7 @@ export function ComparePage() {
   return (
     <div className="mx-auto grid max-w-[1280px] gap-6 px-4 py-8 md:px-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link to={`/m/${model.id}/versions`} className="text-sm text-slate hover:text-primary">
+        <Link to={`${modelPath(model)}/versions`} className="text-sm text-slate hover:text-primary">
           ← 버전 목록
         </Link>
         <h2 className="text-lg font-bold">버전 비교</h2>

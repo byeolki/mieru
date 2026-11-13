@@ -2,6 +2,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 
+/** A repository page: /{username}/{slug}. */
+export const REPO_URL = /\/[a-z0-9][a-z0-9_-]{2,29}\/[a-z0-9._-]+$/;
+
 export const FIXTURES = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../server/test/fixtures/generated',
@@ -38,6 +41,6 @@ export async function createRepositoryViaUi(
   if (options.readme) await page.getByLabel(/모델 소개 문서/).fill(options.readme);
   if (options.visibility) await page.getByText(options.visibility, { exact: true }).click();
   await page.getByRole('button', { name: '모델 만들기' }).click();
-  await page.waitForURL(/\/m\/[0-9a-f-]{36}$/);
+  await page.waitForURL(REPO_URL);
   return page.url();
 }

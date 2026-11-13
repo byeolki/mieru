@@ -13,6 +13,7 @@ import { errorMessage } from '../../lib/error-message.js';
 import { formatRelative } from '../../lib/format.js';
 import { AppShell } from '../shell/AppShell.js';
 import { REPORT_REASON_LABELS, listReports, moderationKeys, resolveReport } from './api.js';
+import { modelPathOf } from '../../lib/model-path.js';
 
 const STATUS_TABS: { value: ReportStatus; label: string }[] = [
   { value: 'open', label: '처리 대기' },
@@ -86,7 +87,7 @@ function ReportRow({ report }: { report: AdminReport }) {
       return queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
     },
   });
-  const repoPath = `/m/${report.model.id}`;
+  const repoPath = modelPathOf(report.model.ownerUsername, report.model.slug);
   return (
     <li className="grid gap-3 px-5 py-4">
       <div className="flex flex-wrap items-center gap-2">

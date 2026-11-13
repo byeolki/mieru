@@ -25,6 +25,7 @@ import { releaseUnreferencedBlobs, type BlobLogger } from '../../storage/blobs.j
 import { resolveModelAccess } from '../sharing/access-service.js';
 import { formatFromFilename } from '../uploads/formats.js';
 import { claimDataUploads } from './data-uploads.js';
+import { freeSlug } from './slugs.js';
 import {
   MODEL_SELECT,
   decodeCursor,
@@ -81,15 +82,19 @@ export async function createModel(
     const modelId = newId();
     const versionId = newId();
     const hasReadme = body.readme !== undefined && body.readme.trim().length > 0;
+    // Serializes this owner's creations so two uploads with the same name can't pick one slug.
+    await execute(connection, 'SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
+    const slug = await freeSlug(connection, userId, body.name);
     await execute(
       connection,
-      `INSERT INTO models (id, owner_id, name, description, readme_md, readme_updated_at, readme_updated_by,
+      `INSERT INTO models (id, owner_id, name, slug, description, readme_md, readme_updated_at, readme_updated_by,
                            license, visibility, public_allow_download, published_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         modelId,
         userId,
         body.name,
+        slug,
         body.description || null,
         hasReadme ? (body.readme ?? null) : null,
         hasReadme ? now : null,
@@ -234,8 +239,14 @@ export async function updateModel(
   const assignments: string[] = [];
   const params: (string | number | Date | null)[] = [];
   if (body.name !== undefined) {
-    assignments.push('name = ?');
-    params.push(body.name);
+    const owner = await selectOne<{ owner_id: string }>(
+      pool,
+      'SELECT owner_id FROM models WHERE id = ?',
+      [modelId],
+    );
+    if (!owner) throw notFound('Model not found');
+    assignments.push('name = ?', 'slug = ?');
+    params.push(body.name, await freeSlug(pool, owner.owner_id, body.name, modelId));
   }
   if (body.description !== undefined) {
     assignments.push('description = ?');

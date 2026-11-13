@@ -34,6 +34,7 @@ export const adminReportSchema = z.object({
     id: z.string(),
     name: z.string(),
     ownerUsername: z.string(),
+    slug: z.string(),
     takenDown: z.boolean(),
   }),
   issue: z.object({ number: z.number(), title: z.string(), deleted: z.boolean() }).nullable(),

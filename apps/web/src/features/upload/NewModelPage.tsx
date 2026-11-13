@@ -19,6 +19,7 @@ import { AppShell, PageHeader } from '../shell/AppShell.js';
 import { FILE_SPLIT_ERRORS, splitModelFiles } from './model-files.js';
 import { useModelUpload, type UploadState } from './useModelUpload.js';
 import { useTranslation } from 'react-i18next';
+import { modelPath } from '../../lib/model-path.js';
 
 const LICENSES = [
   ['', '선택 안 함'],
@@ -248,7 +249,7 @@ export function NewModelPage() {
         publicAllowDownload,
       });
     },
-    onSuccess: (model) => navigate(`/m/${model.id}`),
+    onSuccess: (model) => navigate(modelPath(model)),
   });
 
   const pickFiles = (picked: File[]) => {

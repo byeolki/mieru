@@ -15,6 +15,7 @@ import { Link, NavLink } from 'react-router';
 import { Sparkle } from '../design/Sparkle.js';
 import { OP_COLORS } from '../design/op-palette.js';
 import { useAuth } from '../lib/auth-store.js';
+import { modelPathOf } from '../lib/model-path.js';
 import { useRecentModels } from '../lib/recent-models.js';
 import { AppHeader, HeaderSearch, UserMenu, useUnreadActivity } from './AppHeader.js';
 
@@ -100,7 +101,7 @@ function RecentModels() {
         {recent.map((model) => (
           <li key={model.id}>
             <Link
-              to={`/m/${model.id}`}
+              to={model.slug ? modelPathOf(model.ownerUsername, model.slug) : `/m/${model.id}`}
               className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] text-slate hover:bg-surface/60 hover:text-sumi"
               title={`${model.ownerUsername}/${model.name}`}
             >

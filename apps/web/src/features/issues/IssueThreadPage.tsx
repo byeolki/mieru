@@ -27,6 +27,7 @@ import {
   updateReply,
 } from './api.js';
 import { KindLabel, NodeChip, StateIcon } from './labels.js';
+import { modelPath } from '../../lib/model-path.js';
 
 function AuthorName({ author }: { author: UserRef | null }) {
   return <span className="font-semibold">{author ? author.displayName : '탈퇴한 사용자'}</span>;
@@ -214,7 +215,8 @@ function SidebarBlock({ title, children }: { title: string; children: ReactNode 
 }
 
 /** Facts about the thread, GitHub-style: state, kind, linked node and who took part. */
-function IssueSidebar({ issue, modelId }: { issue: Issue; modelId: string }) {
+function IssueSidebar({ issue }: { issue: Issue }) {
+  const { model: repoModel } = useRepo();
   const participants = new Map<string, UserRef>();
   for (const person of [issue.author, ...issue.replies.map((reply) => reply.author)]) {
     if (person) participants.set(person.username, person);
@@ -234,7 +236,7 @@ function IssueSidebar({ issue, modelId }: { issue: Issue; modelId: string }) {
       {issue.nodeRef && (
         <SidebarBlock title="연결된 노드">
           <Link
-            to={`/m/${modelId}/graph?node=${encodeURIComponent(issue.nodeRef)}`}
+            to={`${modelPath(repoModel)}/graph?node=${encodeURIComponent(issue.nodeRef)}`}
             className="block break-all font-mono text-xs text-sumi hover:text-primary"
           >
             {issue.nodeRef}
@@ -285,7 +287,7 @@ export function IssueThreadPage() {
     mutationFn: () => deleteIssue(model.id, number),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: issueKeys.all(model.id) });
-      void navigate(`/m/${model.id}/issues`, { replace: true });
+      void navigate(`${modelPath(model)}/issues`, { replace: true });
     },
   });
 
@@ -301,7 +303,7 @@ export function IssueThreadPage() {
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
-      <Link to={`/m/${model.id}/issues`} className="text-sm text-slate hover:text-primary">
+      <Link to={`${modelPath(model)}/issues`} className="text-sm text-slate hover:text-primary">
         ← 이슈 목록
       </Link>
       <h2 className="mt-3 text-xl leading-snug font-bold">
@@ -318,7 +320,7 @@ export function IssueThreadPage() {
         {data.locked && <Badge icon={<Lock className="size-3" aria-hidden="true" />}>잠김</Badge>}
         {data.nodeRef && (
           <Link
-            to={`/m/${model.id}/graph?node=${encodeURIComponent(data.nodeRef)}`}
+            to={`${modelPath(model)}/graph?node=${encodeURIComponent(data.nodeRef)}`}
             className="hover:opacity-80"
           >
             <NodeChip nodeRef={data.nodeRef} />
@@ -450,7 +452,7 @@ export function IssueThreadPage() {
             <div className="ml-[46px]">
               <ButtonLink
                 variant="secondary"
-                to={`/login?next=${encodeURIComponent(`/m/${model.id}/issues/${number}`)}`}
+                to={`/login?next=${encodeURIComponent(`${modelPath(model)}/issues/${number}`)}`}
               >
                 로그인하고 답글 달기
               </ButtonLink>
@@ -461,7 +463,7 @@ export function IssueThreadPage() {
             </p>
           ) : null}
         </div>
-        <IssueSidebar issue={data} modelId={model.id} />
+        <IssueSidebar issue={data} />
         <ConfirmDialog
           open={isConfirmingDelete}
           onOpenChange={setIsConfirmingDelete}

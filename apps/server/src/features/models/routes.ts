@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
+  MODEL_SLUG_MAX,
   PARSER_VERSION,
   createModelBodySchema,
   fileTicketBodySchema,
@@ -11,6 +12,7 @@ import {
   labelsSchema,
   createVersionBodySchema,
   modelDiffSchema,
+  modelResolveResponseSchema,
   versionListResponseSchema,
   modelDetailSchema,
   modelListResponseSchema,
@@ -54,6 +56,7 @@ import {
 import { createTicket, verifyTicket } from './tickets.js';
 import { externalDataName } from './version-files.js';
 import { recordView, viewerHash } from '../explore/views.js';
+import { resolveModelAccess } from '../sharing/access-service.js';
 
 export interface ModelRouteDeps {
   config: AppConfig;
@@ -153,6 +156,34 @@ export function registerModelRoutes(app: FastifyInstance, deps: ModelRouteDeps):
         userId,
       );
       return reply.status(202).send(detail);
+    },
+  );
+
+  // Readable URLs (/{owner}/{slug}) are resolved to ids here; everything else stays id-based.
+  // Unknown and inaccessible repositories answer the same 404 so private names don't leak.
+  routes.get(
+    '/api/models/resolve',
+    {
+      schema: {
+        querystring: z.object({
+          owner: z.string().trim().toLowerCase().min(1).max(64),
+          slug: z.string().trim().toLowerCase().min(1).max(MODEL_SLUG_MAX),
+        }),
+        response: { 200: modelResolveResponseSchema },
+      },
+    },
+    async (request) => {
+      const row = await selectOne<{ id: string }>(
+        db,
+        `SELECT m.id FROM models m JOIN users o ON o.id = m.owner_id
+          WHERE o.username = ? AND m.slug = ?`,
+        [request.query.owner, request.query.slug],
+      );
+      const access = row
+        ? await resolveModelAccess(db, row.id, principalOf(request), clock())
+        : null;
+      if (!row || !access) throw notFound('Model not found');
+      return { id: row.id };
     },
   );
 

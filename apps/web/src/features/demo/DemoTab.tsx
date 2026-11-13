@@ -55,6 +55,7 @@ import {
   type FeedDtype,
   type FeedValues,
 } from './tensor-data.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const TOP_K = 5;
 const VALUE_PREVIEW_COUNT = 12;
@@ -456,15 +457,8 @@ function VectorBars({ values }: { values: Float32Array }) {
   );
 }
 
-function FeatureMapCard({
-  modelId,
-  item,
-  output,
-}: {
-  modelId: string;
-  item: Intermediate;
-  output: RunOutput;
-}) {
+function FeatureMapCard({ item, output }: { item: Intermediate; output: RunOutput }) {
+  const { model: repoModel } = useRepo();
   const grid = activationGrid(output.dims);
   return (
     <li className="rounded-(--radius-panel) border border-fog bg-surface p-3">
@@ -479,7 +473,7 @@ function FeatureMapCard({
         </span>
       </div>
       <Link
-        to={`/m/${modelId}/graph?node=${encodeURIComponent(item.nodeName)}`}
+        to={`${modelPath(repoModel)}/graph?node=${encodeURIComponent(item.nodeName)}`}
         className="mt-0.5 block truncate font-mono text-[11px] text-slate hover:text-primary"
         title={item.nodeName}
       >
@@ -804,7 +798,10 @@ function DemoSession({
             <h2 id="feature-maps" className="font-semibold">
               레이어별 feature map
             </h2>
-            <Link to={`/m/${model.id}/graph`} className="text-sm text-slate hover:text-primary">
+            <Link
+              to={`${modelPath(model)}/graph`}
+              className="text-sm text-slate hover:text-primary"
+            >
               그래프에서 보기
             </Link>
           </div>
@@ -812,7 +809,7 @@ function DemoSession({
             {intermediates.map((item) => {
               const output = outputsByName.get(item.output);
               return output ? (
-                <FeatureMapCard key={item.output} modelId={model.id} item={item} output={output} />
+                <FeatureMapCard key={item.output} item={item} output={output} />
               ) : null;
             })}
           </ul>

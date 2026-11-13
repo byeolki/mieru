@@ -28,6 +28,13 @@ const RESERVED_USERNAMES = new Set([
   'u',
   'm',
   's',
+  // Top-level pages and static folders: /{username}/{slug} would shadow or be shadowed by them.
+  'activity',
+  'assets',
+  'brand',
+  'designs',
+  'og',
+  'stars',
 ]);
 
 export function isReservedUsername(username: string): boolean {

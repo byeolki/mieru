@@ -6,6 +6,7 @@ import { formatRelative } from '../../lib/format.js';
 import { getActivity, issueKeys } from '../issues/api.js';
 import { KindLabel, StateIcon } from '../issues/labels.js';
 import { AppShell, PageHeader } from '../shell/AppShell.js';
+import { modelPathOf } from '../../lib/model-path.js';
 
 export function ActivityPage() {
   const activity = useQuery({
@@ -36,7 +37,7 @@ export function ActivityPage() {
           {activity.data.items.map(({ model, issue, unread }) => (
             <li key={`${model.id}-${issue.number}`}>
               <Link
-                to={`/m/${model.id}/issues/${issue.number}`}
+                to={`${modelPathOf(model.ownerUsername, model.slug)}/issues/${issue.number}`}
                 className="flex items-start gap-3 px-5 py-3.5 hover:bg-haze/40"
               >
                 <span

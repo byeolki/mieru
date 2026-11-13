@@ -67,6 +67,7 @@ interface ReportRow {
   reporter_username: string | null;
   resolver_username: string | null;
   model_name: string;
+  model_slug: string;
   owner_username: string;
   taken_down_at: Date | null;
   issue_number: number | null;
@@ -78,7 +79,7 @@ interface ReportRow {
 const REPORT_SELECT = `
   SELECT r.id, r.model_id, r.issue_id, r.reason, r.details, r.status, r.created_at, r.resolved_at,
          reporter.username AS reporter_username, resolver.username AS resolver_username,
-         m.name AS model_name, owner.username AS owner_username, m.taken_down_at,
+         m.name AS model_name, m.slug AS model_slug, owner.username AS owner_username, m.taken_down_at,
          i.number AS issue_number, i.title AS issue_title, i.state AS issue_state,
          i.deleted_at AS issue_deleted_at
     FROM reports r
@@ -102,6 +103,7 @@ function toAdminReport(row: ReportRow): AdminReport {
       id: row.model_id,
       name: row.model_name,
       ownerUsername: row.owner_username,
+      slug: row.model_slug,
       takenDown: row.taken_down_at !== null,
     },
     issue:

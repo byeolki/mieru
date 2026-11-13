@@ -5,6 +5,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { LandingPage } from './features/landing/LandingPage.js';
 import { NotFoundPage, RouteErrorPage } from './features/NotFoundPage.js';
 import { OverviewTab } from './features/repo/OverviewTab.js';
+import { LegacyRepoRedirect } from './features/repo/LegacyRepoRedirect.js';
 import { RepoLayout } from './features/repo/RepoLayout.js';
 import { IssuesTab } from './features/issues/IssuesTab.js';
 import { IssueThreadPage } from './features/issues/IssueThreadPage.js';
@@ -74,8 +75,10 @@ export const router = createBrowserRouter([
           };
         },
       },
+      // Old id-based links (shared before readable URLs) land on the readable one.
+      { path: '/m/:modelId/*', element: <LegacyRepoRedirect /> },
       {
-        path: '/m/:modelId',
+        path: '/:username/:slug',
         element: <RepoLayout />,
         children: [
           { index: true, element: <OverviewTab /> },

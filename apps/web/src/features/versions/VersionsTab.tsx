@@ -21,6 +21,7 @@ import { useRepo } from '../repo/RepoLayout.js';
 import { FILE_SPLIT_ERRORS, splitModelFiles } from '../upload/model-files.js';
 import { useModelUpload } from '../upload/useModelUpload.js';
 import { createVersion, deleteVersion, listVersions, versionKeys } from './api.js';
+import { modelPath } from '../../lib/model-path.js';
 
 const ACCEPTED_EXTENSIONS = { onnx: '.onnx', safetensors: '.safetensors' } as const;
 
@@ -247,7 +248,7 @@ export function VersionsTab() {
               older !== undefined &&
               newer !== undefined &&
               void navigate(
-                `/m/${model.id}/versions/compare?from=${String(older)}&to=${String(newer)}`,
+                `${modelPath(model)}/versions/compare?from=${String(older)}&to=${String(newer)}`,
               )
             }
           >
@@ -299,7 +300,7 @@ export function VersionsTab() {
             <div className="flex items-center gap-1">
               {version.status === 'ready' && (
                 <Link
-                  to={`/m/${model.id}/graph${version.isCurrent ? '' : `?version=${String(version.number)}`}`}
+                  to={`${modelPath(model)}/graph${version.isCurrent ? '' : `?version=${String(version.number)}`}`}
                   aria-label={`v${String(version.number)} 그래프 보기`}
                   className="grid size-8 place-items-center rounded-md text-slate hover:bg-haze hover:text-sumi"
                 >

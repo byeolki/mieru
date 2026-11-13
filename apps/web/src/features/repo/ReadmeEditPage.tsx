@@ -11,6 +11,7 @@ import { ApiError } from '../../lib/api-error.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { getReadme, modelKeys, saveReadme } from '../models/api.js';
 import { useRepo } from './RepoLayout.js';
+import { modelPath } from '../../lib/model-path.js';
 
 function templateFor(name: string) {
   return `# ${name}\n\n한 줄로 이 모델을 소개해주세요.\n\n## 용도\n\n## 학습 데이터\n\n## 평가\n\n## 제한 사항\n`;
@@ -27,7 +28,7 @@ function Editor({ initial, baseUpdatedAt }: { initial: string; baseUpdatedAt: st
     onSuccess: (saved) => {
       queryClient.setQueryData(modelKeys.readme(model.id), saved);
       void queryClient.invalidateQueries({ queryKey: modelKeys.detail(model.id) });
-      void navigate(`/m/${model.id}`);
+      void navigate(modelPath(model));
     },
   });
   const isConflict = save.error instanceof ApiError && save.error.code === 'readme_conflict';
@@ -44,7 +45,7 @@ function Editor({ initial, baseUpdatedAt }: { initial: string; baseUpdatedAt: st
       <MarkdownEditor label="README" value={markdown} onChange={setMarkdown} rows={22} />
       {tooLarge && <p className="text-sm text-danger">README는 256KB까지 쓸 수 있어요.</p>}
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => void navigate(`/m/${model.id}`)}>
+        <Button variant="ghost" onClick={() => void navigate(modelPath(model))}>
           취소
         </Button>
         <Button isLoading={save.isPending} disabled={tooLarge} onClick={() => save.mutate()}>
@@ -63,7 +64,7 @@ export function ReadmeEditPage() {
     staleTime: 0,
   });
   if (!hasRoleAtLeast(model.myAccess.role, 'editor'))
-    return <Navigate to={`/m/${model.id}`} replace />;
+    return <Navigate to={modelPath(model)} replace />;
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <h2 className="mb-5 text-lg font-bold">README 편집</h2>

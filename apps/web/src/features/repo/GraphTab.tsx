@@ -10,6 +10,7 @@ import { useRepo } from './RepoLayout.js';
 import { SafetensorsTreeView } from './SafetensorsTreeView.js';
 import { StatsTab } from './StatsTab.js';
 import { VersionState } from './VersionState.js';
+import { modelPath } from '../../lib/model-path.js';
 
 /** `?version=n` shows an older version; without it the current one. */
 function useVersionParam(): number | null {
@@ -43,14 +44,15 @@ function Loading() {
   );
 }
 
-function OlderVersionBanner({ modelId, version }: { modelId: string; version: number }) {
+function OlderVersionBanner({ version }: { version: number }) {
+  const { model: repoModel } = useRepo();
   return (
     <div className="flex items-center gap-3 border-b border-fog bg-haze px-4 py-2 text-sm md:px-6">
       <History className="size-4 text-slate" aria-hidden="true" />
       <span>
         <span className="font-semibold">v{version}</span>을 보고 있어요.
       </span>
-      <Link to={`/m/${modelId}/graph`} className="ml-auto text-primary hover:underline">
+      <Link to={`${modelPath(repoModel)}/graph`} className="ml-auto text-primary hover:underline">
         현재 버전으로
       </Link>
     </div>
@@ -88,7 +90,7 @@ export function GraphTab() {
   }
   return (
     <div className="flex h-full flex-col">
-      {version && <OlderVersionBanner modelId={model.id} version={version} />}
+      {version && <OlderVersionBanner version={version} />}
       <div className="min-h-0 flex-1 px-3 pb-3 md:px-6 md:pb-5">
         <ActivationModelContext value={model.id}>
           <OnnxGraphView
@@ -97,11 +99,11 @@ export function GraphTab() {
             summary={summary}
             initialFocusName={focusNode}
             tensorHref={(name) =>
-              `/m/${model.id}/weights?name=${encodeURIComponent(name)}${version ? `&version=${String(version)}` : ''}`
+              `${modelPath(model)}/weights?name=${encodeURIComponent(name)}${version ? `&version=${String(version)}` : ''}`
             }
             issueCounts={counts.data ? new Map(Object.entries(counts.data)) : undefined}
             onOpenIssue={(nodeRef) =>
-              void navigate(`/m/${model.id}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)
+              void navigate(`${modelPath(model)}/issues/new?nodeRef=${encodeURIComponent(nodeRef)}`)
             }
           />
         </ActivationModelContext>

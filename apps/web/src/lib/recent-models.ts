@@ -4,6 +4,8 @@ import type { OpFamily } from '@mieru/shared';
 export interface RecentModel {
   id: string;
   name: string;
+  /** Missing on entries saved before readable URLs; those link through /m/{id}. */
+  slug?: string;
   ownerUsername: string;
   /** Dominant op family, used to color the model's ring in the sidebar. */
   family: OpFamily | null;

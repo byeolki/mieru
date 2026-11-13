@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Check, Copy, FileText, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { hasRoleAtLeast, type StripSegment } from '@mieru/shared';
+import {
+  hasRoleAtLeast,
+  type ParsedModel,
+  type StripSegment,
+  type TensorInfo,
+} from '@mieru/shared';
 import { ArchitectureStrip } from '../../components/ArchitectureStrip.js';
 import { ShowMoreList } from '../../components/ShowMoreList.js';
 import { OP_COLORS, OP_FAMILY_LABELS, type OpFamily } from '../../design/op-palette.js';
@@ -11,10 +16,12 @@ import { ButtonLink } from '../../design/ui/Button.js';
 import { ErrorState } from '../../design/ui/ErrorState.js';
 import { Loading } from '../../design/ui/Loading.js';
 import { CopyStatus, useCopy } from '../../lib/use-copy.js';
-import { formatBytes, formatRelative, formatShape } from '../../lib/format.js';
+import { formatBytes, formatParams, formatRelative, formatShape } from '../../lib/format.js';
 import { getGraph, getReadme, modelKeys } from '../models/api.js';
 import { useRepo } from './RepoLayout.js';
+import { structureBlocks } from './structure.js';
 import { VersionState } from './VersionState.js';
+import { modelPath } from '../../lib/model-path.js';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -135,40 +142,10 @@ function FamilyMix({ strip }: { strip: readonly StripSegment[] }) {
   );
 }
 
-function TensorList({
-  title,
-  tensors,
-}: {
-  title: string;
-  tensors: { name: string; shape: readonly (number | string | null)[] | null }[];
-}) {
-  return (
-    <div className="mt-3 first:mt-0">
-      <h3 className="text-xs text-slate">{title}</h3>
-      <ShowMoreList
-        className="mt-1.5 grid gap-1.5"
-        items={tensors.map((tensor) => (
-          <li key={tensor.name} className="min-w-0 font-mono text-xs leading-5">
-            <span className="block break-all">{tensor.name}</span>
-            <span className="block break-all text-slate">{formatShape(tensor.shape)}</span>
-          </li>
-        ))}
-      />
-    </div>
-  );
-}
-
 function InfoPanel() {
   const { model } = useRepo();
   const version = model.currentVersion;
   const summary = version?.summary;
-  const graph = useQuery({
-    queryKey: modelKeys.graph(model.id, null),
-    queryFn: () => getGraph(model.id, null),
-    enabled: version !== null && model.format === 'onnx',
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const payload = graph.data?.payload.kind === 'onnx-graph' ? graph.data.payload : null;
   return (
     <aside className="lg:sticky lg:top-6 lg:self-start">
       <SideSection title="정보">
@@ -194,15 +171,9 @@ function InfoPanel() {
           <FamilyMix strip={model.strip} />
         </SideSection>
       )}
-      {payload && (
-        <SideSection title="입력과 출력">
-          <TensorList title="입력" tensors={payload.inputs} />
-          <TensorList title="출력" tensors={payload.outputs} />
-        </SideSection>
-      )}
       {version && (
         <div className="pt-5">
-          <ButtonLink to={`/m/${model.id}/graph`} variant="secondary" className="w-full">
+          <ButtonLink to={`${modelPath(model)}/graph`} variant="secondary" className="w-full">
             {model.format === 'onnx' ? '그래프 열기' : '모듈 트리 열기'}
           </ButtonLink>
         </div>
@@ -237,7 +208,7 @@ function Readme() {
     );
   }
   const canEdit = hasRoleAtLeast(model.myAccess.role, 'editor');
-  const editPath = `/m/${model.id}/readme/edit`;
+  const editPath = `${modelPath(model)}/readme/edit`;
   if (!readme.data.markdown.trim()) {
     return (
       <ReadmeBox>
@@ -277,13 +248,109 @@ function Readme() {
   );
 }
 
+function MainSection({
+  title,
+  lead,
+  children,
+}: {
+  title: string;
+  lead: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-10">
+      <h2 className="font-heading text-lg">{title}</h2>
+      <p className="mt-1 text-sm text-slate">{lead}</p>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+/** Top-level blocks with their share of the parameters, so the model's shape reads at a glance. */
+function StructureSection({ parsed }: { parsed: ParsedModel }) {
+  const blocks = structureBlocks(parsed);
+  if (blocks.length < 2) return null;
+  const largest = Math.max(...blocks.map((block) => block.paramCount), 1);
+  return (
+    <MainSection title="구조 한눈에" lead="모델을 이루는 큰 블록과 각 블록의 파라미터 수예요.">
+      <ShowMoreList
+        className="grid gap-1"
+        items={blocks.map((block) => (
+          <li
+            key={block.key}
+            className="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_4.5rem] items-center gap-4 rounded-(--radius-control) px-3 py-2 odd:bg-haze/60"
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-mono text-sm" title={block.label}>
+                {block.label}
+              </span>
+              <span className="text-xs text-slate">
+                {block.countUnit} {block.count.toLocaleString('ko-KR')}
+              </span>
+            </span>
+            <span className="h-2 overflow-hidden rounded-full bg-fog" aria-hidden="true">
+              <span
+                className="block h-full rounded-full bg-lilac"
+                style={{ width: `${String(Math.max((block.paramCount / largest) * 100, 1))}%` }}
+              />
+            </span>
+            <span className="tabular text-right text-sm">{formatParams(block.paramCount)}</span>
+          </li>
+        ))}
+      />
+    </MainSection>
+  );
+}
+
+function TensorTable({ title, tensors }: { title: string; tensors: readonly TensorInfo[] }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <ShowMoreList
+        className="grid gap-1"
+        items={tensors.map((tensor) => (
+          <li
+            key={tensor.name}
+            className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,1.2fr)] items-baseline gap-4 rounded-(--radius-control) px-3 py-2 font-mono text-xs leading-5 odd:bg-haze/60"
+          >
+            <span className="min-w-0 break-all">{tensor.name}</span>
+            <span className="text-slate">{tensor.dtype ?? '?'}</span>
+            <span className="min-w-0 break-all text-slate">{formatShape(tensor.shape)}</span>
+          </li>
+        ))}
+      />
+    </div>
+  );
+}
+
+function IoSection({ parsed }: { parsed: ParsedModel }) {
+  if (parsed.payload.kind !== 'onnx-graph') return null;
+  return (
+    <MainSection title="입력과 출력" lead="모델을 실행할 때 넣고 받는 텐서예요.">
+      <div className="grid gap-6">
+        <TensorTable title="입력" tensors={parsed.payload.inputs} />
+        <TensorTable title="출력" tensors={parsed.payload.outputs} />
+      </div>
+    </MainSection>
+  );
+}
+
 export function OverviewTab() {
   const { model } = useRepo();
+  const version = model.currentVersion;
+  const graph = useQuery({
+    queryKey: modelKeys.graph(model.id, null),
+    queryFn: () => getGraph(model.id, null),
+    enabled: version !== null,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   return (
     <div className="mx-auto grid max-w-[1280px] gap-10 px-4 py-8 md:px-6 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0">
         <VersionState model={model} />
         <Readme />
+        {graph.data && <StructureSection parsed={graph.data} />}
+        {graph.data && <IoSection parsed={graph.data} />}
       </div>
       <InfoPanel />
     </div>

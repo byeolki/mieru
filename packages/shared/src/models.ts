@@ -4,6 +4,23 @@ import { roleSchema } from './roles.js';
 
 export const README_MAX_BYTES = 256 * 1024;
 export const MODEL_NAME_MAX = 200;
+export const MODEL_SLUG_MAX = 100;
+const SLUG_FALLBACK = 'model';
+
+/**
+ * The URL segment for a repository name: lowercase ASCII letters, digits, `.`, `_` and `-`, with
+ * anything else collapsed into `-`. Names with no such characters (all Korean) become `model`.
+ * Must match the backfill in migration 004.
+ */
+export function modelSlugFromName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MODEL_SLUG_MAX)
+    .replace(/-+$/, '');
+  return slug || SLUG_FALLBACK;
+}
 export const MODEL_DESCRIPTION_MAX = 500;
 
 export const visibilitySchema = z.enum(['private', 'users', 'link', 'public']);
@@ -81,6 +98,8 @@ export type ModelAccess = z.infer<typeof modelAccessSchema>;
 export const modelListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** URL segment under the owner: /{owner.username}/{slug}. */
+  slug: z.string(),
   description: z.string().nullable(),
   format: modelFormatSchema.nullable(),
   owner: userRefSchema,
@@ -110,6 +129,8 @@ export const versionSummarySchema = z.object({
   createdAt: z.string(),
 });
 export type VersionSummary = z.infer<typeof versionSummarySchema>;
+
+export const modelResolveResponseSchema = z.object({ id: z.string() });
 
 export const modelDetailSchema = modelListItemSchema.extend({
   license: z.string().nullable(),
