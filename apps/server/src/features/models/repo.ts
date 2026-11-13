@@ -27,6 +27,7 @@ export interface ModelRow {
   updated_at: Date;
   slug: string;
   owner_username: string;
+  owner_avatar_key: string | null;
   owner_display_name: string;
   // Columns from the current (or latest) version and its model blob.
   version_status: VersionStatus | null;
@@ -46,7 +47,7 @@ export const MODEL_SELECT = `
   SELECT m.id, m.owner_id, m.name, m.description, m.license, m.visibility, m.public_allow_download,
          m.star_count, m.open_issue_count, (m.readme_md IS NOT NULL AND m.readme_md <> '') AS has_readme,
          m.taken_down_at, m.taken_down_reason, m.current_version_id, m.updated_at,
-         m.slug, o.username AS owner_username, o.display_name AS owner_display_name,
+         m.slug, o.username AS owner_username, o.display_name AS owner_display_name, o.avatar_key AS owner_avatar_key,
          dv.status AS version_status, dv.original_name AS version_original_name,
          b.format AS blob_format,
          b.size_bytes + COALESCE((SELECT SUM(xb.size_bytes) FROM model_files xf JOIN blobs xb ON xb.id = xf.blob_id
@@ -69,7 +70,11 @@ export function toListItem(row: ModelRow, myRole: Role | null): ModelListItem {
     description: row.description,
     format: row.blob_format ?? (fallbackFormat?.ok ? fallbackFormat.format : null),
     slug: row.slug,
-    owner: { username: row.owner_username, displayName: row.owner_display_name },
+    owner: {
+      username: row.owner_username,
+      displayName: row.owner_display_name,
+      avatarKey: row.owner_avatar_key,
+    },
     myRole,
     status: row.version_status,
     sizeBytes: row.blob_size === null ? null : Number(row.blob_size),

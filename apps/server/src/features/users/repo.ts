@@ -10,6 +10,7 @@ export interface UserRow {
   username_changed_at: Date | null;
   display_name: string;
   bio: string | null;
+  avatar_key: string | null;
   role: 'user' | 'admin';
   failed_login_count: number;
   locked_until: Date | null;
@@ -18,7 +19,7 @@ export interface UserRow {
 }
 
 const USER_COLUMNS = `id, email, email_normalized, password_hash, username, username_changed_at,
-  display_name, bio, role, failed_login_count, locked_until, password_changed_at, created_at`;
+  display_name, bio, avatar_key, role, failed_login_count, locked_until, password_changed_at, created_at`;
 
 export function toMe(row: UserRow): Me {
   return {
@@ -27,6 +28,7 @@ export function toMe(row: UserRow): Me {
     username: row.username,
     displayName: row.display_name,
     bio: row.bio,
+    avatarKey: row.avatar_key,
     role: row.role,
     createdAt: row.created_at.toISOString(),
   };

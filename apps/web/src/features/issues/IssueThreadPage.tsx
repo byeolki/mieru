@@ -50,6 +50,7 @@ function CommentBox({
         <Avatar
           username={author.username}
           displayName={author.displayName}
+          avatarKey={author.avatarKey}
           size={34}
           className="mt-1"
         />
@@ -248,7 +249,12 @@ function IssueSidebar({ issue }: { issue: Issue }) {
           {[...participants.values()].map((person) => (
             <li key={person.username}>
               <Link to={`/u/${person.username}`} title={person.displayName}>
-                <Avatar username={person.username} displayName={person.displayName} size={26} />
+                <Avatar
+                  username={person.username}
+                  displayName={person.displayName}
+                  avatarKey={person.avatarKey}
+                  size={26}
+                />
               </Link>
             </li>
           ))}

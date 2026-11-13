@@ -37,7 +37,12 @@ export function FeaturedCard({ item, rank }: { item: ModelListItem; rank: number
         <div className="flex flex-1 flex-col px-1 pt-3.5 pb-1">
           <div className="flex items-center gap-2">
             <span className="tabular text-sm font-semibold text-slate">{rank}</span>
-            <Avatar username={item.owner.username} displayName={item.owner.displayName} size={18} />
+            <Avatar
+              username={item.owner.username}
+              displayName={item.owner.displayName}
+              avatarKey={item.owner.avatarKey}
+              size={18}
+            />
             <span className="min-w-0 truncate font-mono text-sm">
               <span className="text-slate">{item.owner.username}/</span>
               <span className="font-medium group-hover:text-primary">{item.name}</span>

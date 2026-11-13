@@ -133,7 +133,12 @@ export function UserMenu({ align = 'end' }: { align?: 'start' | 'end' }) {
         className="rounded-full focus-visible:outline-offset-2"
         aria-label="계정 메뉴"
       >
-        <Avatar username={user.username} displayName={user.displayName} size={30} />
+        <Avatar
+          username={user.username}
+          displayName={user.displayName}
+          avatarKey={user.avatarKey}
+          size={30}
+        />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content

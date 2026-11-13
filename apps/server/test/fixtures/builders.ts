@@ -497,3 +497,15 @@ export function largeOnnxLayout(payloadBytes: number): { head: Buffer; tail: Buf
   ]);
   return { head, tail: rest };
 }
+
+/** The fixed 33-byte start of a PNG (signature + IHDR) for the given size; enough for header checks. */
+export function pngHeader(width: number, height: number): Buffer {
+  const ihdr = Buffer.alloc(25);
+  ihdr.writeUInt32BE(13, 0);
+  ihdr.write('IHDR', 4, 'ascii');
+  ihdr.writeUInt32BE(width, 8);
+  ihdr.writeUInt32BE(height, 12);
+  ihdr.writeUInt8(8, 16);
+  ihdr.writeUInt8(6, 17);
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), ihdr]);
+}

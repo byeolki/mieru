@@ -34,6 +34,7 @@ interface VersionRow {
   total_params: number | string | null;
   creator_username: string | null;
   creator_display_name: string | null;
+  creator_avatar_key: string | null;
   is_current: number;
 }
 
@@ -44,7 +45,7 @@ export async function listVersions(pool: Pool, modelId: string): Promise<Version
             b.size_bytes + COALESCE((SELECT SUM(xb.size_bytes) FROM model_files xf JOIN blobs xb ON xb.id = xf.blob_id
                                       WHERE xf.version_id = v.id AND xf.kind = 'external_data'), 0) AS size_bytes,
             b.total_params, u.username AS creator_username,
-            u.display_name AS creator_display_name, (m.current_version_id = v.id) AS is_current
+            u.display_name AS creator_display_name, u.avatar_key AS creator_avatar_key, (m.current_version_id = v.id) AS is_current
        FROM model_versions v
        JOIN models m ON m.id = v.model_id
        LEFT JOIN model_files f ON f.version_id = v.id AND f.kind = 'model'
@@ -68,6 +69,7 @@ export async function listVersions(pool: Pool, modelId: string): Promise<Version
       ? {
           username: row.creator_username,
           displayName: row.creator_display_name ?? row.creator_username,
+          avatarKey: row.creator_avatar_key,
         }
       : null,
     isCurrent: row.is_current === 1,

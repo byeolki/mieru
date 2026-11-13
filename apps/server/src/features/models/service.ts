@@ -298,12 +298,14 @@ interface ReadmeRow {
   readme_updated_at: Date | null;
   editor_username: string | null;
   editor_display_name: string | null;
+  editor_avatar_key: string | null;
 }
 
 export async function getReadme(pool: Pool, modelId: string): Promise<ReadmeResponse> {
   const row = await selectOne<ReadmeRow>(
     pool,
-    `SELECT m.readme_md, m.readme_updated_at, u.username AS editor_username, u.display_name AS editor_display_name
+    `SELECT m.readme_md, m.readme_updated_at, u.username AS editor_username, u.display_name AS editor_display_name,
+            u.avatar_key AS editor_avatar_key
        FROM models m LEFT JOIN users u ON u.id = m.readme_updated_by WHERE m.id = ?`,
     [modelId],
   );
@@ -315,6 +317,7 @@ export async function getReadme(pool: Pool, modelId: string): Promise<ReadmeResp
       ? {
           username: row.editor_username,
           displayName: row.editor_display_name ?? row.editor_username,
+          avatarKey: row.editor_avatar_key,
         }
       : null,
   };

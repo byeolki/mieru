@@ -29,6 +29,7 @@ export const profileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   bio: z.string().nullable(),
+  avatarKey: z.string().nullable(),
   createdAt: z.string(),
   publicModelCount: z.number(),
   starsReceived: z.number(),

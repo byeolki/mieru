@@ -16,11 +16,19 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   if (token) headers.authorization = `Bearer ${token}`;
   const linkToken = linkTokenFor(path);
   if (linkToken) headers['x-share-link'] = linkToken;
-  if (options.body !== undefined) headers['content-type'] = 'application/json';
+  // Files (an avatar PNG) go up as raw bytes with their own type; everything else is JSON.
+  let body: BodyInit | undefined;
+  if (options.body instanceof Blob) {
+    headers['content-type'] = options.body.type;
+    body = options.body;
+  } else if (options.body !== undefined) {
+    headers['content-type'] = 'application/json';
+    body = JSON.stringify(options.body);
+  }
   return fetch(path, {
     method: options.method ?? 'GET',
     headers: { ...headers, ...options.headers },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body,
     signal: options.signal,
     credentials: 'same-origin',
   });

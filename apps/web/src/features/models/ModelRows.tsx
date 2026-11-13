@@ -58,7 +58,12 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
       >
         <div className="flex min-w-0 items-center gap-2">
           {showOwner && (
-            <Avatar username={item.owner.username} displayName={item.owner.displayName} size={20} />
+            <Avatar
+              username={item.owner.username}
+              displayName={item.owner.displayName}
+              avatarKey={item.owner.avatarKey}
+              size={20}
+            />
           )}
           <p className="min-w-0 truncate font-mono text-[0.9375rem]">
             {showOwner && <span className="text-slate">{item.owner.username}/</span>}

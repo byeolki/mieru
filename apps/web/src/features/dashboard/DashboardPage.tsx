@@ -145,6 +145,7 @@ function TrendingPicks() {
               <Avatar
                 username={item.owner.username}
                 displayName={item.owner.displayName}
+                avatarKey={item.owner.avatarKey}
                 size={18}
               />
               <span className="truncate font-mono text-sm">

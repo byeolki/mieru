@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Monitor } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { PASSWORD_MIN_LENGTH, type Me } from '@mieru/shared';
+import { Avatar } from '../../components/Avatar.js';
 import { Alert } from '../../design/ui/Alert.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { Button } from '../../design/ui/Button.js';
@@ -20,9 +21,12 @@ import {
   deleteAccountRequest,
   listSessionsRequest,
   logoutAllRequest,
+  removeAvatarRequest,
   revokeSessionRequest,
   updateProfileRequest,
+  uploadAvatarRequest,
 } from './api.js';
+import { toAvatarPng } from './avatar-image.js';
 
 function Panel({
   id,
@@ -64,6 +68,69 @@ const SECTIONS = [
   { id: 'danger', labelKey: 'settings.dangerZone' },
 ] as const;
 
+function AvatarPicker({ user }: { user: Me }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const run = async (action: () => Promise<unknown>) => {
+    setError(null);
+    setIsBusy(true);
+    try {
+      await action();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '사진을 바꾸지 못했어요.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-4">
+      <Avatar
+        username={user.username}
+        displayName={user.displayName}
+        avatarKey={user.avatarKey}
+        size={72}
+      />
+      <div className="grid gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            isLoading={isBusy}
+            onClick={() => inputRef.current?.click()}
+          >
+            사진 바꾸기
+          </Button>
+          {user.avatarKey && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isBusy}
+              onClick={() => void run(removeAvatarRequest)}
+            >
+              기본 이미지로
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-slate">정사각형으로 잘려서 256×256으로 저장돼요.</p>
+        {error && <p className="text-xs text-danger">{error}</p>}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="프로필 사진 파일"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void run(async () => uploadAvatarRequest(await toAvatarPng(file)));
+        }}
+      />
+    </div>
+  );
+}
+
 function ProfileForm({ user }: { user: Me }) {
   const { t } = useTranslation();
   const [username, setUsername] = useState(user.username);
@@ -81,6 +148,7 @@ function ProfileForm({ user }: { user: Me }) {
   });
   return (
     <form className="grid gap-5" onSubmit={(event) => void onSubmit(event)}>
+      <AvatarPicker user={user} />
       {error && <Alert>{error}</Alert>}
       {saved && <Alert tone="success">{t('settings.saved')}</Alert>}
       <div className="grid gap-5 sm:grid-cols-2">

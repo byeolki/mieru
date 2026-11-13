@@ -14,11 +14,12 @@ interface DesignRow {
   updated_at: Date;
   owner_username: string;
   owner_display_name: string;
+  owner_avatar_key: string | null;
 }
 
 const DESIGN_SELECT = `
   SELECT d.id, d.owner_id, d.name, d.spec, d.visibility, d.created_at, d.updated_at,
-         u.username AS owner_username, u.display_name AS owner_display_name
+         u.username AS owner_username, u.display_name AS owner_display_name, u.avatar_key AS owner_avatar_key
     FROM designs d JOIN users u ON u.id = d.owner_id`;
 
 function toDesign(row: DesignRow, viewerId: string | null): Design {
@@ -28,7 +29,11 @@ function toDesign(row: DesignRow, viewerId: string | null): Design {
     // mysql2 parses JSON columns; validating keeps a hand-edited row from reaching the client.
     spec: designSpecSchema.parse(row.spec),
     visibility: row.visibility,
-    owner: { username: row.owner_username, displayName: row.owner_display_name },
+    owner: {
+      username: row.owner_username,
+      displayName: row.owner_display_name,
+      avatarKey: row.owner_avatar_key,
+    },
     canEdit: viewerId === row.owner_id,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

@@ -16,6 +16,7 @@ import { registerDesignRoutes } from './features/designs/routes.js';
 import { registerUploadRoutes } from './features/uploads/tus.js';
 import { registerWeightRoutes } from './features/weights/routes.js';
 import { registerUserRoutes } from './features/users/routes.js';
+import { registerAvatarRoutes } from './features/avatars/routes.js';
 import { JobTracker } from './jobs/tracker.js';
 import { registerHealthRoutes } from './observability/health.js';
 import { registerAuth } from './plugins/auth.js';
@@ -100,6 +101,7 @@ export async function buildApp({
   registerHealthRoutes(app, { config, db, clock, jobs });
   registerAuthRoutes(app, routeDeps);
   registerUserRoutes(app, routeDeps);
+  registerAvatarRoutes(app, routeDeps);
   registerUploadRoutes(app, routeDeps);
   registerModelRoutes(app, { config, db, clock, queue, requireModelAccess });
   registerSharingRoutes(app, { ...routeDeps, requireModelAccess });

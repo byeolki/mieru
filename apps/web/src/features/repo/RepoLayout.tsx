@@ -232,7 +232,12 @@ function RepoActions({
 function OwnerLine({ model }: { model: ModelDetail }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-slate">
-      <Avatar username={model.owner.username} displayName={model.owner.displayName} size={22} />
+      <Avatar
+        username={model.owner.username}
+        displayName={model.owner.displayName}
+        avatarKey={model.owner.avatarKey}
+        size={22}
+      />
       <nav aria-label="경로">
         <Link to={`/u/${model.owner.username}`} className="font-medium hover:text-primary">
           {model.owner.username}

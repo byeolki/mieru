@@ -69,6 +69,7 @@ export function ProfilePage() {
           <Avatar
             username={data.username}
             displayName={data.displayName}
+            avatarKey={data.avatarKey}
             size={176}
             className="ring-1 ring-fog"
           />

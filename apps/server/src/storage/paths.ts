@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-export const STORAGE_AREAS = ['uploads', 'blobs', 'parsed'] as const;
+export const STORAGE_AREAS = ['uploads', 'blobs', 'parsed', 'avatars'] as const;
 export type StorageArea = (typeof STORAGE_AREAS)[number];
 
 const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

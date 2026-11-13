@@ -24,6 +24,7 @@ export const meSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   bio: z.string().nullable(),
+  avatarKey: z.string().nullable(),
   role: z.enum(['user', 'admin']),
   createdAt: z.string(),
 });

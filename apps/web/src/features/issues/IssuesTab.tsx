@@ -121,6 +121,7 @@ export function IssuesTab() {
                         <Avatar
                           username={issue.author.username}
                           displayName={issue.author.displayName}
+                          avatarKey={issue.author.avatarKey}
                           size={16}
                         />
                         {issue.author.displayName}

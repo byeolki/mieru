@@ -202,4 +202,7 @@ export async function deleteAccount(
   await Promise.all(
     uploadIds.map((id) => rm(pathFor(deps.storageDir, 'uploads', id), { force: true })),
   );
+  if (user.avatar_key) {
+    await rm(pathFor(deps.storageDir, 'avatars', user.avatar_key), { force: true });
+  }
 }

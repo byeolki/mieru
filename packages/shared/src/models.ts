@@ -53,6 +53,8 @@ const readmeSchema = z
 export const userRefSchema = z.object({
   username: z.string(),
   displayName: z.string(),
+  /** Uploaded profile photo, served at /api/avatars/{key}; null shows the generated avatar. */
+  avatarKey: z.string().nullable().default(null),
 });
 export type UserRef = z.infer<typeof userRefSchema>;
 

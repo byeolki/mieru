@@ -124,12 +124,13 @@ export function registerExploreRoutes(
         username: string;
         display_name: string;
         bio: string | null;
+        avatar_key: string | null;
         created_at: Date;
         public_models: number;
         stars_received: string | number | null;
       }>(
         db,
-        `SELECT u.id, u.username, u.display_name, u.bio, u.created_at,
+        `SELECT u.id, u.username, u.display_name, u.bio, u.avatar_key, u.created_at,
                 (SELECT COUNT(*) FROM models m WHERE m.owner_id = u.id AND ${PUBLIC}) AS public_models,
                 (SELECT SUM(m.star_count) FROM models m WHERE m.owner_id = u.id AND ${PUBLIC}) AS stars_received
            FROM users u WHERE u.username = ?`,
@@ -140,6 +141,7 @@ export function registerExploreRoutes(
         username: row.username,
         displayName: row.display_name,
         bio: row.bio,
+        avatarKey: row.avatar_key,
         createdAt: row.created_at.toISOString(),
         publicModelCount: row.public_models,
         starsReceived: Number(row.stars_received ?? 0),

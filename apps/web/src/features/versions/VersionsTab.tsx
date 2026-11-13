@@ -292,6 +292,7 @@ export function VersionsTab() {
                 <Avatar
                   username={version.createdBy.username}
                   displayName={version.createdBy.displayName}
+                  avatarKey={version.createdBy.avatarKey}
                   size={20}
                 />
               )}

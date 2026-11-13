@@ -30,6 +30,7 @@ interface IssueRow {
   author_id: string | null;
   author_username: string | null;
   author_display_name: string | null;
+  author_avatar_key: string | null;
   closer_username: string | null;
   closer_display_name: string | null;
   reply_count: number;
@@ -40,15 +41,18 @@ interface IssueRow {
 
 const ISSUE_SELECT = `
   SELECT i.id, i.model_id, i.number, i.kind, i.title, i.body_md, i.node_ref, i.state, i.closed_at,
-         i.locked_at, i.author_id, a.username AS author_username, a.display_name AS author_display_name,
+         i.locked_at, i.author_id, a.username AS author_username, a.display_name AS author_display_name, a.avatar_key AS author_avatar_key,
          c.username AS closer_username, c.display_name AS closer_display_name,
          i.reply_count, i.last_activity_at, i.deleted_at, i.created_at
     FROM issues i
     LEFT JOIN users a ON a.id = i.author_id
     LEFT JOIN users c ON c.id = i.closed_by`;
 
-const userRef = (username: string | null, displayName: string | null) =>
-  username ? { username, displayName: displayName ?? username } : null;
+const userRef = (
+  username: string | null,
+  displayName: string | null,
+  avatarKey: string | null = null,
+) => (username ? { username, displayName: displayName ?? username, avatarKey } : null);
 
 function toListItem(row: IssueRow): IssueListItem {
   return {
@@ -56,7 +60,7 @@ function toListItem(row: IssueRow): IssueListItem {
     kind: row.kind,
     title: row.deleted_at ? '삭제된 이슈' : row.title,
     state: row.state,
-    author: userRef(row.author_username, row.author_display_name),
+    author: userRef(row.author_username, row.author_display_name, row.author_avatar_key),
     nodeRef: row.node_ref,
     replyCount: row.reply_count,
     locked: row.locked_at !== null,
@@ -192,6 +196,7 @@ interface ReplyRow {
   author_id: string | null;
   author_username: string | null;
   author_display_name: string | null;
+  author_avatar_key: string | null;
   body_md: string;
   deleted_at: Date | null;
   created_at: Date;
@@ -209,7 +214,7 @@ export async function getIssue(
   const row = await findIssue(pool, modelId, number);
   const replies = await selectRows<ReplyRow>(
     pool,
-    `SELECT r.id, r.author_id, u.username AS author_username, u.display_name AS author_display_name,
+    `SELECT r.id, r.author_id, u.username AS author_username, u.display_name AS author_display_name, u.avatar_key AS author_avatar_key,
             r.body_md, r.deleted_at, r.created_at, r.updated_at
        FROM issue_replies r LEFT JOIN users u ON u.id = r.author_id
       WHERE r.issue_id = ? ORDER BY r.created_at, r.id LIMIT ?`,
@@ -236,7 +241,7 @@ export async function getIssue(
     canReply: userId !== null && row.deleted_at === null && (row.locked_at === null || isModerator),
     replies: replies.map((reply): Reply => ({
       id: reply.id,
-      author: userRef(reply.author_username, reply.author_display_name),
+      author: userRef(reply.author_username, reply.author_display_name, reply.author_avatar_key),
       body: reply.deleted_at ? '' : reply.body_md,
       deleted: reply.deleted_at !== null,
       createdAt: reply.created_at.toISOString(),
@@ -459,7 +464,7 @@ export async function activityFeed(
   const rows = await selectRows<ActivityRow>(
     pool,
     `SELECT i.id, i.model_id, i.number, i.kind, i.title, i.body_md, i.node_ref, i.state, i.closed_at,
-            i.locked_at, i.author_id, a.username AS author_username, a.display_name AS author_display_name,
+            i.locked_at, i.author_id, a.username AS author_username, a.display_name AS author_display_name, a.avatar_key AS author_avatar_key,
             NULL AS closer_username, NULL AS closer_display_name,
             i.reply_count, i.last_activity_at, i.deleted_at, i.created_at,
             m.name AS model_name, m.slug AS model_slug, o.username AS owner_username, rd.last_read_at,
