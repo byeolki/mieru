@@ -196,6 +196,28 @@ Requested in chat: production holds seeded demo content so the site looks lived 
 - **Credentials:** emails use the reserved `seed.mieru.invalid` domain. Accounts and generated passwords are only on freeride, in `/data/projects/mieru/seed/accounts.json` (mode 600).
 - **Removal:** run `seed-remove.mjs`, which sits next to `accounts.json`, in a `node:22-alpine` container on the `mieru_internal` network, with `BASE=http://mieru-app-1:3000` and `ORIGIN` set to the public origin. Deleting the accounts deletes their models, stars and issues.
 
+## Readable URLs, overview and profile photos (2026-11-13)
+
+**Readable URLs**
+- Repositories live at `/{username}/{slug}`. Migration 004 backfills `models.slug`; the slug follows the name and is unique per owner.
+- `/m/{id}` redirects to the readable path. `GET /api/models/resolve` answers 404 to anyone who can't see the repository.
+- New reserved usernames: `designs`, `stars`, `activity`, `og`, `brand`, `assets`.
+- The production database was dumped before migration 004 to `/data/projects/mieru/backups/predeploy-004-*.sql.gz`.
+
+**Overview**
+- Under the README: "구조 한눈에" (top-level blocks with their parameters) and an input/output table. The sidebar keeps only facts, precision and the op mix.
+
+**Profile photos**
+- Settings crops a picked image to a 256×256 PNG in the browser.
+- The server accepts PNG only (512 KB, 1024 px) under a fresh key per upload, served with immutable caching.
+- `avatarKey` is on user references; deleting an account deletes its photo.
+
+**Other**
+- The sign-up password notice was removed.
+
+**Tests**
+- Unit 250, integration 135 and e2e 22 pass (headless).
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
