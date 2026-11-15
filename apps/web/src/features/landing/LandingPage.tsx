@@ -175,7 +175,7 @@ function LiveTrending() {
           모두 보기
         </Link>
       </div>
-      <ol className="grid gap-4 md:grid-cols-3">
+      <ol className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-3">
         {items.length === 0
           ? PLACEHOLDER_MODELS.map((model) => (
               <li key={model.name} className={CARD_CLASSES}>
