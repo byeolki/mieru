@@ -122,7 +122,7 @@ export function ModelRow({ item, showOwner = true }: { item: ModelListItem; show
 
 export function ModelRows({ items, showOwner }: { items: ModelListItem[]; showOwner?: boolean }) {
   return (
-    <ul className="grid gap-2.5">
+    <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5">
       {items.map((item) => (
         <ModelRow key={item.id} item={item} showOwner={showOwner} />
       ))}

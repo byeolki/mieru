@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { createRepositoryViaUi, signUpViaApi } from './helpers.js';
 
+// Loading the WASM runtime can take a while when the whole suite runs in parallel.
+test.describe.configure({ timeout: 60_000 });
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await signUpViaApi(page);

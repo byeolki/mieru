@@ -352,7 +352,9 @@ export function LandingPage() {
       <main>
         <Hero />
         <div className="rounded-t-(--radius-sheet) bg-surface md:mx-4">
-          <div className={`${CONTAINER} grid gap-24 pt-16 pb-10 md:pt-20`}>
+          <div
+            className={`${CONTAINER} grid grid-cols-[minmax(0,1fr)] gap-24 pt-16 pb-10 md:pt-20`}
+          >
             <LiveTrending />
             <Features />
             <section className="flex flex-col items-center pt-8 text-center">

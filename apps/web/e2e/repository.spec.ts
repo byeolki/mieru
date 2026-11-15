@@ -49,3 +49,17 @@ test('the dashboard lists my repositories', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page.getByRole('link', { name: /tiny-mlp/ })).toBeVisible();
 });
+
+test('old /m/{id} links keep their tab when they move to the readable address', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await signUpViaApi(page);
+  const repoUrl = await createRepositoryViaUi(page, 'tiny-cnn.onnx', { visibility: '공개' });
+  const [, owner = '', slug = ''] = new URL(repoUrl).pathname.split('/');
+  const resolved = await page.request.get(`/api/models/resolve?owner=${owner}&slug=${slug}`);
+  const { id } = (await resolved.json()) as { id: string };
+
+  await page.goto(`/m/${id}/graph?node=x`);
+  await expect(page).toHaveURL(`${repoUrl}/graph?node=x`);
+});

@@ -5,7 +5,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { LandingPage } from './features/landing/LandingPage.js';
 import { NotFoundPage, RouteErrorPage } from './features/NotFoundPage.js';
 import { OverviewTab } from './features/repo/OverviewTab.js';
-import { LegacyRepoRedirect } from './features/repo/LegacyRepoRedirect.js';
+import { LEGACY_REPO_PATHS, LegacyRepoRedirect } from './features/repo/LegacyRepoRedirect.js';
 import { RepoLayout } from './features/repo/RepoLayout.js';
 import { IssuesTab } from './features/issues/IssuesTab.js';
 import { IssueThreadPage } from './features/issues/IssueThreadPage.js';
@@ -75,8 +75,10 @@ export const router = createBrowserRouter([
           };
         },
       },
-      // Old id-based links (shared before readable URLs) land on the readable one.
-      { path: '/m/:modelId/*', element: <LegacyRepoRedirect /> },
+      // Old id-based links (shared before readable URLs) land on the readable one. Each tab is
+      // listed explicitly: a `/m/:modelId/*` splat would rank below `/:username/:slug/graph`
+      // and `/m/{id}/graph` would be read as user "m".
+      ...LEGACY_REPO_PATHS.map((path) => ({ path, element: <LegacyRepoRedirect /> })),
       {
         path: '/:username/:slug',
         element: <RepoLayout />,
