@@ -124,6 +124,12 @@ export const router = createBrowserRouter([
           { path: 'issues/new', element: <NewIssuePage /> },
           { path: 'issues/:number', element: <IssueThreadPage /> },
           {
+            path: 'settings',
+            lazy: async () => ({
+              Component: (await import('./features/repo/RepoSettingsPage.js')).RepoSettingsPage,
+            }),
+          },
+          {
             path: 'readme/edit',
             lazy: async () => ({
               Component: (await import('./features/repo/ReadmeEditPage.js')).ReadmeEditPage,

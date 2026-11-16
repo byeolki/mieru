@@ -16,12 +16,18 @@ import {
   Lock,
   Network,
   Play,
+  Settings,
   Share2,
   Users,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useMatch, useOutletContext, useParams } from 'react-router';
-import type { ModelDetail, StripSegment, Visibility } from '@mieru/shared';
+import {
+  hasRoleAtLeast,
+  type ModelDetail,
+  type StripSegment,
+  type Visibility,
+} from '@mieru/shared';
 import { AppFrame } from '../../components/AppFrame.js';
 import { OrbitRing } from '../../components/OrbitRing.js';
 import { Avatar } from '../../components/Avatar.js';
@@ -166,6 +172,11 @@ function RepoTabs({ model }: { model: ModelDetail }) {
         <CircleDot className="size-4" aria-hidden="true" /> 이슈
         {model.openIssueCount > 0 && count(model.openIssueCount)}
       </NavLink>
+      {hasRoleAtLeast(model.myAccess.role, 'editor') && (
+        <NavLink to={`${modelPath(model)}/settings`} className={TAB_CLASS}>
+          <Settings className="size-4" aria-hidden="true" /> 설정
+        </NavLink>
+      )}
     </nav>
   );
 }

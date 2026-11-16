@@ -230,6 +230,21 @@ Requested in chat: more demo data, made the same way as the first seed.
 - **Backup:** the production database was dumped before the seed to `/data/projects/mieru/backups/preseed2-*.sql.gz`.
 - **Removal:** run `seed-remove.mjs` in `/data/projects/mieru/seed2` (accounts in `accounts2.json`), the same way as for the first seed.
 
+## Repository settings and delete (2026-11-16)
+
+Requested in chat: delete repositories from the web, and check that repositories, issues and replies have full CRUD in the web.
+
+- **Settings tab:** `/{username}/{slug}/settings`, shown to owners and editors. It edits the name, description and license. A new name moves the address and the page follows it.
+- **Delete:** a danger section only the owner sees. The confirm button stays disabled until the repository name is typed. After deleting, the app opens `/dashboard`, drops the repository's cached pages and refreshes the lists, the explore sections, stars and activity. It uses the existing `DELETE /api/models/:id`; the server was not changed.
+- **CRUD check:**
+  - Before this change the web could create, read, edit the README and change visibility, but not edit the name, description or license, and not delete.
+  - Issues and replies already had create, read, edit and delete in the web, plus close and lock.
+- **Shared pieces:**
+  - The license list moved to `models/labels.ts`.
+  - The settings section layout moved to `design/ui/SettingsPanel.tsx`.
+  - `ConfirmDialog` takes an optional input and `isConfirmDisabled`.
+- **Tests:** `e2e/repo-settings.spec.ts` covers rename, delete after typing the name, and no settings for a signed-in visitor. `npm run lint` (1 existing warning), `npm run typecheck`, `prettier --check .`, unit 250, integration 135 and e2e 26 all pass locally. Not deployed.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after
