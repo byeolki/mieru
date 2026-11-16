@@ -7,6 +7,18 @@ export const VISIBILITY_LABELS: Record<Visibility, string> = {
   public: '공개',
 };
 
+/** License choices offered when creating or editing a repository; values are SPDX-style ids. */
+export const LICENSE_OPTIONS = [
+  ['', '선택 안 함'],
+  ['apache-2.0', 'Apache 2.0'],
+  ['mit', 'MIT'],
+  ['bsd-3-clause', 'BSD 3-Clause'],
+  ['cc-by-4.0', 'CC BY 4.0'],
+  ['cc-by-nc-4.0', 'CC BY-NC 4.0'],
+  ['openrail', 'OpenRAIL'],
+  ['other', '기타'],
+] as const;
+
 export const FORMAT_LABELS = { onnx: 'ONNX', safetensors: 'safetensors' } as const;
 
 /** User-facing reasons for a failed upload, keyed by the server's stable parse codes. */

@@ -15,22 +15,12 @@ import { TextField, inputClasses } from '../../design/ui/TextField.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { formatBytes } from '../../lib/format.js';
 import { createModel } from '../models/api.js';
+import { LICENSE_OPTIONS } from '../models/labels.js';
 import { AppShell, PageHeader } from '../shell/AppShell.js';
 import { FILE_SPLIT_ERRORS, splitModelFiles } from './model-files.js';
 import { useModelUpload, type UploadState } from './useModelUpload.js';
 import { useTranslation } from 'react-i18next';
 import { modelPath } from '../../lib/model-path.js';
-
-const LICENSES = [
-  ['', '선택 안 함'],
-  ['apache-2.0', 'Apache 2.0'],
-  ['mit', 'MIT'],
-  ['bsd-3-clause', 'BSD 3-Clause'],
-  ['cc-by-4.0', 'CC BY 4.0'],
-  ['cc-by-nc-4.0', 'CC BY-NC 4.0'],
-  ['openrail', 'OpenRAIL'],
-  ['other', '기타'],
-] as const;
 
 const VISIBILITY_OPTIONS: { value: Visibility; title: string; body: string; icon: ReactNode }[] = [
   {
@@ -341,7 +331,7 @@ export function NewModelPage() {
                 value={license}
                 onChange={(event) => setLicense(event.target.value)}
               >
-                {LICENSES.map(([value, label]) => (
+                {LICENSE_OPTIONS.map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>

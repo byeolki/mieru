@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Monitor } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { PASSWORD_MIN_LENGTH, type Me } from '@mieru/shared';
@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../../design/ui/ConfirmDialog.js';
 import { ErrorState } from '../../design/ui/ErrorState.js';
 import { Loading } from '../../design/ui/Loading.js';
 import { AppShell } from '../shell/AppShell.js';
+import { SettingsPanel } from '../../design/ui/SettingsPanel.js';
 import {
   changeEmailRequest,
   changePasswordRequest,
@@ -27,39 +28,6 @@ import {
   uploadAvatarRequest,
 } from './api.js';
 import { toAvatarPng } from './avatar-image.js';
-
-function Panel({
-  id,
-  title,
-  description,
-  children,
-  tone = 'default',
-}: {
-  id: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-  tone?: 'default' | 'danger';
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-title`}
-      className="grid scroll-mt-24 gap-6 border-b border-fog py-10 first:pt-0 last:border-b-0 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-10"
-    >
-      <div>
-        <h2
-          id={`${id}-title`}
-          className={tone === 'danger' ? 'font-semibold text-danger' : 'font-semibold'}
-        >
-          {title}
-        </h2>
-        <p className="mt-1.5 text-sm leading-6 text-slate">{description}</p>
-      </div>
-      <div className="min-w-0">{children}</div>
-    </section>
-  );
-}
 
 const SECTIONS = [
   { id: 'profile', labelKey: 'settings.profile' },
@@ -445,14 +413,14 @@ export function SettingsPage() {
           </nav>
         </div>
         <div className="max-w-4xl">
-          <Panel
+          <SettingsPanel
             id="profile"
             title={t('settings.profile')}
             description="다른 사람에게 보이는 이름과 소개예요. 사용자 이름은 프로필 주소가 돼요."
           >
             <ProfileForm user={user} />
-          </Panel>
-          <Panel
+          </SettingsPanel>
+          <SettingsPanel
             id="security"
             title={t('settings.security')}
             description="비밀번호를 바꾸면 다른 기기의 로그인은 모두 풀려요."
@@ -463,22 +431,22 @@ export function SettingsPage() {
                 <EmailForm user={user} />
               </div>
             </div>
-          </Panel>
-          <Panel
+          </SettingsPanel>
+          <SettingsPanel
             id="sessions"
             title={t('settings.sessions')}
             description="지금 로그인돼 있는 기기예요. 모르는 기기가 있으면 로그아웃시키세요."
           >
             <SessionsList />
-          </Panel>
-          <Panel
+          </SettingsPanel>
+          <SettingsPanel
             id="danger"
             title={t('settings.dangerZone')}
             description="계정과 올린 모델이 모두 지워지고 되돌릴 수 없어요."
             tone="danger"
           >
             <DeleteAccount user={user} />
-          </Panel>
+          </SettingsPanel>
         </div>
       </div>
     </AppShell>
