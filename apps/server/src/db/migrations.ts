@@ -6,6 +6,8 @@ import mysql, { type Connection, type RowDataPacket } from 'mysql2/promise';
 const MIGRATION_FILE = /^(\d{3})_([a-z0-9_]+)\.sql$/;
 const LOCK_NAME = 'mieru_migrate';
 const LOCK_TIMEOUT_SECONDS = 120;
+/** Unquoted MySQL identifier characters; anything else is refused rather than escaped. */
+const DATABASE_NAME = /^[A-Za-z0-9_$]{1,64}$/;
 
 export interface MigrationFile {
   version: number;
@@ -58,7 +60,37 @@ async function ensureMigrationsTable(connection: Connection): Promise<void> {
 }
 
 /**
- * Applies pending migrations in order. Holds a MySQL advisory lock so two containers
+ * Splits a `mysql://` URL into the database it names and a URL for the server itself.
+ * @throws {Error} when the URL names no database or one that is not a plain identifier.
+ */
+export function splitDatabaseUrl(databaseUrl: string): { serverUrl: string; databaseName: string } {
+  const url = new URL(databaseUrl);
+  const databaseName = decodeURIComponent(url.pathname.slice(1));
+  if (!DATABASE_NAME.test(databaseName)) {
+    throw new Error(`DATABASE_URL must name a database made of letters, digits, _ or $`);
+  }
+  url.pathname = '/';
+  return { serverUrl: url.toString(), databaseName };
+}
+
+/**
+ * Creates the database named in the URL if it is missing, with the same character set the
+ * production server uses. The account needs the CREATE privilege on that database.
+ */
+async function ensureDatabase(databaseUrl: string): Promise<void> {
+  const { serverUrl, databaseName } = splitDatabaseUrl(databaseUrl);
+  const connection = await mysql.createConnection({ uri: serverUrl });
+  try {
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${databaseName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
+    );
+  } finally {
+    await connection.end();
+  }
+}
+
+/**
+ * Creates the database if needed, then applies pending migrations in order. Holds a MySQL advisory lock so two containers
  * starting during a rolling deploy never migrate at the same time.
  * @throws {Error} when an applied file's checksum changed (migrations are forward-only).
  */
@@ -68,6 +100,7 @@ export async function runMigrations(
   log: (message: string) => void = () => undefined,
 ): Promise<MigrationResult> {
   const files = await readMigrationFiles(directory);
+  await ensureDatabase(databaseUrl);
   // A dedicated connection: migration files contain several statements, the app pool forbids that.
   const connection = await mysql.createConnection({
     uri: databaseUrl,

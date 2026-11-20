@@ -245,6 +245,15 @@ Requested in chat: delete repositories from the web, and check that repositories
   - `ConfirmDialog` takes an optional input and `isConfirmDisabled`.
 - **Tests:** `e2e/repo-settings.spec.ts` covers rename, delete after typing the name, and no settings for a signed-in visitor. `npm run lint` (1 existing warning), `npm run typecheck`, `prettier --check .`, unit 250, integration 135 and e2e 26 all pass locally. Not deployed.
 
+## Database creation in the migration runner (2026-11-20)
+
+Requested in chat: create the database from code instead of by hand.
+
+- `runMigrations` now runs `CREATE DATABASE IF NOT EXISTS` with utf8mb4 / utf8mb4_0900_ai_ci before it applies migrations, so `npm run db:migrate` and the container start work from an empty server. The account needs the CREATE privilege on that database; the production `mieru` account has it through `ALL ON mieru.*`.
+- `splitDatabaseUrl` refuses database names that are not plain identifiers instead of escaping them.
+- The integration test setup now only drops the test database and lets the runner create it again, so every integration run exercises this path.
+- **Tests:** unit 255 (new `migrations.test.ts`), integration 135, lint and typecheck clean. A migrate run against a database that did not exist created it with all 22 tables; the probe database was dropped afterwards.
+
 ## Needs manual check
 
 - **First admin:** `docker exec mieru-app-1 node dist/scripts/admin.js grant <username>` after

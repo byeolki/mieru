@@ -1,15 +1,17 @@
 import mysql from 'mysql2/promise';
-import { runMigrations } from '../src/db/migrations.js';
+import { runMigrations, splitDatabaseUrl } from '../src/db/migrations.js';
 import { MIGRATIONS_DIR, testDatabaseUrl } from './env.js';
 
-/** Recreates the test schema from scratch and applies every migration once per run. */
+/**
+ * Drops the test schema, then lets the migration runner create it again and apply every
+ * migration, once per run.
+ */
 export default async function setup(): Promise<void> {
   const url = testDatabaseUrl();
-  const databaseName = new URL(url).pathname.slice(1);
-  const connection = await mysql.createConnection({ uri: url });
+  const { serverUrl, databaseName } = splitDatabaseUrl(url);
+  const connection = await mysql.createConnection({ uri: serverUrl });
   try {
     await connection.query(`DROP DATABASE IF EXISTS \`${databaseName}\``);
-    await connection.query(`CREATE DATABASE \`${databaseName}\``);
   } finally {
     await connection.end();
   }
