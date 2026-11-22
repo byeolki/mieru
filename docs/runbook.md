@@ -22,14 +22,14 @@ Commands run on freeride unless noted. The stack is the `mieru` compose project
 2. Database:
    ```sh
    gunzip -c /data/backups/mieru/db/mieru-<stamp>.sql.gz \
-     | docker exec -i $DB sh -c 'exec mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'
+     | docker exec -i $DB sh -c 'exec mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" mieru_20409'
    ```
 3. Blobs: `cp -an /data/backups/mieru/blobs/. /data/projects/mieru/storage/blobs/`. The mirror
    keeps deleted blobs, so any retained dump finds its files.
 4. Start the app: `docker start $APP`. Parsed sidecars are regenerated on demand when missing.
 
 **Restore drill** (do once after the first backup, and after schema changes): restore into a
-scratch database (`CREATE DATABASE mieru_drill`) instead of `mieru`, then check row counts
+scratch database (`CREATE DATABASE mieru_drill`) instead of `mieru_20409`, then check row counts
 against production with `SELECT COUNT(*) FROM models` and `FROM users`.
 
 ## Backup mirror growth

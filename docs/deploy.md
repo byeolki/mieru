@@ -51,7 +51,10 @@ ssh ssh.byeolki.me 'cd /data/projects/mieru/src/deploy && docker compose --env-f
 ssh ssh.byeolki.me 'docker image prune -f --filter label=com.docker.compose.project=mieru'
 ```
 
-The app runs migrations at start, then the server. Rate limiting is always on in production.
+The app runs migrations at start, then the server. The migration runner creates the
+`mieru_20409` database itself; the MySQL image does not (`MYSQL_DATABASE` is unset). On the first
+start of an empty volume, `deploy/db-init/01-app-grants.sh` grants the `mieru` account rights on
+that database so the runner can create it. Rate limiting is always on in production.
 
 ## Cloudflare
 
