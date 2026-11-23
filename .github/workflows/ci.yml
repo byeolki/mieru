@@ -29,6 +29,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The server and web resolve @mieru/shared types from its dist/, which a fresh checkout lacks.
+      - run: npm run build -w @mieru/shared
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
