@@ -50,7 +50,7 @@ mieru는 신경망 모델 저장소예요. 모델 파일을 올리면 구조가 
 | 운영      | `reports`, `audit_events`                                                             |
 | 설계      | `designs`                                                                             |
 
-DB 자체(`CREATE DATABASE`)도 마이그레이션 실행기가 만들어요(`apps/server/src/db/migrations.ts`). 마이그레이션은 4개예요.
+DB 자체(`CREATE DATABASE`)도 마이그레이션 실행기가 만들어요(`apps/server/src/db/migrations.ts`). 시연용 배포라서 실행기는 `mieru_20409`만 이름으로 만들고, 개발·테스트 DB는 미리 있어야 해요. 마이그레이션은 4개예요.
 
 1. `001_init.sql`: 기본 테이블 19개
 2. `002_designs.sql`: 설계 모드
@@ -82,7 +82,7 @@ scripts/setup-dev-mysql.sh
 scripts/dev-mysql.sh
 
 npm run build -w @mieru/shared
-npm run db:migrate -w @mieru/server   # DB가 없으면 만들고 테이블까지 생성
+npm run db:migrate -w @mieru/server   # 테이블 생성(DATABASE_URL의 DB는 미리 만들어 두세요)
 npm run dev -w @mieru/server   # API: http://localhost:3000
 npm run dev -w @mieru/web      # 웹: http://localhost:5173
 ```

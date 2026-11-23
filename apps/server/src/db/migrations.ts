@@ -74,15 +74,16 @@ export function splitDatabaseUrl(databaseUrl: string): { serverUrl: string; data
 }
 
 /**
- * Creates the database named in the URL if it is missing, with the same character set the
- * production server uses. The account needs the CREATE privilege on that database.
+ * Creates the showcase database if it is missing, with the same character set the production
+ * server uses. The account needs the CREATE privilege on that database.
  */
 async function ensureDatabase(databaseUrl: string): Promise<void> {
-  const { serverUrl, databaseName } = splitDatabaseUrl(databaseUrl);
+  const { serverUrl } = splitDatabaseUrl(databaseUrl);
   const connection = await mysql.createConnection({ uri: serverUrl });
   try {
+    // Hardcoded for the showcase deployment, whatever DATABASE_URL names; dev and test databases must already exist.
     await connection.query(
-      `CREATE DATABASE IF NOT EXISTS \`${databaseName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
+      'CREATE DATABASE IF NOT EXISTS mieru_20409 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci',
     );
   } finally {
     await connection.end();
@@ -90,7 +91,7 @@ async function ensureDatabase(databaseUrl: string): Promise<void> {
 }
 
 /**
- * Creates the database if needed, then applies pending migrations in order. Holds a MySQL advisory lock so two containers
+ * Creates the showcase database if needed, then applies pending migrations in order. Holds a MySQL advisory lock so two containers
  * starting during a rolling deploy never migrate at the same time.
  * @throws {Error} when an applied file's checksum changed (migrations are forward-only).
  */
